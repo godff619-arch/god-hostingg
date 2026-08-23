@@ -21,6 +21,19 @@ export default defineConfig(({ mode }) => {
       port,
       strictPort: true,
       host: "127.0.0.1",
+      // Dev-only: allow the panel to be reached through a public tunnel /
+      // sandbox host (Cloudflare quick tunnel, CodeSandbox). Vite 5+ otherwise
+      // returns 403 "Blocked request" for any Host header it doesn't recognise.
+      // Extra hosts can be added via VITE_ALLOWED_HOSTS=a.com,b.com (comma-sep).
+      allowedHosts: [
+        ".trycloudflare.com",
+        ".csb.app",
+        ".ngrok-free.app",
+        ".ngrok.io",
+        ...(env.VITE_ALLOWED_HOSTS
+          ? env.VITE_ALLOWED_HOSTS.split(",").map((h) => h.trim()).filter(Boolean)
+          : []),
+      ],
       proxy: {
         "/api": {
           target: "http://127.0.0.1:8000",
