@@ -31,6 +31,13 @@ function nonInteractiveGit(baseDir?: string): SimpleGit {
       allowUnsafeCredentialHelper: true,
       allowUnsafeAskPass: true,
       allowUnsafeEditor: true,
+      // Some hosts (e.g. CodeSandbox) export PAGER/GIT_PAGER in the environment.
+      // simple-git refuses to run with those inherited unless this is set, which
+      // would otherwise abort every clone/fetch with a GitPluginError. Paging is
+      // irrelevant to the non-interactive clone/fetch/reset calls we make, and
+      // the only user-supplied value here is the repo URL (never the pager), so
+      // permitting it is safe.
+      allowUnsafePager: true,
     },
     timeout: { block: 300_000 },
   }).env({
