@@ -1,10 +1,11 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { spawn } from 'child_process';
+import { spawn, spawnSync } from 'child_process';
 import type { ResolvedBuildService } from './buildResolver.js';
+import { ensureRailpack, RAILPACK_VERSION } from './railpackBin.js';
+import { dockerBin } from '../lib/dockerBin.js';
 
-const RAILPACK_VERSION = '0.33.0';
 const RAILPACK_FRONTEND = `ghcr.io/railwayapp/railpack-frontend:v${RAILPACK_VERSION}`;
 const PROTECTED_BUILD_ENV = /^(?:PATH|HOME|PORT|NODE_OPTIONS|LD_PRELOAD|LD_LIBRARY_PATH|DOCKER_.+|BUILDKIT_.+)$/i;
 
@@ -61,6 +62,25 @@ function run(
   });
 }
 
+/**
+ * Railpack plans are handed to BuildKit through `docker buildx build`, so a missing
+ * buildx plugin breaks every Railpack deployment while Dockerfile builds keep
+ * working. Fail with that sentence instead of a bare "unknown command" from docker.
+ */
+function assertBuildx(): void {
+  const r = spawnSync(dockerBin(), ['buildx', 'version'], {
+    stdio: 'ignore',
+    shell: false,
+    timeout: 20_000,
+  });
+  if (r.error || r.status !== 0) {
+    throw new Error(
+      'Railpack builds need the Docker Buildx plugin, which is not available on this host. ' +
+        'Install it (e.g. the docker-buildx-plugin package) or add a Dockerfile to the repository.',
+    );
+  }
+}
+
 export async function buildServiceImage(opts: {
   projectPath: string;
   statePath: string;
@@ -91,6 +111,7 @@ export async function buildServiceImage(opts: {
     const buildArgs = envVars.filter((item) => item.is_build_arg && !item.is_secret);
     const secrets = envVars.filter((item) => item.is_build_arg && item.is_secret);
     // Prefer BuildKit so --secret works when secrets are configured
+    if (secrets.length) assertBuildx();
     const args = secrets.length
       ? ['buildx', 'build', '--load', '--progress', 'plain', '-t', imageTag, '-f', dockerfile]
       : ['build', '--progress', 'plain', '-t', imageTag, '-f', dockerfile];
@@ -109,7 +130,7 @@ export async function buildServiceImage(opts: {
           ...Object.fromEntries(secrets.map((item) => [item.key, item.value])),
         }
       : process.env;
-    await run('docker', args, { cwd: context, env: buildEnv, onProcess }, writeLog);
+    await run(dockerBin(), args, { cwd: context, env: buildEnv, onProcess }, writeLog);
     return;
   }
 
@@ -135,7 +156,9 @@ export async function buildServiceImage(opts: {
   }
 
   writeLog(`🛤️  No Dockerfile found → analyzing ${service.contextPath} with Railpack\n`);
-  await run('railpack', prepareArgs, { cwd: context, onProcess }, writeLog);
+  assertBuildx();
+  const railpack = await ensureRailpack(writeLog);
+  await run(railpack, prepareArgs, { cwd: context, onProcess }, writeLog);
 
   const buildArgs = [
     'buildx',
@@ -176,5 +199,5 @@ export async function buildServiceImage(opts: {
     ...Object.fromEntries(buildVars.map((item) => [item.key, item.value])),
   };
   writeLog(`📦 Railpack plan ready; building ${imageTag}\n`);
-  await run('docker', buildArgs, { cwd: context, env: buildEnv, onProcess }, writeLog);
+  await run(dockerBin(), buildArgs, { cwd: context, env: buildEnv, onProcess }, writeLog);
 }
