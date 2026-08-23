@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import { spawn } from 'child_process';
 import type { ResolvedBuildService } from './buildResolver.js';
 import { ensureRailpack, RAILPACK_VERSION } from './railpackBin.js';
-import { ensureBuildx } from './buildxBin.js';
+import { ensureBuildx, ensureRailpackBuilder } from './buildxBin.js';
 import { dockerBin } from '../lib/dockerBin.js';
 
 const RAILPACK_FRONTEND = `ghcr.io/railwayapp/railpack-frontend:v${RAILPACK_VERSION}`;
@@ -140,12 +140,14 @@ export async function buildServiceImage(opts: {
 
   writeLog(`🛤️  No Dockerfile found → analyzing ${service.contextPath} with Railpack\n`);
   await ensureBuildx(writeLog);
+  const builder = await ensureRailpackBuilder(writeLog);
   const railpack = await ensureRailpack(writeLog);
   await run(railpack, prepareArgs, { cwd: context, onProcess }, writeLog);
 
   const buildArgs = [
     'buildx',
     'build',
+    ...(builder ? ['--builder', builder] : []),
     '--load',
     '--progress',
     'plain',

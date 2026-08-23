@@ -110,3 +110,64 @@ export async function ensureBuildx(onLog: LogFn): Promise<void> {
     );
   }
 }
+
+/** Dedicated BuildKit builder for Railpack plans. */
+const BUILDER_NAME = 'docklift-railpack';
+
+function buildx(args: string[], timeout = 300_000) {
+  return spawnSync(dockerBin(), ['buildx', ...args], {
+    encoding: 'utf8',
+    shell: false,
+    timeout,
+  });
+}
+
+/** Driver of the currently selected builder (`docker`, `docker-container`, …). */
+function currentDriver(): string | null {
+  const r = buildx(['inspect'], 30_000);
+  if (r.error || r.status !== 0) return null;
+  return /^Driver:\s*(\S+)/m.exec(r.stdout || '')?.[1] ?? null;
+}
+
+/**
+ * Resolve a builder that can actually run a Railpack plan, returning its name or
+ * null when the default builder is already fine.
+ *
+ * Railpack plans use BuildKit's merge/diff ops. The `docker` driver — dockerd's
+ * built-in BuildKit with the classic image store — rejects those as
+ * "experimental feature mergeop has been disabled on the build server", so the
+ * build dies after the plan loads. A `docker-container` builder runs upstream
+ * BuildKit where those ops are available, and `--load` still imports the finished
+ * image back into Docker.
+ */
+export async function ensureRailpackBuilder(onLog: LogFn): Promise<string | null> {
+  const driver = currentDriver();
+  if (driver && driver !== 'docker') return null; // already a full BuildKit
+
+  const existing = buildx(['inspect', BUILDER_NAME], 60_000);
+  if (!existing.error && existing.status === 0) return BUILDER_NAME;
+
+  onLog(`🧱 Creating BuildKit builder "${BUILDER_NAME}" for Railpack (first run)…\n`);
+  const created = buildx([
+    'create',
+    '--name',
+    BUILDER_NAME,
+    '--driver',
+    'docker-container',
+    '--bootstrap',
+  ]);
+  if (created.error || created.status !== 0) {
+    const detail = (created.stderr || created.stdout || created.error?.message || '')
+      .trim()
+      .split('\n')
+      .slice(-3)
+      .join(' ');
+    throw new Error(
+      'Railpack needs a BuildKit container builder and one could not be created ' +
+        `(${detail || 'docker buildx create failed'}). ` +
+        'Add a Dockerfile to the repository, or run "docker buildx create --driver docker-container --use" on the host.',
+    );
+  }
+  onLog(`✅ Builder "${BUILDER_NAME}" ready\n`);
+  return BUILDER_NAME;
+}
