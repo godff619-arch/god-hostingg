@@ -1,0 +1,927 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id             String        @id @default(uuid())
+  name           String
+  description    String?
+  source_type    String?
+  project_type   String?
+  github_url     String?
+  github_branch  String?
+  domain         String?
+  port           Int?
+  status         String?
+  container_name String?
+  auto_deploy    Boolean?      @default(false)
+  webhook_secret String?
+  build_type      String        @default("auto")
+  base_directory String        @default(".")
+  dockerfile_path String?
+  internal_port  Int           @default(3000)
+  /// When true, publish host ports (PORT_RANGE). Default false — reach apps via domain/proxy.
+  publish_host_port Boolean     @default(false)
+  /// Managed DB engine id when project_type=database (postgres|mysql|mariadb|redis|mongodb).
+  db_engine      String?
+  /// Owning user. Nullable so ADD COLUMN succeeds on legacy rows; backfilled to admin. NULL = legacy/unowned.
+  user_id        String?
+  /// Owning workspace project (the Render-style project group this resource lives in).
+  /// Nullable so ADD COLUMN succeeds on legacy rows; backfilled to the owner's default project.
+  workspace_project_id String?
+  /// Environment inside the workspace project (Production by default). Nullable for legacy rows.
+  environment_id String?
+  /// Host region label. NULL when the platform has no configured region (shown as "—", never faked).
+  region         String?
+  created_at     DateTime?     @default(now())
+  updated_at     DateTime?     @default(now()) @updatedAt
+  deployments    Deployment[]
+  env_variables  EnvVariable[]
+  services       Service[]
+  ports          Port[]
+  persistent_volumes PersistentVolume[]
+  databaseLinksAsDb  DatabaseLink[] @relation("DatabaseLinksAsDb")
+  databaseLinksAsApp DatabaseLink[] @relation("DatabaseLinksAsApp")
+  privateLinksAsSource PrivateLink[] @relation("PrivateLinkSource")
+  privateLinksAsTarget PrivateLink[] @relation("PrivateLinkTarget")
+  owner          User?         @relation(fields: [user_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  workspace_project WorkspaceProject? @relation(fields: [workspace_project_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  environment    Environment?  @relation(fields: [environment_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([user_id])
+  @@index([workspace_project_id])
+  @@index([environment_id])
+  @@map("projects")
+}
+
+/// Links a managed database project to an app project (optional per-service scope).
+model DatabaseLink {
+  id                  String    @id @default(uuid())
+  database_project_id String
+  app_project_id      String
+  /// Empty string = shared env for every service on the app project.
+  service_name        String    @default("")
+  /// Env key written on the app (DATABASE_URL, REDIS_URL, MONGODB_URI).
+  env_key             String
+  created_at          DateTime? @default(now())
+  database_project    Project   @relation("DatabaseLinksAsDb", fields: [database_project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  app_project         Project   @relation("DatabaseLinksAsApp", fields: [app_project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([database_project_id, app_project_id, service_name, env_key])
+  /// One env key owner per app/service scope (prevents multi-DB DATABASE_URL collisions).
+  @@unique([app_project_id, service_name, env_key])
+  @@map("database_links")
+}
+
+model Deployment {
+  id          String    @id @default(uuid())
+  project_id  String
+  status      String?
+  trigger     String?   @default("manual")
+  commit_message String?
+  /// Git HEAD after pull (nullable for uploads / legacy rows)
+  commit_sha  String?
+  /// Map of service name → image tag after a successful deploy (for keep-2 + rollback)
+  image_tags  Json?
+  logs        String?
+  created_at  DateTime? @default(now())
+  finished_at DateTime?
+  project     Project   @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("deployments")
+}
+
+model Service {
+  id              String    @id @default(uuid())
+  project_id      String
+  name            String
+  dockerfile_path String
+  container_name  String?
+  port            Int?
+  internal_port   Int?
+  domain          String?
+  status          String?
+  created_at      DateTime? @default(now())
+  project         Project   @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("services")
+}
+
+model PersistentVolume {
+  id           String    @id @default(uuid())
+  project_id   String
+  service_name String
+  name         String
+  display_name String
+  mount_path   String
+  created_at   DateTime? @default(now())
+  project      Project   @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([project_id, name])
+  @@unique([project_id, service_name, mount_path])
+  @@map("persistent_volumes")
+}
+
+model EnvVariable {
+  id           String    @id @default(uuid())
+  project_id   String
+  /// Empty string = shared to every service. Otherwise Docker service name (folder).
+  service_name String    @default("")
+  key          String
+  value        String
+  is_build_arg Boolean?
+  is_runtime   Boolean?
+  /// When true with is_build_arg: pass via BuildKit --secret, never --build-arg
+  is_secret    Boolean?  @default(false)
+  created_at   DateTime? @default(now())
+  project      Project   @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([project_id, service_name, key])
+  @@map("env_variables")
+}
+
+model Port {
+  port       Int      @id @default(autoincrement())
+  project_id String?
+  is_locked  Boolean?
+  project    Project? @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("ports")
+}
+
+model Settings {
+  key        String    @id
+  value      String?
+  updated_at DateTime?
+
+  @@map("settings")
+}
+
+model User {
+  id                String    @id @default(uuid())
+  name              String
+  email             String    @unique
+  password          String
+  role              String    @default("admin")
+  /// Effective plan (fast path for quota enforcement). NULL for admins (unlimited) or unassigned.
+  plan_id           String?
+  /// active | suspended | pending
+  status            String    @default("active")
+  /// Per-user quota overrides. NULL = inherit the plan value; an integer = explicit cap.
+  /// Unlimited-per-user is expressed by assigning an unlimited plan (plan-level NULL),
+  /// never by a sentinel integer here.
+  ram_mb_override      Int?
+  cpus_milli_override  Int?
+  storage_mb_override  Int?
+  max_apps_override    Int?
+  max_domains_override Int?
+  max_backups_override Int?
+  passwordChangedAt DateTime? // when set, JWTs with iat before this are rejected
+  created_at        DateTime  @default(now())
+  updated_at        DateTime? @default(now()) @updatedAt
+
+  plan          Plan?          @relation(fields: [plan_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  projects      Project[]
+  subscriptions Subscription[]
+  usages        Usage[]
+  notifications Notification[]
+  audit_logs    AuditLog[]
+  error_events  ErrorEvent[]
+  workspaces    Workspace[]
+  memberships   WorkspaceMember[]
+
+  @@map("users")
+}
+
+/// DB-driven plan definition. Quota columns are nullable: NULL = unlimited (explicit).
+model Plan {
+  id          String    @id @default(uuid())
+  key         String    @unique // free | premium | admin (stable seed key)
+  name        String
+  price_cents Int       @default(0) // integer cents; avoids float money
+  currency    String    @default("USD")
+  interval    String    @default("month") // month | year | lifetime
+  is_public   Boolean   @default(true) // admin plan hidden from signup
+  /// Per-service container memory cap in MB. NULL = unlimited.
+  ram_mb      Int?
+  /// Milli-CPUs (1000 = 1.0 CPU). NULL = unlimited. Converted to fractional cpus at deploy time.
+  cpus_milli  Int?
+  /// Total persistent storage across the user's projects in MB. NULL = unlimited.
+  storage_mb  Int?
+  max_apps    Int?
+  max_domains Int?
+  max_backups Int?
+  created_at  DateTime  @default(now())
+  updated_at  DateTime? @default(now()) @updatedAt
+
+  users         User[]
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+/// Billing history / source of truth for future billing phases. Foundation reads User.plan_id.
+model Subscription {
+  id         String    @id @default(uuid())
+  user_id    String
+  plan_id    String
+  status     String    @default("active") // active | canceled | past_due | trialing
+  started_at DateTime  @default(now())
+  expires_at DateTime?
+  created_at DateTime  @default(now())
+  updated_at DateTime? @default(now()) @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  plan Plan @relation(fields: [plan_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([user_id])
+  @@map("subscriptions")
+}
+
+/// Optional denormalized usage cache for dashboards. Enforcement computes usage live, never trusts this.
+model Usage {
+  id           String    @id @default(uuid())
+  user_id      String
+  metric       String // apps | domains | storage_mb | backups | ram_mb
+  value        Int       @default(0)
+  period_start DateTime  @default(now())
+  updated_at   DateTime? @default(now()) @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([user_id, metric])
+  @@map("usage")
+}
+
+model Notification {
+  id      String @id @default(uuid())
+  user_id String
+  /// NULL for account-level notices that belong to no single workspace.
+  workspace_id String?
+  type         String // deploy.failed | deploy.succeeded | service.suspended | quota.exceeded | billing | system
+  title        String
+  body         String?
+  /// info | warning | error — decides the colour, never invented by the client.
+  severity   String    @default("info")
+  /// Subject of the notice, e.g. `project:<id>`.
+  resource   String?
+  /// In-app path the feed row links to. NULL when there is nothing to open.
+  link       String?
+  read_at    DateTime?
+  created_at DateTime  @default(now())
+
+  user      User       @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  workspace Workspace? @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id])
+  @@index([workspace_id])
+  @@map("notifications")
+}
+
+/// Which events a workspace notifies about. One row per workspace, created on
+/// first save; absent means the defaults below are in force.
+model NotificationSetting {
+  id           String @id @default(uuid())
+  workspace_id String @unique
+  /// all | failure | none — how much of the deploy/service lifecycle notifies.
+  default_level String @default("failure")
+  /// Include non-default (preview) environments.
+  include_preview Boolean @default(false)
+  /// JSON array of subscribed event keys.
+  events     Json
+  created_at DateTime  @default(now())
+  updated_at DateTime? @default(now()) @updatedAt
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("notification_settings")
+}
+
+/// An outbound delivery target. A Slack incoming-webhook URL is itself a
+/// credential, so the target is sealed and only `hint` is ever returned.
+model NotificationChannel {
+  id           String @id @default(uuid())
+  workspace_id String
+  /// slack | webhook
+  kind String
+  name String
+  /// Sealed destination URL. Never returned by any response.
+  target_enc String
+  /// Non-secret display hint, e.g. the destination host.
+  hint         String
+  enabled      Boolean   @default(true)
+  /// ok | failed — outcome of the most recent delivery attempt.
+  last_result  String?
+  last_sent_at DateTime?
+  created_at   DateTime  @default(now())
+  updated_at   DateTime? @default(now()) @updatedAt
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([workspace_id])
+  @@map("notification_channels")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  user_id    String? // NULL after actor deletion / internal
+  action     String // e.g. project.create, quota.reject, deploy.start
+  resource   String? // e.g. project:<id>
+  metadata   Json?
+  ip         String?
+  created_at DateTime @default(now())
+
+  user User? @relation(fields: [user_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([user_id])
+  @@index([action])
+  @@map("audit_logs")
+}
+
+/// One *group* of identical platform errors, not one occurrence.
+///
+/// `fingerprint` is derived from source + route + the shape of the message, so a
+/// route that throws the same way 400 times is a single row with `count = 400`
+/// rather than 400 rows nobody will read. `first_seen_at` therefore stays put
+/// while `last_seen_at` and `count` move — that pair is what makes "is this
+/// still happening?" answerable.
+///
+/// Resolving is an operator note, not a fix: a resolved group that recurs is
+/// re-opened (resolved_at cleared) so a silenced error cannot hide a live one.
+model ErrorEvent {
+  id          String @id @default(uuid())
+  /// Stable grouping key (sha1 of source|route|normalized message).
+  fingerprint String
+  /// error | warn
+  level       String @default("error")
+  /// api | deploy | docker | git | nginx | cert | webhook | internal
+  source      String
+  message     String
+  /// Stack trace or provider payload. Truncated before insert — never unbounded.
+  detail      String?
+  /// e.g. "POST /api/projects"
+  route       String?
+  status_code Int?
+  /// X-Request-Id of the most recent occurrence, for log correlation.
+  request_id  String?
+  /// NULL for anonymous/internal failures or after actor deletion.
+  user_id     String?
+  workspace_id String?
+  /// e.g. project:<id>
+  resource    String?
+  count       Int    @default(1)
+
+  first_seen_at DateTime  @default(now())
+  last_seen_at  DateTime  @default(now())
+  resolved_at   DateTime?
+  /// User id of the operator who resolved it (kept even if that user is deleted).
+  resolved_by   String?
+
+  user User? @relation(fields: [user_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@unique([fingerprint])
+  @@index([source])
+  @@index([last_seen_at])
+  @@index([resolved_at])
+  @@map("error_events")
+}
+
+/// Seedable runtime catalog for later phases. Not wired into the build path yet.
+model RuntimeDefinition {
+  id           String   @id @default(uuid())
+  key          String   @unique // node | python | static | docker ...
+  name         String
+  default_port Int      @default(3000)
+  build_type   String   @default("auto")
+  enabled      Boolean  @default(true)
+  sort_order   Int      @default(0)
+  metadata     Json?
+  created_at   DateTime @default(now())
+
+  @@map("runtime_definitions")
+}
+
+// ---------------------------------------------------------------------------
+// Workspace layer. Hierarchy: User -> Workspace -> WorkspaceProject ->
+// Environment -> Project (resource/service) -> Deployment.
+// Every table below is additive; legacy rows are backfilled, never destroyed.
+// ---------------------------------------------------------------------------
+
+/// A tenant workspace. `id` is the human-visible id shown in Workspace Settings.
+model Workspace {
+  id         String    @id // tea-xxxxxxxxxxxx
+  owner_id   String
+  name       String    @default("My Workspace")
+  /// Billing/contact email. NULL = fall back to the owner's account email.
+  email      String?
+  /// Uploaded avatar URL. NULL = render the first letter of `name`.
+  avatar     String?
+  /// hobby | pro | scale. Drives PlanGate; never hardcoded in the UI.
+  plan_key   String    @default("hobby")
+  created_at DateTime  @default(now())
+  updated_at DateTime? @default(now()) @updatedAt
+
+  owner           User               @relation(fields: [owner_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  projects        WorkspaceProject[]
+  members         WorkspaceMember[]
+  billing_profile BillingProfile?
+  payment_methods PaymentMethod[]
+  credit_balance  CreditBalance?
+  invoices        Invoice[]
+  usage_records   UsageRecord[]
+  registry_creds  RegistryCredential[]
+  webhooks        Webhook[]
+  dedicated_ips   DedicatedIp[]
+  private_links   PrivateLink[]
+  blueprints      Blueprint[]
+  streams         ObservabilityStream[]
+  settings        WorkspaceSettings?
+  env_groups      EnvGroup[]
+  notify_setting  NotificationSetting?
+  notify_channels NotificationChannel[]
+  notifications   Notification[]
+
+  @@index([owner_id])
+  @@map("workspaces")
+}
+
+/// Render-style project group. Holds environments, which hold resources.
+/// Distinct from `Project`, which is a deployable resource (service/database).
+model WorkspaceProject {
+  id           String    @id // prj-xxxxxxxxxxxx
+  workspace_id String
+  name         String
+  description  String?
+  created_at   DateTime  @default(now())
+  updated_at   DateTime? @default(now()) @updatedAt
+
+  workspace    Workspace     @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  environments Environment[]
+  resources    Project[]
+
+  @@index([workspace_id])
+  @@map("workspace_projects")
+}
+
+/// An environment inside a workspace project (Production, Staging, ...).
+model Environment {
+  id                   String    @id // env-xxxxxxxxxxxx
+  workspace_project_id String
+  name                 String
+  is_default           Boolean   @default(false)
+  created_at           DateTime  @default(now())
+
+  workspace_project WorkspaceProject @relation(fields: [workspace_project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  resources         Project[]
+  env_group_links   EnvGroupLink[]
+
+  @@index([workspace_project_id])
+  @@map("environments")
+}
+
+/// Workspace team membership. role: admin | developer | viewer.
+model WorkspaceMember {
+  id           String    @id @default(uuid())
+  workspace_id String
+  /// NULL until an invited email registers.
+  user_id      String?
+  email        String
+  role         String    @default("developer")
+  /// active | invited
+  status       String    @default("invited")
+  invited_at   DateTime  @default(now())
+  joined_at    DateTime?
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user      User?     @relation(fields: [user_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@unique([workspace_id, email])
+  @@index([workspace_id])
+  @@map("workspace_members")
+}
+
+/// Billing contact + tax details. One per workspace.
+model BillingProfile {
+  id           String    @id @default(uuid())
+  workspace_id String    @unique
+  company      String?
+  address1     String?
+  address2     String?
+  city         String?
+  state        String?
+  postal_code  String?
+  country      String?
+  vat_id       String?
+  updated_at   DateTime? @default(now()) @updatedAt
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("billing_profiles")
+}
+
+/// Card on file. Only provider tokens + display metadata are stored — never a PAN.
+model PaymentMethod {
+  id           String   @id @default(uuid())
+  workspace_id String
+  /// Opaque token from the payment provider. Never a card number.
+  provider     String   @default("manual")
+  provider_ref String
+  brand        String
+  last4        String
+  exp_month    Int
+  exp_year     Int
+  is_default   Boolean  @default(false)
+  created_at   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([workspace_id])
+  @@map("payment_methods")
+}
+
+/// Metered usage rows aggregated into included-usage meters and unbilled charges.
+model UsageRecord {
+  id            String   @id @default(uuid())
+  workspace_id  String
+  /// instance_hours | bandwidth_bytes | pipeline_minutes | custom_domains | services
+  metric        String
+  /// Sub-bucket for bandwidth (http_response | service_initiated | websocket | private_link).
+  bucket        String?
+  resource_id   String?
+  resource_name String?
+  resource_type String?
+  quantity      Float    @default(0)
+  unit          String   @default("count")
+  /// Integer micro-cents per unit; avoids float money. NULL = not chargeable.
+  rate_micros   Int?
+  /// Billing period this row belongs to, YYYY-MM.
+  period        String
+  recorded_at   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([workspace_id, period])
+  @@index([metric])
+  @@map("usage_records")
+}
+
+/// Promotional / prepaid credit, stored in integer cents.
+model CreditBalance {
+  id            String    @id @default(uuid())
+  workspace_id  String    @unique
+  balance_cents Int       @default(0)
+  updated_at    DateTime? @default(now()) @updatedAt
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("credit_balances")
+}
+
+/// Redeemable promo code. Redemptions are recorded so a code cannot be reused.
+model PromoCode {
+  id             String    @id @default(uuid())
+  code           String    @unique
+  amount_cents   Int
+  /// NULL = never expires.
+  expires_at     DateTime?
+  /// NULL = unlimited redemptions.
+  max_redemables Int?
+  created_at     DateTime  @default(now())
+
+  redemptions PromoRedemption[]
+
+  @@map("promo_codes")
+}
+
+model PromoRedemption {
+  id            String   @id @default(uuid())
+  promo_code_id String
+  workspace_id  String
+  redeemed_at   DateTime @default(now())
+
+  promo_code PromoCode @relation(fields: [promo_code_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([promo_code_id, workspace_id])
+  @@map("promo_redemptions")
+}
+
+/// Issued invoice. Amounts in integer cents.
+model Invoice {
+  id           String    @id // inv-xxxxxxxx (human-visible)
+  workspace_id String
+  period_start DateTime
+  period_end   DateTime
+  amount_cents Int       @default(0)
+  currency     String    @default("USD")
+  /// paid | pending | failed | refunded
+  status       String    @default("pending")
+  pdf_path     String?
+  issued_at    DateTime  @default(now())
+  paid_at      DateTime?
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([workspace_id])
+  @@map("invoices")
+}
+
+/// Container registry credential. The secret is encrypted at rest and never
+/// returned by the API after creation (write-only field).
+model RegistryCredential {
+  id            String    @id @default(uuid())
+  workspace_id  String
+  name          String
+  /// dockerhub | ghcr | gitlab | custom
+  provider      String
+  registry_host String?
+  username      String
+  /// Encrypted blob. Never included in any API response.
+  secret_enc    String
+  created_at    DateTime  @default(now())
+  updated_at    DateTime? @default(now()) @updatedAt
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([workspace_id])
+  @@map("registry_credentials")
+}
+
+/// Outgoing webhook endpoint (PRO feature).
+model Webhook {
+  id           String    @id @default(uuid())
+  workspace_id String
+  name         String
+  url          String
+  /// Encrypted signing secret. Never returned after creation.
+  secret_enc   String
+  /// JSON array of event keys (deploy.started, service.created, ...).
+  events       Json
+  enabled      Boolean   @default(true)
+  created_at   DateTime  @default(now())
+  updated_at   DateTime? @default(now()) @updatedAt
+
+  workspace  Workspace         @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  deliveries WebhookDelivery[]
+
+  @@index([workspace_id])
+  @@map("webhooks")
+}
+
+model WebhookDelivery {
+  id           String   @id @default(uuid())
+  webhook_id   String
+  event        String
+  /// HTTP status of the attempt. NULL = the request never completed.
+  status_code  Int?
+  error        String?
+  duration_ms  Int?
+  attempted_at DateTime @default(now())
+
+  webhook Webhook @relation(fields: [webhook_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([webhook_id])
+  @@map("webhook_deliveries")
+}
+
+/// Dedicated outbound IP (PRO feature).
+model DedicatedIp {
+  id           String   @id @default(uuid())
+  workspace_id String
+  address      String
+  region       String?
+  /// active | provisioning | released
+  status       String   @default("provisioning")
+  created_at   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([workspace_id])
+  @@map("dedicated_ips")
+}
+
+/// Service-to-service private networking (Part A → NETWORKING → Private Links).
+///
+/// A link attaches the target project's container to the source project's Docker
+/// bridge network, so the source reaches it by container DNS with no published
+/// host port and no public DNS record. `status` records what Docker actually did
+/// on the last apply — it is never assumed to be active.
+model PrivateLink {
+  id                String    @id @default(uuid())
+  workspace_id      String
+  /// Consumer: the project whose containers gain private access.
+  source_project_id String
+  /// Provider: the project reachable only over the internal network.
+  target_project_id String
+  name              String
+  /// Internal port on the target the source connects to.
+  target_port       Int
+  /// http | tcp — decides the shape of the injected address.
+  scheme            String    @default("http")
+  /// Env var injected on the source holding the internal address. NULL = inject nothing.
+  env_key           String?
+  /// active | pending | error — the result of the last apply, never guessed.
+  status            String    @default("pending")
+  /// Docker's reason when the last apply failed. NULL when it succeeded.
+  last_error        String?
+  last_applied_at   DateTime?
+  created_at        DateTime  @default(now())
+  updated_at        DateTime? @default(now()) @updatedAt
+
+  workspace      Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  source_project Project   @relation("PrivateLinkSource", fields: [source_project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  target_project Project   @relation("PrivateLinkTarget", fields: [target_project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([source_project_id, target_project_id, target_port])
+  @@index([workspace_id])
+  @@index([source_project_id])
+  @@index([target_project_id])
+  @@map("private_links")
+}
+
+/// Infrastructure-as-code for a workspace (Part A → Blueprints).
+///
+/// A blueprint is a saved spec (`docklift.yaml`-shaped) describing services and
+/// managed databases. Applying it creates the real resources in a chosen project
+/// + environment — it is never a template gallery of things that don't exist.
+/// The spec text is stored verbatim so what you applied is what you can re-read.
+model Blueprint {
+  id           String  @id @default(uuid())
+  workspace_id String
+  name         String
+  description  String?
+  /// manual = the spec was written/pasted here. repo = synced from a Git file.
+  source       String  @default("manual")
+  /// Repository the spec is synced from when `source` = repo. NULL for manual.
+  repo_url     String?
+  /// Branch used for the sync. NULL = the repository default.
+  repo_branch  String?
+  /// Path of the spec inside the repository, e.g. `docklift.yaml`.
+  spec_path    String?
+  /// The spec itself, stored exactly as written.
+  spec         String
+  /// yaml | json — how `spec` is parsed.
+  spec_format  String  @default("yaml")
+  /// Result of the last repo sync. NULL when never synced (a manual blueprint).
+  last_synced_at DateTime?
+  /// Git's own reason when the last sync failed. NULL when it succeeded.
+  last_sync_error String?
+  created_at   DateTime  @default(now())
+  updated_at   DateTime? @default(now()) @updatedAt
+
+  workspace Workspace        @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  applies   BlueprintApply[]
+
+  @@unique([workspace_id, name])
+  @@index([workspace_id])
+  @@map("blueprints")
+}
+
+/// One run of "apply this blueprint". Immutable history: what was created, what
+/// failed and why. `status` is derived from the item outcomes, never assumed.
+model BlueprintApply {
+  id           String  @id @default(uuid())
+  blueprint_id String
+  /// Project group the resources were created in.
+  workspace_project_id String?
+  /// Environment inside that group.
+  environment_id String?
+  /// running | succeeded | partial | failed
+  status       String  @default("running")
+  created_count Int    @default(0)
+  skipped_count Int    @default(0)
+  failed_count  Int    @default(0)
+  /// Newline-separated, human-readable outcome per item. Never truncated silently.
+  log          String  @default("")
+  /// The first fatal reason when the whole apply could not start. NULL otherwise.
+  error        String?
+  created_at   DateTime  @default(now())
+  finished_at  DateTime?
+
+  blueprint Blueprint @relation(fields: [blueprint_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([blueprint_id])
+  @@map("blueprint_applies")
+}
+
+/// Metrics / log stream destination (Observability page).
+model ObservabilityStream {
+  id           String    @id @default(uuid())
+  workspace_id String
+  /// metrics | logs
+  kind         String
+  /// datadog | grafana | newrelic | honeycomb | otel | custom
+  provider     String    @default("custom")
+  endpoint     String?
+  /// Encrypted API key. Never returned by the API.
+  secret_enc   String?
+  enabled      Boolean   @default(false)
+  /// Logs only: forward preview-environment logs too.
+  include_preview Boolean @default(false)
+  /// Result of the last Test Connection: ok | failed | untested
+  last_test    String    @default("untested")
+  last_test_at DateTime?
+  created_at   DateTime  @default(now())
+  updated_at   DateTime? @default(now()) @updatedAt
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([workspace_id, kind])
+  @@map("observability_streams")
+}
+
+/// Operational settings behind the Workspace Settings page: build pipeline, deploy
+/// policy, security, SSO and HIPAA. One row per workspace, created on first read,
+/// so an untouched workspace still answers with the documented defaults.
+model WorkspaceSettings {
+  id           String @id @default(uuid())
+  workspace_id String @unique
+
+  /// starter | performance. Performance needs the `build_pipeline_performance` feature.
+  pipeline_tier              String @default("starter")
+  /// Monthly build-pipeline spend cap, integer cents. NULL = no cap configured.
+  pipeline_spend_limit_cents Int?
+
+  /// override | wait — what an incoming deploy does while one is already running.
+  deploy_policy String @default("override")
+
+  /// Security (Pro). `ip_allowlist` holds newline-separated CIDRs; NULL = no limit.
+  require_2fa             Boolean @default(false)
+  session_timeout_minutes Int?
+  ip_allowlist            String?
+  security_alerts         Boolean @default(true)
+
+  /// Authentication (Scale).
+  saml_enabled      Boolean @default(false)
+  saml_metadata_url String?
+  scim_enabled      Boolean @default(false)
+
+  /// HIPAA (Scale). Enabling is confirmed in the UI and always audit-logged.
+  hipaa_enabled     Boolean   @default(false)
+  hipaa_accepted_at DateTime?
+
+  created_at DateTime  @default(now())
+  updated_at DateTime? @default(now()) @updatedAt
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("workspace_settings")
+}
+
+/// A reusable set of environment variables (Environment Groups page). Linked to
+/// environments; every resource deployed in a linked environment inherits the
+/// group's variables, with the resource's own variables taking precedence.
+model EnvGroup {
+  id           String    @id // evg-xxxxxxxxxxxx
+  workspace_id String
+  name         String
+  created_at   DateTime  @default(now())
+  updated_at   DateTime? @default(now()) @updatedAt
+
+  workspace Workspace      @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  vars      EnvGroupVar[]
+  links     EnvGroupLink[]
+
+  @@unique([workspace_id, name])
+  @@index([workspace_id])
+  @@map("env_groups")
+}
+
+/// One variable in a group. Values are always sealed at rest; a value marked
+/// secret is never returned by the API, only its presence.
+model EnvGroupVar {
+  id         String    @id @default(uuid())
+  group_id   String
+  key        String
+  /// Sealed with secretBox (`seal()`), so the DB never holds plaintext.
+  value_enc  String
+  is_secret  Boolean   @default(false)
+  created_at DateTime  @default(now())
+  updated_at DateTime? @default(now()) @updatedAt
+
+  group EnvGroup @relation(fields: [group_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([group_id, key])
+  @@index([group_id])
+  @@map("env_group_vars")
+}
+
+/// Link between a group and an environment. Drives the `Env Groups (X)` tab on
+/// the project overview and the variables injected at deploy time.
+model EnvGroupLink {
+  id             String   @id @default(uuid())
+  group_id       String
+  environment_id String
+  created_at     DateTime @default(now())
+
+  group       EnvGroup    @relation(fields: [group_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  environment Environment @relation(fields: [environment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([group_id, environment_id])
+  @@index([environment_id])
+  @@map("env_group_links")
+}

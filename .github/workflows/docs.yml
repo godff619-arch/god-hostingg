@@ -1,0 +1,57 @@
+# Build VitePress site → GitHub Pages (docklift.dev).
+# Called from Release after semantic-release, or on website/CHANGELOG pushes.
+name: Docs
+run-name: "Docs · ${{ github.event_name == 'workflow_call' && format('after Release · {0}', github.ref_name) || github.event_name == 'workflow_dispatch' && format('manual · {0}', github.ref_name) || format('site · {0}', github.ref_name) }}"
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "website/**"
+      - "CHANGELOG.md"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # workflow_call from Release: tip of branch includes chore(release) + CHANGELOG.
+          # push / dispatch: the triggering commit (or branch tip for dispatch).
+          ref: ${{ github.event_name == 'workflow_call' && github.ref_name || github.sha }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install and build
+        working-directory: website
+        run: |
+          bun install
+          bun run build
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: website/.vitepress/dist
+
+  deploy:
+    name: Deploy Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

@@ -1,0 +1,219 @@
+@import '@xterm/xterm/css/xterm.css';
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Render-style palette. The product is dark-only: `:root` and `.dark` carry the
+     same values so a stale `theme=light` in localStorage cannot break the UI.
+       #0A0A0A content · #111111 sidebar · #0D0D0D header/cards · #303030 borders
+       #F5F5F5 primary · #A0A0A0 secondary · #707070 muted · #1A1A1A hover
+       #4B008F selected/active (deep purple) · dark green success
+     No gradients, no glass, no neon. */
+  :root,
+  .dark,
+  .light {
+    --background: 0 0% 3.9%; /* #0A0A0A */
+    --foreground: 0 0% 96.1%; /* #F5F5F5 */
+    --card: 0 0% 5.1%; /* #0D0D0D */
+    --card-foreground: 0 0% 96.1%;
+    --popover: 0 0% 5.1%;
+    --popover-foreground: 0 0% 96.1%;
+    --primary: 0 0% 96.1%;
+    --primary-foreground: 0 0% 3.9%;
+    --secondary: 0 0% 10.2%; /* #1A1A1A — hover / inset surfaces */
+    --secondary-foreground: 0 0% 96.1%;
+    --muted: 0 0% 10.2%;
+    --muted-foreground: 0 0% 62.7%; /* #A0A0A0 */
+    --subtle-foreground: 0 0% 43.9%; /* #707070 */
+    --accent: 0 0% 10.2%;
+    --accent-foreground: 0 0% 96.1%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 96.1%;
+    --border: 0 0% 18.8%; /* #303030 */
+    --input: 0 0% 18.8%;
+    --ring: 271 100% 45%;
+    --radius: 0.375rem;
+
+    /* Status vocabulary. Success is a dark green block, not a neon pill. */
+    --success: 150 62% 58%;
+    --success-surface: 152 58% 12%;
+    --success-border: 152 44% 22%;
+    --warning: 38 92% 58%;
+    --warning-surface: 38 70% 11%;
+    --warning-border: 38 55% 22%;
+    --danger: 0 72% 60%;
+    --danger-surface: 0 60% 12%;
+    --danger-border: 0 50% 24%;
+    --info: 271 90% 70%;
+
+    --chart-1: 271 90% 62%;
+    --chart-2: 150 62% 52%;
+    --chart-3: 38 92% 58%;
+    --chart-4: 0 72% 60%;
+    --chart-5: 0 0% 62.7%;
+
+    /* Sidebar plane — slightly lighter than the content area. */
+    --sidebar: 0 0% 6.7%; /* #111111 */
+    --sidebar-foreground: 0 0% 96.1%;
+    --sidebar-muted: 0 0% 62.7%;
+    --sidebar-border: 0 0% 18.8%;
+    --sidebar-accent: 0 0% 10.2%;
+
+    /* Header plane. */
+    --header: 0 0% 5.1%; /* #0D0D0D */
+
+    /* Deep purple accent: `brand` selects, `brand-strong` is the pressed tone. */
+    --brand: 271 100% 28%; /* #4B008F */
+    --brand-strong: 269 100% 24%; /* #3B007A */
+    --brand-foreground: 0 0% 96.1%;
+    --brand-ring: 271 85% 58%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background-color: hsl(271 100% 28% / 0.85);
+    color: #f5f5f5;
+  }
+  ::-moz-selection {
+    background-color: hsl(271 100% 28% / 0.85);
+    color: #f5f5f5;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-border rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-muted-foreground/30;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes progress-scan {
+  0% { left: -40%; width: 0%; }
+  50% { width: 40%; }
+  100% { left: 100%; width: 0%; }
+}
+
+.animate-progress-scan {
+  animation: progress-scan 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.glass {
+  @apply bg-card border border-border;
+}
+
+.glass-strong {
+  @apply bg-card border border-border;
+}
+
+/* ─── App shell ─────────────────────────────────────────────────────────────
+   Render geometry: 48px header, 228px rail. The rail is fixed so the document
+   keeps scrolling normally; content is inset by the current rail width, which
+   AppShell overrides when collapsed. */
+:root {
+  --shell-rail: 228px;
+  --shell-rail-collapsed: 60px;
+  --shell-topbar: 48px;
+}
+
+.shell-rail {
+  width: var(--shell-rail);
+}
+
+.shell-inset {
+  padding-left: 0;
+}
+
+@media (min-width: 1024px) {
+  .shell-inset {
+    padding-left: var(--shell-rail);
+  }
+}
+
+/* Flat sidebar plane — no gradients, no glass (spec §28). */
+.shell-rail-surface {
+  background-color: hsl(var(--sidebar));
+}
+
+.shell-scroll {
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+}
+
+/* Global toasts — above sticky CTAs / shell chrome; readable on every route */
+[data-sonner-toaster] {
+  z-index: 200 !important;
+}
+
+[data-sonner-toaster][data-x-position="center"] {
+  left: 50% !important;
+  transform: translateX(-50%);
+  width: min(100vw - 1.5rem, 26rem) !important;
+}
+
+[data-sonner-toast].docklift-toast {
+  animation: docklift-toast-in 280ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes docklift-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.6rem) scale(0.98);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-sonner-toast].docklift-toast {
+    animation: none;
+  }
+}
