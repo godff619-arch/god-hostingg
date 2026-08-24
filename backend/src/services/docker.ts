@@ -11,7 +11,7 @@ const DEFAULT_PULL_TIMEOUT_MS = 600_000;
 
 const docker = new Docker();
 
-const EDGE_PROXY_CONTAINER = process.env.NGINX_PROXY_CONTAINER || 'docklift-nginx-proxy';
+export const EDGE_PROXY_CONTAINER = process.env.NGINX_PROXY_CONTAINER || 'docklift-nginx-proxy';
 
 // Ensure Docker network exists
 export async function ensureNetwork(): Promise<void> {
@@ -32,6 +32,23 @@ export async function ensureNetwork(): Promise<void> {
 export function isProxyAlreadyConnectedError(err: unknown): boolean {
   const msg = String((err as { message?: string })?.message || err || '');
   return /already exists|already connected/i.test(msg);
+}
+
+/**
+ * True when the attach failed only because the edge proxy container does not exist
+ * on this host.
+ *
+ * The nginx edge proxy ships with the docker-compose control-plane stack; a native
+ * install (`npm run dev`, bare-metal) has no `docklift-nginx-proxy` container at all.
+ * Only domain routing depends on it, so callers can degrade instead of failing a
+ * deploy whose containers actually started. A missing *network*, or any other attach
+ * error, is a real failure and must not match here.
+ */
+export function isEdgeProxyMissingError(err: unknown): boolean {
+  const e = err as { statusCode?: number; message?: string } | undefined;
+  const msg = String(e?.message || err || '');
+  if (!msg.includes(EDGE_PROXY_CONTAINER)) return false;
+  return /no such container/i.test(msg) || e?.statusCode === 404;
 }
 
 export interface DockerEngineInfo {

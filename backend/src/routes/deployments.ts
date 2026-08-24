@@ -1557,6 +1557,39 @@ async function deployProject(req: AuthenticatedRequest, res: Response) {
             writeLog(
               `⚠️ Edge proxy attach skipped/failed (OK for internal databases): ${netErr?.message || 'failed'}\n`,
             );
+          } else if (dockerService.isEdgeProxyMissingError(netErr)) {
+            // Native installs have no edge proxy container (it ships with the
+            // docker-compose control plane). Containers are up and reachable over
+            // host ports / container DNS — only domain routing needs the proxy, so
+            // fail the deploy just when a domain is actually configured.
+            const domained = (
+              await prisma.service
+                .findMany({
+                  where: { project_id: projectId },
+                  select: { name: true, domain: true },
+                })
+                .catch(() => [] as { name: string; domain: string | null }[])
+            ).filter((svc) => svc.domain);
+            if (!stillOwns()) {
+              await dockerService.disconnectProxyFromProjectNetwork(projectId).catch(() => {});
+              await stopIfSuperseded();
+              return;
+            }
+            if (domained.length) {
+              success = false;
+              writeLog(
+                `\n❌ Edge proxy container "${dockerService.EDGE_PROXY_CONTAINER}" is not running, ` +
+                  `so the configured domain(s) cannot be routed:\n` +
+                  domained.map((svc) => `   • ${svc.name} → ${svc.domain}\n`).join('') +
+                  `   Start the edge proxy (docker compose up -d nginx-proxy) and redeploy, ` +
+                  `or clear the domain to run without it.\n`,
+              );
+            } else {
+              writeLog(
+                `⚠️ Edge proxy container "${dockerService.EDGE_PROXY_CONTAINER}" not found — attach skipped.\n` +
+                  `   Containers are running normally; custom domains stay inactive until the edge proxy runs.\n`,
+              );
+            }
           } else {
             success = false;
             writeLog(

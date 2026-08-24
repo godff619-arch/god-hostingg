@@ -1,7 +1,29 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isProxyAlreadyConnectedError } from './docker.js';
+import { EDGE_PROXY_CONTAINER, isEdgeProxyMissingError, isProxyAlreadyConnectedError } from './docker.js';
 import { shouldReconnectProxyAfterFailedTeardown } from '../lib/composeTeardown.js';
+
+test('isEdgeProxyMissingError only matches an absent edge proxy container', () => {
+  const notFound = Object.assign(
+    new Error(
+      `(HTTP code 404) network or container is not found - No such container: ${EDGE_PROXY_CONTAINER}`,
+    ),
+    { statusCode: 404 },
+  );
+  assert.equal(isEdgeProxyMissingError(notFound), true);
+
+  // A missing project network is a real failure, not a missing proxy.
+  assert.equal(
+    isEdgeProxyMissingError(
+      Object.assign(new Error('(HTTP code 404) no such network - network dl-net-abc not found'), {
+        statusCode: 404,
+      }),
+    ),
+    false,
+  );
+  assert.equal(isEdgeProxyMissingError(new Error('permission denied')), false);
+  assert.equal(isEdgeProxyMissingError(undefined), false);
+});
 
 test('isProxyAlreadyConnectedError recognizes docker duplicate endpoint errors', () => {
   assert.equal(
