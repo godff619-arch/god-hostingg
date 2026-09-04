@@ -17,7 +17,7 @@ This skill documents all security patterns implemented in Docklift. Follow these
 -   **Storage**: Frontend stores in `localStorage` key `docklift_token`.
 -   **Frontend**: use `authFetch()` so 401 clears session app-wide.
 -   **Download Safety**: Backup downloads use `authFetch` + blob pattern — **never** put JWTs in URL query parameters.
--   **Bootstrap registration**: atomic rename claim of `.bootstrap-secret` (see `authentication` skill).
+-   **Bootstrap registration**: one-winner claim for the first account — `.first-account.lock` (open mode, default) or an atomic rename of `.bootstrap-secret` (`REQUIRE_BOOTSTRAP_SECRET=true`). See `authentication` skill.
 
 ### SSE Tokens (Short-lived)
 -   SSE connections use dedicated 5-minute tokens (`purpose: 'sse'`).
@@ -277,7 +277,7 @@ try {
 -   Failed rollback → `enterRestoreCritical` (`.restore-critical` marker). Restores stay blocked across
     restarts until `POST /api/backup/clear-critical-restore` with password step-up.
 
--   Frontend Setup page fetches token via `GET /api/auth/setup-token` (bootstrap secret required) and sends `x-setup-token`.
+-   Frontend Setup page fetches token via `GET /api/auth/setup-token` (pre-first-user only; bootstrap secret required when `REQUIRE_BOOTSTRAP_SECRET=true`) and sends `x-setup-token`.
 
 ### Graceful Shutdown
 Backend handles SIGTERM/SIGINT for clean exit:

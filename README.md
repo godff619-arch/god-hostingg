@@ -105,24 +105,37 @@ The installer prints your public URL, for example:
 
 ```text
 Dashboard: http://YOUR_SERVER_IP:8080
-Setup code: <bootstrap-secret>
+First account: open the dashboard and create it — no setup code needed.
 ```
 
-Open that URL, paste the setup code, and create the first admin account. You can keep using the
-IP:port panel, or later add an HTTPS panel domain under **Settings → Domain**.
+Open that URL and create the first account — it becomes the platform **OWNER** and registration
+then closes. You can keep using the IP:port panel, or later add an HTTPS panel domain under
+**Settings → Domain**.
 
 > Raw HTTP on a public IP is intentional for first-run convenience — it is **not** private or
 > encrypted. Put DockLift behind a firewall, use HTTPS, or set `DASHBOARD_BIND=127.0.0.1` if you
 > want localhost-only access.
 
-### First login needs the bootstrap secret
+### First account: open claim, or a printed secret
 
-A fresh install prints a one-time **bootstrap secret** (setup code) to the install output and
-backend logs. The Setup page requires it before the first admin account can be created, so finding
-the IP alone is not enough to claim the panel. It is never exposed through any public API.
+By default the **first signup wins** and becomes OWNER. Nothing to copy from a console — which is
+the point on a one-click host (Coolify, Render, Railway, a plain `docker run`) where there is no
+console to copy from. Once that account exists the window is shut for good: `/register` refuses
+every later attempt.
+
+The trade-off is real: until you claim it, anyone who can reach the URL can. Claim it immediately,
+or turn the strict flow back on before the URL is reachable by anyone else:
 
 ```bash
-docker logs docklift-backend | grep -A8 "Fresh install"
+echo 'REQUIRE_BOOTSTRAP_SECRET=true' >> /opt/docklift/.env && docker compose -f /opt/docklift/docker-compose.yml up -d
+```
+
+With that set, a fresh install writes a one-time **bootstrap secret** and prints it to the backend
+logs; the Setup page then demands it before the first account can be created. It is never exposed
+through any public API.
+
+```bash
+docker logs docklift-backend | grep -A8 "bootstrap secret"
 ```
 
 ```bash
@@ -193,7 +206,7 @@ flowchart LR
 
 1. You create a project from a GitHub repo or a ZIP. Source lands in `deployments/<project-id>/`.
 2. Docklift uses your `Dockerfile` when there is one, otherwise Railpack detects the stack and builds an image.
-3. By default the app runs on a private project network (no public host port). Add a **custom domain** (preferred) so nginx-proxy serves it on `:80`/`:443`, or opt in to **Publish host ports** (`5500`–`5600` pool) for raw `IP:port`.
+3. By default the app runs on a private project network (no public host port). Add a **custom domain** (preferred) so nginx-proxy serves it on `:80`/`:443`, or opt in to **Publish host ports** (`5500`–`5600` pool) for raw `IP:port`. On a host without the nginx edge proxy (native install, or a VPS whose `:80`/`:443` belong to another proxy) there is no domain routing, so a host port is published automatically instead — managed databases never are.
 4. When you set a domain, the backend writes an nginx vhost, then asks certbot for a certificate.
 5. With GitHub connected, a push webhook rebuilds and redeploys automatically.
 
@@ -204,7 +217,7 @@ repository is **never modified** — a `docker-compose.yml` you committed yourse
 
 - **Admin UI:** `http://SERVER_IP:8080` by default. Prefer an HTTPS panel domain in **Settings → Domain** when you can. Optional: `DASHBOARD_BIND=127.0.0.1` + SSH tunnel.
 - **Your apps:** public hostnames on `:80`/`:443` via nginx-proxy (project networks; host ports opt-in).
-- **Secrets:** `JWT_SECRET` and internal keys auto-generate and persist under `data/.secrets`. First account requires the bootstrap secret.
+- **Secrets:** `JWT_SECRET` and internal keys auto-generate and persist under `data/.secrets`. The first account claims the panel; `REQUIRE_BOOTSTRAP_SECRET=true` demands a server-printed secret instead.
 
 ---
 
@@ -315,7 +328,7 @@ re-run `docker compose up -d` from that directory to apply changes:
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `DASHBOARD_BIND` | `0.0.0.0` | Panel listen address. Default allows `http://SERVER_IP:8080`. Set `127.0.0.1` for localhost-only, or use an HTTPS panel domain. |
-| `PORT_RANGE_START` / `PORT_RANGE_END` | `5500` / `5600` | Host port pool when Publish host ports is enabled |
+| `PORT_RANGE_START` / `PORT_RANGE_END` | `5500` / `5600` | Host port pool for published apps |
 | `CERTBOT_EMAIL` | — | Let's Encrypt account email (expiry notices) |
 | `CERTBOT_STAGING` | `false` | Use the staging CA while testing, to avoid rate limits |
 | `CORS_ORIGIN` | — | Extra allowed browser origins, if the panel isn't same-origin |
@@ -402,14 +415,38 @@ docker run -d -p 3000:3000 \
   --name docklift docklift
 ```
 
-On **Coolify**: Build pack `Dockerfile`, Base directory `/`, Port `3000`. Add a
-persistent volume at `/app/data` (SQLite database + generated secrets), and map
-`/var/run/docker.sock:/var/run/docker.sock` so Docklift can build and run the apps
-it deploys. Without the socket the panel still boots and reports Docker as
-unavailable instead of failing silently.
+#### On Coolify (with Docker)
 
-The bootstrap secret is printed to the container logs on first start — see
-[First login needs the bootstrap secret](#first-login-needs-the-bootstrap-secret).
+Use the checked-in compose file — it already wires the socket, the volumes and the
+port, so nothing has to be reproduced by hand in the UI:
+
+| Field | Value |
+|-------|-------|
+| Build pack | **Docker Compose** |
+| Base directory | `/` |
+| Docker Compose location | `/docker-compose.coolify.yml` |
+
+Deploy, then open `http://YOUR_VPS_IP:3000` (or the domain Coolify assigns — it
+appends the container port, e.g. `http://your-app.sslip.io:3000`) and create the
+first account. No setup code.
+
+Prefer the `Dockerfile` build pack? Set Port `3000` and add these mounts yourself:
+`/app/data` (SQLite database + generated secrets), `/deployments` (cloned repos and
+generated compose files), and `/var/run/docker.sock:/var/run/docker.sock` so
+Docklift can build and run the apps it deploys. Without the socket the panel still
+boots and reports Docker as unavailable instead of failing silently.
+
+**Reaching the apps you deploy there.** Coolify's own Traefik owns `:80`/`:443` on
+that VPS, so Docklift cannot run its own nginx edge proxy alongside it. Docklift
+detects that and publishes a host port per app instead — the deploy log prints the
+exact URL (`http://YOUR_VPS_IP:5500` and up, from the `PORT_RANGE_START/END` pool).
+Open that range in the firewall. Managed databases are never auto-published; they
+stay on the project network and are reached by linking them to an app. Custom
+domains managed **by Docklift** need its edge proxy, so those belong on a host where
+80/443 are free — the `docker-compose.yml` stack above.
+
+The first account needs no secret — see
+[First account: open claim, or a printed secret](#first-account-open-claim-or-a-printed-secret).
 
 ---
 
@@ -521,7 +558,7 @@ SemVer reminder: **patch** = bug fix / small change, **minor** = new feature (fo
 
 | Symptom | Likely cause / fix |
 |---------|--------------------|
-| Can't get past Setup | Bootstrap secret required — see [First login](#first-login-needs-the-bootstrap-secret) |
+| Can't get past Setup | See [First account](#first-account-open-claim-or-a-printed-secret) — a secret is only required when `REQUIRE_BOOTSTRAP_SECRET=true` |
 | Build fails with "no Dockerfile" | Set build mode to **Railpack**, or fix **Base directory** for a monorepo |
 | `502 Bad Gateway` on a domain | Container not running, or the app isn't listening on the configured internal port |
 | Domain returns nothing / `NXDOMAIN` | DNS record missing or not propagated; flush your local resolver cache |

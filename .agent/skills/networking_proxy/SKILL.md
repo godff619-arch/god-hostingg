@@ -16,9 +16,11 @@ Docklift runs **two** nginx containers. Keep their roles straight:
 ## Dashboard bind (`DASHBOARD_BIND`)
 
 Default in `docker-compose.yml`: **`0.0.0.0:8080`** so a fresh install is reachable at
-`http://SERVER_IP:8080`. The installer prints that URL plus the one-time **setup code**
-(`data/.bootstrap-secret`). First account creation still requires that secret — finding the IP alone
-must not claim the panel.
+`http://SERVER_IP:8080`. The installer prints that URL and tells the operator to claim the first
+account right away: by default whoever opens `/setup` first becomes OWNER and registration then
+closes. With `REQUIRE_BOOTSTRAP_SECRET=true` the installer prints the one-time **setup code**
+(`data/.bootstrap-secret`) instead and registration demands it, so finding the IP alone cannot claim
+the panel.
 
 Optional hardening (operator choice):
 - Add an HTTPS panel domain under **Settings → Domain**
@@ -60,7 +62,7 @@ proxy_pass http://$target_<id>:<internal_port>;
 with `resolver 127.0.0.11` (Docker embedded DNS). **Do not** route user apps through
 `host.docker.internal:<published-port>` for normal domain traffic.
 
-### Host ports (opt-in)
+### Host ports (opt-in, plus a proxy-less fallback)
 
 `Project.publish_host_port` defaults to **`false`**. When false, runtime compose publishes **no**
 host ports — traffic reaches apps via domain → nginx-proxy → project network.
@@ -68,6 +70,15 @@ host ports — traffic reaches apps via domain → nginx-proxy → project netwo
 When true, ports are allocated from `PORT_RANGE_*` and published as `host:internal`. Toggle lives in
 project Build Settings. Never bind user apps to `127.0.0.1` as a substitute for isolation — that
 breaks gateway routing unless the proxy model is redesigned.
+
+**Fallback when there is no edge proxy.** `dockerService.edgeProxyExists()` (30 s memoized inspect of
+`EDGE_PROXY_CONTAINER`) is checked on every deploy. If the proxy container does not exist there is no
+domain routing on that host — a native install, or a VPS whose 80/443 belong to another proxy such as
+Coolify's Traefik — so an app that publishes nothing would come up healthy and be unreachable. In
+that case `deployments.ts` publishes a host port for the app anyway (`autoPublishHostPort`) and the
+deploy log says why. **Managed databases are excluded**: auto-exposing Postgres/MySQL/Redis on a
+public IP is never the safe default, so they stay strictly opt-in. Rollback republishes whatever
+ports its services already hold, so an auto-published app does not come back unreachable.
 
 ## Key Files
 
@@ -208,8 +219,9 @@ server {
 - **502 Bad Gateway**: container not running, app not listening on `internal_port`, proxy not
   attached to the project network (`connectProxyToProjectNetwork`), or wrong `container_name`.
 - **404 / connection refused**: no vhost matches that `server_name`, or DNS does not point at the server.
-- **App only reachable on `:5500`**: host ports are opt-in — enable **Publish host ports** on the
-  project and redeploy, or use a domain.
+- **App only reachable on `:5500`**: either host ports are enabled for the project, or this host has
+  no `docklift-nginx-proxy` container so the deploy auto-published a port to stay reachable. Install
+  the compose stack (edge proxy) for domain routing, or point your own proxy at that host port.
 - **`DNS_PROBE_FINISHED_NXDOMAIN`**: DNS record missing — or, if you just created it, a stale local
   resolver cache (`ipconfig /flushdns`). Not a Docklift issue.
 - **Certificate order fails on a multi-domain request**: one SAN's DNS is missing; ACME fails the

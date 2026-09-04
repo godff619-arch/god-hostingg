@@ -82,7 +82,9 @@ elements and `top-20` for spaced ones.
 
 -   Project status includes **`degraded`** (partial fleet) — `StatusBadge` / `ProjectCard` must show it;
     treat like running for stop/restart actions.
--   Build Settings: **`publish_host_port`** checkbox (default off) — host ports are opt-in.
+-   Build Settings: **`publish_host_port`** checkbox (default off) — host ports are opt-in. A port can
+    still appear with the box unchecked: a host without the edge proxy auto-publishes one so the app is
+    reachable. Render links from **`svc.port`**, never from the flag.
 -   Overview → Services & Endpoints: never show `IP:null` or link until `serverIP` is real.
     If no host port and no domain, show **Private by default** with clear copy: prefer a
     domain; avoid sharing `IP:port` (exposes origin IP / easier to scan). Key

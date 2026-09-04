@@ -105,13 +105,15 @@ cd frontend; .\node_modules\.bin\tsc -b --noEmit
 - **Auth**: JWT in `localStorage`, short-lived separate tokens for SSE. See `authentication`.
 - **Deployments**: the backend clones/unzips source, resolves Dockerfile vs Railpack, builds a tagged
   image, and writes its **own** compose file under `deployments/.docklift/<projectId>/` — repository
-  files are never modified. Apps land on **per-project networks**; host ports are opt-in. See
+  files are never modified. Apps land on **per-project networks**; host ports are opt-in, except on a
+  host with no edge proxy where an app auto-publishes one (managed databases never do). See
   `deployment_system`.
 - **Networking**: two nginx containers (dashboard gateway `:8080` default `0.0.0.0`, public proxy
   `:80`/`:443`) plus a certbot sidecar; proxy attaches to each project network and routes to
   `container_name:internal_port`. See `networking_proxy`.
-- **Onboarding**: install prints `http://SERVER_IP:8080` + bootstrap setup code; first account cannot
-  be claimed without it. See `authentication`.
+- **Onboarding**: install prints `http://SERVER_IP:8080`; the **first account wins** by default (open
+  claim) and becomes owner. Set `REQUIRE_BOOTSTRAP_SECRET=true` to demand the printed setup code
+  instead. Either way only one claim succeeds. See `authentication`.
 
 ## Conventions
 

@@ -26,7 +26,10 @@ Defined in `backend/src/lib/databaseEngines.ts`:
 - Deploy pulls the **stored** image; bare `[managed:engine]` → `LEGACY_MANAGED_IMAGES` (never silent major bump)
 - **Postgres volume mount is version-aware**: ≤17 → `/var/lib/postgresql/data`; 18+/`latest` → `/var/lib/postgresql` (official image contract). Create + deploy sync `persistent_volumes.mount_path`. Redeploy cannot migrate data that already landed on an anonymous volume under the old `/data` mount — recreate + restore if needed.
 - Credentials stored as project env (passwords marked `is_secret`)
-- `publish_host_port` default **false** — prefer linking
+- `publish_host_port` default **false** — prefer linking. Managed databases are the one case that is
+  **never** auto-published: the no-edge-proxy fallback in `deployments.ts` skips them
+  (`!isManagedDb`), because putting Postgres/MySQL/Redis on a public VPS IP is not a safe default.
+  Exposing one stays a deliberate opt-in.
 
 ## API
 

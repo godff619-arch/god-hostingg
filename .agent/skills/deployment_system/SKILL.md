@@ -16,13 +16,16 @@ This guide details the lifecycle of a deployment in Docklift, from source code t
 -   **`lib/projectStatusSync.ts`**: Inspect **all** service containers; aggregate project status
     (`running` / `stopped` / `error` / **`degraded`** when some running + some stopped).
 -   **`lib/deploymentRecovery.ts`**: On boot, mark stale `in_progress` failed and stuck `building` projects corrected.
--   **`lib/portAllocation.ts`**: Transactional host-port claim (only when `publish_host_port` is true).
+-   **`lib/portAllocation.ts`**: Transactional host-port claim (when `publish_host_port` is true, or
+    when the deploy auto-publishes because no edge proxy exists).
 -   **`services/docker.ts`**: inspect/logs + **`connectProxyToProjectNetwork`** (throws on failure) /
-    **`disconnectProxyFromProjectNetwork`** (before stop/cancel/delete) / **`teardownProjectNetwork`**.
+    **`disconnectProxyFromProjectNetwork`** (before stop/cancel/delete) / **`teardownProjectNetwork`** /
+    **`edgeProxyExists`** (memoized 30 s; decides the host-port fallback).
 -   **`services/buildResolver.ts`**: Decides *what* to build (Dockerfile vs Railpack, base directory, service list).
 -   **`services/buildRunner.ts`**: Builds image; public build args vs **`is_secret` → BuildKit `--secret`**.
 -   **`services/compose.ts`**: Scans Dockerfiles (**dedupes colliding service names** with path hash) and writes
-    runtime Compose on a **per-project network** (labels, `no-new-privileges`, opt-in host ports;
+    runtime Compose on a **per-project network** (labels, `no-new-privileges`, host ports opt-in or
+    auto-published when there is no edge proxy;
     no default `cap_drop: ALL` / hard mem-cpu caps — optional via compose options).
 -   **`services/git.ts`**: Clone / pull + `scrubOriginRemote`.
 -   **`lib/naming.ts`**: Compose project, container, image, and `storageVolumeComposeKey` names.
@@ -72,7 +75,10 @@ This guide details the lifecycle of a deployment in Docklift, from source code t
         **Source files are never patched** — no repository `Dockerfile` or `docker-compose.yml` is
         rewritten, which means user-committed compose files stay intact.
     -   Network: **`dl-net-<shortId>`** (not the control-plane `docklift_network`).
-    -   Host ports: only if `publish_host_port === true`; otherwise omit `ports:`.
+    -   Host ports: published when `publish_host_port === true`, **or** when `edgeProxyExists()` is
+        false and the service is not a managed database (there is no domain routing on that host, so an
+        app publishing nothing would be unreachable). Otherwise omit `ports:`. The deploy log states
+        which of the two reasons applied.
     -   Hardening defaults: `security_opt: no-new-privileges`, labels `com.docklift.*`.
         Optional `memLimit` / `cpus` via compose options (not applied by default — DB images need room).
     -   Command: `docker compose -f <runtime-compose> -p <composeProject> up -d --remove-orphans`
@@ -192,8 +198,9 @@ be torn down.
 
 -   **Build fails**: read the summarized error at the end of the UI log; the raw output is above it.
 -   **Container exited**: the app crashed — `docker logs <container>`.
--   **No host port / can't open SERVER_IP:55xx**: host publish is off by default — enable **Publish host ports**
-    or use a domain via nginx-proxy.
+-   **No host port / can't open SERVER_IP:55xx**: host publish is off by default when the edge proxy is
+    installed — enable **Publish host ports** or use a domain via nginx-proxy. On a host with no
+    `docklift-nginx-proxy` container the deploy publishes a port automatically; the log line names it.
 -   **502 via domain**: check proxy is on the project network; container listening on `internal_port`.
 -   **409 on deploy/delete**: a deployment is already in flight. `POST /:projectId/cancel` first.
 -   **Stuck `in_progress` / `building` after backend restart**: `recoverDeploymentStateOnBoot()` marks

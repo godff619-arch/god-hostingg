@@ -20,11 +20,18 @@ Docklift uses a token-based authentication system (JWT) to secure the API and fr
 
 1.  **Registration**:
     -   `POST /api/auth/register`
-    -   Only allows registration if **zero** users exist (first user becomes admin).
-    -   **Bootstrap secret required** (header `x-bootstrap-secret` or body) — printed by install /
-        backend logs / `data/.bootstrap-secret`. Never returned by a public API.
-    -   **Bootstrap claim**: exclusive `fs.rename` of `data/.bootstrap-secret` → `.claimed-<random>`
-        (`lib/bootstrap.ts`). Only the winner may create the admin; losers get 403.
+    -   Only allows registration if **zero** users exist (first user becomes `owner`).
+    -   **Bootstrap secret is opt-in**: `isBootstrapRequired()` reads `REQUIRE_BOOTSTRAP_SECRET`
+        (`1|true|yes|on`), default **off**. A one-click host (Coolify / Render / Railway / plain
+        `docker run`) has no console to copy a secret from, so the first signup wins instead.
+        `GET /api/auth/status` exposes `bootstrapRequired`; the Setup page hides the field when false.
+    -   **Secret mode** (`REQUIRE_BOOTSTRAP_SECRET=true`): header `x-bootstrap-secret` or body —
+        printed by install / backend logs / `data/.bootstrap-secret`. Never returned by a public API.
+        Claim = exclusive `fs.rename` of `data/.bootstrap-secret` → `.claimed-<random>`.
+    -   **Open mode** (default): claim = exclusive `openSync(data/.first-account.lock, 'wx')`
+        (`tryLockFirstAccount`), stolen only after 60 s so a crashed signup can't brick setup.
+    -   Either way **one winner only**; losers get 403, and the user count is re-checked after the
+        claim. `consumeBootstrapSecret()` runs once the owner exists — the window is shut either way.
     -   Secret is consumed **only after** successful user create; failed validation restores the claim.
     -   Crash recovery: on boot with no users, `recoverStaleBootstrapClaims()` restores a leftover
         `.claimed-*` back to `.bootstrap-secret` so setup is not bricked.

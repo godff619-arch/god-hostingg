@@ -213,7 +213,7 @@ application data separately if it matters.
 | `install.sh` | Production install into `/opt/docklift` (default **latest** release). Pin with `bash -s -- v=2.0.2` or `DOCKLIFT_VERSION=2.0.2`. Resolves/validates the tag **before** `compose down`; fails closed if latest API/tag missing (no master fallback). |
 | `install-dev.sh` | Same, but from `master` (unreleased code) |
 | `upgrade.sh` | Stop backend → SQLite snapshot (`.backup` / copy) → tag `*:pre-upgrade` images → rebuild; rollback uses tagged images + DB restore with backend stopped; health-checks `/api/health` |
-| `install.sh` | Prints `Dashboard: http://SERVER_IP:8080` + **Setup code** from `.bootstrap-secret` |
+| `install.sh` | Prints `Dashboard: http://SERVER_IP:8080` and tells the operator to claim the first account now; prints the **Setup code** from `.bootstrap-secret` only when `REQUIRE_BOOTSTRAP_SECRET` is on |
 | `uninstall.sh` | Remove DockLift containers, images, volumes, network, build cache and `/opt/docklift` |
 
 `uninstall.sh` targets **DockLift-owned resources only** (core names, `dl_*` / `dl-*`,

@@ -60,7 +60,7 @@ bun run db:push        # local-only; do not use as the container boot path
 | `Deployment` | `deployments` | Build/deploy history, trigger, captured logs |
 | `EnvVariable` | `env_variables` | Shared or per-service vars: `service_name` (`""` = all services), `is_build_arg` / `is_runtime` / **`is_secret`**; **`@@unique([project_id, service_name, key])`** |
 | `PersistentVolume` | `persistent_volumes` | Configured named-volume mounts per service |
-| `Port` | `ports` | Host port pool (`is_locked`); used only when project `publish_host_port` is true |
+| `Port` | `ports` | Host port pool (`is_locked`); claimed when the project opts in **or** when a deploy auto-publishes (no edge proxy) |
 | `Settings` | `settings` | Key/value system settings (GitHub App creds, ACME email, panel domain) |
 
 ### Build & storage fields on `Project`
@@ -71,7 +71,7 @@ bun run db:push        # local-only; do not use as the container boot path
 | `base_directory` | `"."` | Subdirectory to build from (monorepos) |
 | `dockerfile_path` | `null` | Explicit Dockerfile when not auto-detecting |
 | `internal_port` | `3000` | Port the app listens on inside the container |
-| `publish_host_port` | `false` | When true, publish host ports from the pool |
+| `publish_host_port` | `false` | When true, publish host ports from the pool. A deploy may publish one anyway (apps only) when no edge proxy exists |
 
 `EnvVariable`: dedupe via `lib/envVariables.dedupeEnvVariables()` inside `scripts/ensureDb.ts`
 **before** migrate deploy. Invalid keys → 400; duplicates → 409.

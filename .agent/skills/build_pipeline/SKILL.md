@@ -27,7 +27,8 @@ Compose project name: `docklift`.
 | `certbot` | `certbot/certbot` | `docklift-certbot` | — | Let's Encrypt issue/renew loop |
 
 `DASHBOARD_BIND` defaults to **`0.0.0.0`** so install can open `http://SERVER_IP:8080`. Operators may
-set `127.0.0.1` for localhost-only. First account still requires the bootstrap setup code.
+set `127.0.0.1` for localhost-only. The first account is an **open claim** by default (first signup
+becomes owner); `REQUIRE_BOOTSTRAP_SECRET=true` demands the printed setup code instead.
 
 Control-plane network: `docklift_network` (bridge, IPv6 enabled). User apps use **per-project**
 `dl-net-*` networks — see `networking_proxy` / `deployment_system`.
@@ -57,10 +58,11 @@ only the backend and certbot write there.
 | `JWT_SECRET` | Auth token signing (auto-generated + persisted on first run if empty) |
 | `INTERNAL_API_SECRET` | Backend-to-backend auth (webhook → deploy) |
 | `DATABASE_URL` | `file:/app/data/docklift.db` |
-| `PORT_RANGE_START` / `_END` | Host port pool when `publish_host_port` is enabled (default `5500`–`5600`) |
+| `PORT_RANGE_START` / `_END` | Host port pool for published apps (default `5500`–`5600`) |
 | `DASHBOARD_BIND` | Panel listen address (default `0.0.0.0`) |
 | `CORS_ORIGIN` | Extra browser origins (comma-separated) when the panel is not same-origin |
 | `DOCKLIFT_FRONTEND_URL` | Public dashboard URL used for GitHub App callbacks |
+| `REQUIRE_BOOTSTRAP_SECRET` | `true` → first signup must present the printed setup code (default `false`: open claim) |
 | `CERTBOT_EMAIL` / `CERTBOT_STAGING` | Let's Encrypt registration + staging toggle |
 
 ### Project app env (multi-service)
