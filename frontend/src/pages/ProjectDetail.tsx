@@ -1129,7 +1129,11 @@ export default function ProjectDetail() {
       await fetchProject();
 
       if (!streamResult.ok) {
-        if (streamResult.error) {
+        // A deploy the operator cancelled is not a failure — say so without the
+        // red toast, which otherwise reads like something broke.
+        if (streamResult.cancelled) {
+          toast.info(streamResult.error || "Deployment cancelled");
+        } else if (streamResult.error) {
           toast.error(streamResult.error);
         }
         return;
