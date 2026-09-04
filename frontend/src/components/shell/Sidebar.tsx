@@ -1,9 +1,12 @@
-// Render-style rail: 228px wide, flat #111111 plane, 1px right divider, sits
-// directly below the 48px header and runs to the bottom of the viewport.
+// Left rail: 228px wide, flat #0F172A plane, 1px right divider, sits directly
+// below the 48px header and runs to the bottom of the viewport. It is the one
+// dark surface in the app, so every colour in here comes from a `sidebar-*`
+// token — the light-plane text tokens (`text-foreground`, `text-sidebar-subtle`) would
+// be invisible on it.
 //
 // Order is fixed by the spec: Projects / Blueprints / Environment Groups, then
-// INTEGRATIONS, NETWORKING, WORKSPACE, then the operator-only groups. The purple
-// promo card is dismissible and the dismissal is remembered in localStorage.
+// INTEGRATIONS, NETWORKING, WORKSPACE, then the operator-only groups. The promo
+// card is dismissible and the dismissal is remembered in localStorage.
 
 import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useMatch } from "react-router-dom";
@@ -65,7 +68,7 @@ export function Sidebar({ variant = "desktop" }: { variant?: "desktop" | "mobile
             type="button"
             onClick={close}
             aria-label="Close navigation"
-            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+            className="rounded-md p-1.5 text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
           >
             <X className="h-4 w-4" strokeWidth={1.75} />
           </button>
@@ -84,7 +87,7 @@ export function Sidebar({ variant = "desktop" }: { variant?: "desktop" | "mobile
           {groups.map((group, index) => (
             <div key={group.label || `group-${index}`} className={index === 0 ? "" : "mt-5"}>
               {group.label ? (
-                <div className="px-2 pb-1.5 text-[10px] font-medium uppercase tracking-[0.09em] text-subtle">
+                <div className="px-2 pb-1.5 text-[10px] font-medium uppercase tracking-[0.09em] text-sidebar-subtle">
                   {group.label}
                 </div>
               ) : null}
@@ -138,19 +141,19 @@ function ProjectRail({
       <Link
         to="/projects"
         onClick={onNavigate}
-        className="flex items-center gap-2.5 rounded-md px-2 py-[7px] text-[13px] text-sidebar-muted transition-colors duration-150 hover:bg-sidebar-accent hover:text-foreground"
+        className="flex items-center gap-2.5 rounded-md px-2 py-[7px] text-[13px] text-sidebar-muted transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground"
       >
         <ChevronRight className="h-4 w-4 shrink-0 rotate-180" strokeWidth={1.75} />
         <span className="truncate">Projects</span>
       </Link>
 
-      <div className="mt-2 flex items-center gap-2.5 rounded-md px-2 py-[7px] text-[13px] text-foreground">
+      <div className="mt-2 flex items-center gap-2.5 rounded-md px-2 py-[7px] text-[13px] text-sidebar-foreground">
         <Circle className="h-4 w-4 shrink-0 fill-current text-brand-ring" strokeWidth={0} />
         <span className="truncate">{projectName || fetchedName || "Project"}</span>
       </div>
 
       <div className="mt-4">
-        <div className="px-2 pb-1.5 text-[10px] font-medium uppercase tracking-[0.09em] text-subtle">
+        <div className="px-2 pb-1.5 text-[10px] font-medium uppercase tracking-[0.09em] text-sidebar-subtle">
           Overview
         </div>
         <Link
@@ -161,7 +164,7 @@ function ProjectRail({
             "flex items-center gap-2.5 rounded-md px-2 py-[7px] text-[13px] transition-colors duration-150",
             onOverview
               ? "bg-brand text-brand-foreground"
-              : "text-sidebar-muted hover:bg-sidebar-accent hover:text-foreground",
+              : "text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground",
           )}
         >
           <LayoutGrid className="h-4 w-4 shrink-0" strokeWidth={1.75} />
@@ -170,7 +173,7 @@ function ProjectRail({
       </div>
 
       <div className="mt-4">
-        <div className="px-2 pb-1.5 text-[10px] font-medium uppercase tracking-[0.09em] text-subtle">
+        <div className="px-2 pb-1.5 text-[10px] font-medium uppercase tracking-[0.09em] text-sidebar-subtle">
           Environments
         </div>
         <ul className="space-y-0.5">
@@ -186,7 +189,7 @@ function ProjectRail({
                     "flex items-center gap-2.5 rounded-md px-2 py-[7px] text-[13px] transition-colors duration-150",
                     active
                       ? "bg-brand text-brand-foreground"
-                      : "text-sidebar-muted hover:bg-sidebar-accent hover:text-foreground",
+                      : "text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground",
                   )}
                 >
                   <Layers className="h-4 w-4 shrink-0" strokeWidth={1.75} />
@@ -199,7 +202,7 @@ function ProjectRail({
         <Link
           to={`${base}?newEnvironment=1`}
           onClick={onNavigate}
-          className="mt-0.5 flex items-center gap-2.5 rounded-md px-2 py-[7px] text-[13px] text-sidebar-muted transition-colors duration-150 hover:bg-sidebar-accent hover:text-foreground"
+          className="mt-0.5 flex items-center gap-2.5 rounded-md px-2 py-[7px] text-[13px] text-sidebar-muted transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground"
         >
           <Plus className="h-4 w-4 shrink-0" strokeWidth={1.75} />
           <span className="truncate">Add environment</span>
@@ -207,7 +210,7 @@ function ProjectRail({
       </div>
 
       <div className="mt-4">
-        <div className="px-2 pb-1.5 text-[10px] font-medium uppercase tracking-[0.09em] text-subtle">
+        <div className="px-2 pb-1.5 text-[10px] font-medium uppercase tracking-[0.09em] text-sidebar-subtle">
           Manage
         </div>
         <Link
@@ -218,7 +221,7 @@ function ProjectRail({
             "flex items-center gap-2.5 rounded-md px-2 py-[7px] text-[13px] transition-colors duration-150",
             onSettings
               ? "bg-brand text-brand-foreground"
-              : "text-sidebar-muted hover:bg-sidebar-accent hover:text-foreground",
+              : "text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground",
           )}
         >
           <Settings className="h-4 w-4 shrink-0" strokeWidth={1.75} />
@@ -251,7 +254,7 @@ function RailLink({
         "flex items-center gap-2.5 rounded-md px-2 py-[7px] text-[13px] transition-colors duration-150",
         active
           ? "bg-brand text-brand-foreground"
-          : "text-sidebar-muted hover:bg-sidebar-accent hover:text-foreground",
+          : "text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground",
       )}
     >
       <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
@@ -260,7 +263,7 @@ function RailLink({
   );
 }
 
-/** Purple promo card. Dismissal survives reloads (spec §14). */
+/** Promo card. Dismissal survives reloads (spec §14). */
 function WorkflowsPromo() {
   const [dismissed, setDismissed] = useState(
     () => localStorage.getItem(PROMO_KEY) === "true",
@@ -268,9 +271,9 @@ function WorkflowsPromo() {
   if (dismissed) return null;
 
   return (
-    <div className="mt-6 rounded-md border border-brand-strong bg-brand/25 p-3">
+    <div className="mt-6 rounded-md border border-brand-ring/30 bg-brand-ring/10 p-3">
       <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-1.5 text-[12px] font-medium text-foreground">
+        <div className="flex items-center gap-1.5 text-[12px] font-medium text-sidebar-foreground">
           <Info className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
           <span>Introducing Workflows</span>
         </div>
@@ -281,17 +284,17 @@ function WorkflowsPromo() {
             localStorage.setItem(PROMO_KEY, "true");
             setDismissed(true);
           }}
-          className="-mr-1 -mt-1 rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
+          className="-mr-1 -mt-1 rounded p-1 text-sidebar-muted transition-colors hover:text-sidebar-foreground"
         >
           <X className="h-3 w-3" strokeWidth={2} />
         </button>
       </div>
-      <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+      <p className="mt-1.5 text-[11px] leading-relaxed text-sidebar-muted">
         An orchestration and execution engine for long-running, distributed tasks.
       </p>
       <Link
         to="/docs"
-        className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-foreground hover:underline"
+        className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-sidebar-foreground hover:underline"
       >
         Learn more
         <ChevronRight className="h-3 w-3" strokeWidth={2} />
@@ -309,7 +312,7 @@ function SidebarFooter({ onNavigate }: { onNavigate: () => void }) {
         type="button"
         onClick={() => setChangelogOpen((v) => !v)}
         aria-expanded={changelogOpen}
-        className="flex w-full items-center justify-between rounded-md px-2 py-[6px] text-[12px] text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-foreground"
+        className="flex w-full items-center justify-between rounded-md px-2 py-[6px] text-[12px] text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
       >
         <span>Changelog</span>
         <ChevronRight
@@ -318,7 +321,7 @@ function SidebarFooter({ onNavigate }: { onNavigate: () => void }) {
         />
       </button>
       {changelogOpen ? (
-        <div className="px-2 pb-1 pt-0.5 text-[11px] leading-relaxed text-subtle">
+        <div className="px-2 pb-1 pt-0.5 text-[11px] leading-relaxed text-sidebar-subtle">
           Release notes are published with each deploy of the control plane.
         </div>
       ) : null}
@@ -326,7 +329,7 @@ function SidebarFooter({ onNavigate }: { onNavigate: () => void }) {
       <Link
         to="/workspace/settings#team-members"
         onClick={onNavigate}
-        className="flex items-center gap-2 rounded-md px-2 py-[6px] text-[12px] text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-foreground"
+        className="flex items-center gap-2 rounded-md px-2 py-[6px] text-[12px] text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
       >
         <UserPlus className="h-3.5 w-3.5" strokeWidth={1.75} />
         Invite a friend
@@ -334,7 +337,7 @@ function SidebarFooter({ onNavigate }: { onNavigate: () => void }) {
       <Link
         to="/docs"
         onClick={onNavigate}
-        className="flex items-center gap-2 rounded-md px-2 py-[6px] text-[12px] text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-foreground"
+        className="flex items-center gap-2 rounded-md px-2 py-[6px] text-[12px] text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
       >
         <LifeBuoy className="h-3.5 w-3.5" strokeWidth={1.75} />
         Contact support
@@ -366,13 +369,13 @@ function StatusFooterLink() {
   return (
     <Link
       to="/system"
-      className="flex items-center gap-2 rounded-md px-2 py-[6px] text-[12px] text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-foreground"
+      className="flex items-center gap-2 rounded-md px-2 py-[6px] text-[12px] text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
     >
       <span
         aria-hidden
         className={cn(
           "h-1.5 w-1.5 rounded-full",
-          ok === null ? "bg-subtle" : ok ? "bg-success" : "bg-danger",
+          ok === null ? "bg-sidebar-subtle" : ok ? "bg-success" : "bg-danger",
         )}
       />
       Status

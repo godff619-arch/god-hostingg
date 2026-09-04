@@ -166,7 +166,7 @@ export function SidebarStatus({ collapsed }: { collapsed: boolean }) {
             type="button"
             onClick={handleUpgrade}
             title={`Upgrade to v${version!.latest}`}
-            className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand/15 text-brand transition-colors hover:bg-brand/25"
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-ring/15 text-brand-ring transition-colors hover:bg-brand-ring/25"
           >
             <ArrowUp className="h-4 w-4" />
           </button>
@@ -181,8 +181,8 @@ export function SidebarStatus({ collapsed }: { collapsed: boolean }) {
   return (
     <div className="space-y-2">
       {updateAvailable && (
-        <div className="rounded-2xl border border-brand/25 bg-brand/10 p-3">
-          <div className="flex items-center gap-2 text-xs font-semibold text-brand">
+        <div className="rounded-2xl border border-brand-ring/25 bg-brand-ring/10 p-3">
+          <div className="flex items-center gap-2 text-xs font-semibold text-brand-ring">
             <ArrowUp className="h-3.5 w-3.5" />
             Update available
           </div>
@@ -206,7 +206,7 @@ export function SidebarStatus({ collapsed }: { collapsed: boolean }) {
         v{currentVersion}
       </p>
       {checkFailed && (
-        <p className="px-2.5 text-[10px] text-amber-600/90 dark:text-amber-400/90">
+        <p className="px-2.5 text-[10px] text-warning-border">
           Update check unavailable
         </p>
       )}

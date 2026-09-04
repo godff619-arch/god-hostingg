@@ -6,70 +6,76 @@
 @tailwind utilities;
 
 @layer base {
-  /* Render-style palette. The product is dark-only: `:root` and `.dark` carry the
-     same values so a stale `theme=light` in localStorage cannot break the UI.
-       #0A0A0A content · #111111 sidebar · #0D0D0D header/cards · #303030 borders
-       #F5F5F5 primary · #A0A0A0 secondary · #707070 muted · #1A1A1A hover
-       #4B008F selected/active (deep purple) · dark green success
+  /* Light, minimal palette — the Stripe/Linear register. The product is
+     light-only: `:root`, `.light` and `.dark` carry the same values so a stale
+     `theme=dark` in localStorage cannot break the UI.
+       #F7F9FB content · #FFFFFF cards and header · #DFE4EC borders
+       #0F172A ink · #64748B secondary · #8B98A9 muted · #F1F4F8 hover
+       #0F172A sidebar (the one dark plane) · #2563EB accent
      No gradients, no glass, no neon. */
   :root,
-  .dark,
-  .light {
-    --background: 0 0% 3.9%; /* #0A0A0A */
-    --foreground: 0 0% 96.1%; /* #F5F5F5 */
-    --card: 0 0% 5.1%; /* #0D0D0D */
-    --card-foreground: 0 0% 96.1%;
-    --popover: 0 0% 5.1%;
-    --popover-foreground: 0 0% 96.1%;
-    --primary: 0 0% 96.1%;
-    --primary-foreground: 0 0% 3.9%;
-    --secondary: 0 0% 10.2%; /* #1A1A1A — hover / inset surfaces */
-    --secondary-foreground: 0 0% 96.1%;
-    --muted: 0 0% 10.2%;
-    --muted-foreground: 0 0% 62.7%; /* #A0A0A0 */
-    --subtle-foreground: 0 0% 43.9%; /* #707070 */
-    --accent: 0 0% 10.2%;
-    --accent-foreground: 0 0% 96.1%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 96.1%;
-    --border: 0 0% 18.8%; /* #303030 */
-    --input: 0 0% 18.8%;
-    --ring: 271 100% 45%;
-    --radius: 0.375rem;
+  .light,
+  .dark {
+    --background: 210 20% 98%; /* #F7F9FB */
+    --foreground: 222 47% 11%; /* #0F172A */
+    --card: 0 0% 100%; /* #FFFFFF */
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 222 47% 11%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 30% 96%; /* #F1F4F8 — hover / inset surfaces */
+    --secondary-foreground: 222 40% 18%;
+    --muted: 210 30% 96%;
+    --muted-foreground: 215 16% 47%; /* #64748B */
+    --subtle-foreground: 215 14% 60%; /* #8B98A9 */
+    --accent: 210 30% 96%;
+    --accent-foreground: 222 40% 18%;
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 27% 90%; /* #DFE4EC */
+    --input: 214 27% 88%;
+    --ring: 221 83% 53%;
+    --radius: 0.5rem;
 
-    /* Status vocabulary. Success is a dark green block, not a neon pill. */
-    --success: 150 62% 58%;
-    --success-surface: 152 58% 12%;
-    --success-border: 152 44% 22%;
-    --warning: 38 92% 58%;
-    --warning-surface: 38 70% 11%;
-    --warning-border: 38 55% 22%;
-    --danger: 0 72% 60%;
-    --danger-surface: 0 60% 12%;
-    --danger-border: 0 50% 24%;
-    --info: 271 90% 70%;
+    /* Status vocabulary: a tinted surface, a soft border, and text dark enough
+       to read on it. On light surfaces the text tone carries the meaning. */
+    --success: 142 72% 29%; /* #148040 */
+    --success-surface: 138 76% 96%;
+    --success-border: 141 55% 84%;
+    --warning: 26 90% 37%; /* #B45309 */
+    --warning-surface: 48 100% 96%;
+    --warning-border: 45 88% 80%;
+    --danger: 0 72% 45%; /* #C42525 */
+    --danger-surface: 0 86% 97%;
+    --danger-border: 0 75% 88%;
+    --info: 221 83% 53%;
 
-    --chart-1: 271 90% 62%;
-    --chart-2: 150 62% 52%;
-    --chart-3: 38 92% 58%;
-    --chart-4: 0 72% 60%;
-    --chart-5: 0 0% 62.7%;
+    --chart-1: 221 83% 53%;
+    --chart-2: 160 84% 39%;
+    --chart-3: 38 92% 50%;
+    --chart-4: 0 72% 51%;
+    --chart-5: 215 16% 47%;
 
-    /* Sidebar plane — slightly lighter than the content area. */
-    --sidebar: 0 0% 6.7%; /* #111111 */
-    --sidebar-foreground: 0 0% 96.1%;
-    --sidebar-muted: 0 0% 62.7%;
-    --sidebar-border: 0 0% 18.8%;
-    --sidebar-accent: 0 0% 10.2%;
+    /* Sidebar plane — the one dark surface, so the rail reads as chrome rather
+       than as content. Its own foreground tokens exist for exactly that reason:
+       nothing in the rail may use the light-plane text colours. */
+    --sidebar: 222 47% 11%; /* #0F172A */
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-muted: 215 20% 72%; /* #A6B2C4 */
+    --sidebar-subtle: 215 16% 55%; /* #7C8AA0 — group labels */
+    --sidebar-border: 217 33% 20%;
+    --sidebar-accent: 217 33% 17%; /* rail hover */
 
-    /* Header plane. */
-    --header: 0 0% 5.1%; /* #0D0D0D */
+    /* Header plane — white, on the content side of the divide. */
+    --header: 0 0% 100%;
 
-    /* Deep purple accent: `brand` selects, `brand-strong` is the pressed tone. */
-    --brand: 271 100% 28%; /* #4B008F */
-    --brand-strong: 269 100% 24%; /* #3B007A */
-    --brand-foreground: 0 0% 96.1%;
-    --brand-ring: 271 85% 58%;
+    /* Blue accent: `brand` selects, `brand-strong` is the pressed tone,
+       `brand-ring` is the tone that still reads on the dark rail. */
+    --brand: 221 83% 53%; /* #2563EB */
+    --brand-strong: 224 76% 45%; /* #1B4ACB */
+    --brand-foreground: 0 0% 100%;
+    --brand-ring: 217 91% 60%; /* #3B82F6 */
   }
 
   * {
@@ -77,7 +83,7 @@
   }
 
   html {
-    color-scheme: dark;
+    color-scheme: light;
   }
 
   body {
@@ -87,12 +93,12 @@
   }
 
   ::selection {
-    background-color: hsl(271 100% 28% / 0.85);
-    color: #f5f5f5;
+    background-color: hsl(221 83% 53% / 0.18);
+    color: hsl(222 47% 11%);
   }
   ::-moz-selection {
-    background-color: hsl(271 100% 28% / 0.85);
-    color: #f5f5f5;
+    background-color: hsl(221 83% 53% / 0.18);
+    color: hsl(222 47% 11%);
   }
 }
 
@@ -128,7 +134,8 @@
   position: absolute;
   inset: 0;
   transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  /* A dark sweep: on a white card a white sweep is invisible. */
+  background: linear-gradient(90deg, transparent, rgba(15,23,42,0.06), transparent);
   animation: shimmer 2s infinite;
 }
 
@@ -142,12 +149,14 @@
   animation: progress-scan 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
+/* Card surfaces. On a light plane a 1px border alone reads flat, so every card
+   carries the same hairline shadow — one value, not a per-page decision. */
 .glass {
-  @apply bg-card border border-border;
+  @apply bg-card border border-border shadow-[0_1px_2px_0_rgba(15,23,42,0.04)];
 }
 
 .glass-strong {
-  @apply bg-card border border-border;
+  @apply bg-card border border-border shadow-[0_1px_3px_0_rgba(15,23,42,0.06)];
 }
 
 /* ─── App shell ─────────────────────────────────────────────────────────────
@@ -174,7 +183,7 @@
   }
 }
 
-/* Flat sidebar plane — no gradients, no glass (spec §28). */
+/* Flat sidebar plane — the one dark surface, no gradients, no glass (spec §28). */
 .shell-rail-surface {
   background-color: hsl(var(--sidebar));
 }

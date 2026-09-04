@@ -14,7 +14,7 @@ import { Toaster as Sonner } from "sonner";
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
 /**
- * Global notifications — compact, flat, dark (spec §76). Top-center so they stay
+ * Global notifications — compact, flat, light (spec §76). Top-center so they stay
  * visible above sticky footers and work from any page.
  */
 const Toaster = ({ ...props }: ToasterProps) => {
@@ -22,7 +22,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
 
   return (
     <Sonner
-      theme="dark"
+      theme="light"
       position="top-center"
       expand={false}
       closeButton
@@ -47,7 +47,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
             "group-[.toaster]:rounded-md group-[.toaster]:border group-[.toaster]:px-3 " +
             "group-[.toaster]:py-2.5 group-[.toaster]:gap-2.5 group-[.toaster]:font-sans " +
             "group-[.toaster]:bg-card group-[.toaster]:text-foreground " +
-            "group-[.toaster]:border-border group-[.toaster]:shadow-none",
+            "group-[.toaster]:border-border " +
+            "group-[.toaster]:shadow-[0_4px_14px_0_rgba(15,23,42,0.08)]",
           success:
             "group-[.toaster]:!bg-success-surface group-[.toaster]:!border-success-border " +
             "group-[.toaster]:!text-foreground",

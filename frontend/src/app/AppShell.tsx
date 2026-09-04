@@ -30,7 +30,7 @@ function ShellFrame() {
 
       <div
         className={cn(
-          "fixed inset-0 z-50 bg-black/70 transition-opacity duration-200 lg:hidden",
+          "fixed inset-0 z-50 bg-foreground/40 transition-opacity duration-200 lg:hidden",
           mobileOpen ? "opacity-100" : "pointer-events-none opacity-0",
         )}
         onClick={() => setMobileOpen(false)}

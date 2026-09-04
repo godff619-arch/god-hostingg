@@ -57,12 +57,14 @@ function parseTimestamp(line: string): { timestamp: string | null; content: stri
   return { timestamp: null, content: line };
 }
 
-// Color mapping for ANSI codes
+// Color mapping for ANSI codes. Tuned for the navy log plane, not for the light
+// content plane — build output is written for a dark background and inverting it
+// makes half of these unreadable.
 const ANSI_COLORS: Record<number, string> = {
-  30: "#6b7280", 31: "#f87171", 32: "#4ade80", 33: "#fbbf24",
-  34: "#60a5fa", 35: "#c084fc", 36: "#22d3ee", 37: "#e5e7eb",
-  90: "#9ca3af", 91: "#fca5a5", 92: "#86efac", 93: "#fde68a",
-  94: "#93c5fd", 95: "#d8b4fe", 96: "#67e8f9", 97: "#f9fafb",
+  30: "#94a3b8", 31: "#f87171", 32: "#4ade80", 33: "#fbbf24",
+  34: "#60a5fa", 35: "#c084fc", 36: "#22d3ee", 37: "#e2e8f0",
+  90: "#94a3b8", 91: "#fca5a5", 92: "#86efac", 93: "#fde68a",
+  94: "#93c5fd", 95: "#d8b4fe", 96: "#67e8f9", 97: "#f8fafc",
 };
 
 function AnsiLine({ text, highlight }: { text: string; highlight?: string }) {
@@ -130,7 +132,7 @@ function getLineColor(text: string): string | null {
   if (lower.includes("info") || lower.includes("🚀") || lower.includes("starting")) return "#60a5fa";
 
   // Separators / borders — dim
-  if (/^[═╔╗╚╝║─┌┐└┘│├┤┬┴┼\-=*]{3,}/.test(text.trim())) return "#525252";
+  if (/^[═╔╗╚╝║─┌┐└┘│├┤┬┴┼\-=*]{3,}/.test(text.trim())) return "#64748b";
 
   // Docker build steps
   if (/^#\d+\s/.test(text.trim()) || /^step\s+\d+/i.test(text.trim())) return "#93c5fd";
@@ -324,7 +326,7 @@ export function LogViewer({
   return (
     <div
       className={cn(
-        "relative flex flex-col overflow-hidden rounded-xl border border-[#232323] bg-[#0c0c0c]",
+        "relative flex flex-col overflow-hidden rounded-xl border border-sidebar-border bg-sidebar",
         isFullscreen
           ? "fixed inset-0 z-50 h-screen rounded-none"
           : cn(
@@ -335,7 +337,7 @@ export function LogViewer({
       )}
     >
       {/* ─── Header ─── */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-[#141414] border-b border-[#232323] shrink-0">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-sidebar-accent border-b border-sidebar-border shrink-0">
         {/* Left: status + title */}
         <div className="flex items-center gap-3 min-w-0">
           <div className="flex items-center gap-2">
@@ -344,16 +346,16 @@ export function LogViewer({
                 "h-2 w-2 rounded-full shrink-0",
                 connected
                   ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]"
-                  : "bg-zinc-600"
+                  : "bg-sidebar-subtle"
               )}
             />
-            <span className="text-[13px] font-semibold text-zinc-200">{title}</span>
+            <span className="text-[13px] font-semibold text-sidebar-foreground">{title}</span>
             {connected && (
               <span className="text-[10px] font-medium text-emerald-400/80 tracking-wide">LIVE</span>
             )}
           </div>
           {subtitle && (
-            <span className="text-[11px] font-mono text-zinc-600 hidden sm:inline truncate max-w-[180px]">
+            <span className="text-[11px] font-mono text-sidebar-subtle hidden sm:inline truncate max-w-[180px]">
               {subtitle}
             </span>
           )}
@@ -363,22 +365,22 @@ export function LogViewer({
         <div className="flex items-center gap-1 shrink-0">
           {/* Inline search */}
           {showSearch && (
-            <div className="flex items-center gap-1.5 mr-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-2 py-1">
-              <Search className="h-3 w-3 text-zinc-500" />
+            <div className="flex items-center gap-1.5 mr-2 bg-sidebar border border-sidebar-border rounded-lg px-2 py-1">
+              <Search className="h-3 w-3 text-sidebar-muted" />
               <input
                 ref={searchInputRef}
                 type="text"
                 placeholder="Find in logs"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-transparent text-[12px] text-zinc-200 placeholder-zinc-600 outline-none w-[150px] font-mono"
+                className="bg-transparent text-[12px] text-sidebar-foreground placeholder:text-sidebar-subtle outline-none w-[150px] font-mono"
               />
               {searchQuery && (
-                <span className="text-[10px] text-zinc-500 font-mono">{matchCount}</span>
+                <span className="text-[10px] text-sidebar-muted font-mono">{matchCount}</span>
               )}
               <button
                 onClick={() => { setSearchQuery(""); setShowSearch(false); }}
-                className="text-zinc-500 hover:text-zinc-300"
+                className="text-sidebar-muted hover:text-sidebar-foreground"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -387,7 +389,7 @@ export function LogViewer({
 
           <Button
             variant="ghost" size="icon"
-            className={cn("h-7 w-7 text-zinc-500 hover:text-zinc-200 hover:bg-white/5", showSearch && "text-zinc-200 bg-white/5")}
+            className={cn("h-7 w-7 text-sidebar-muted hover:text-sidebar-foreground hover:bg-white/10", showSearch && "text-sidebar-foreground bg-white/10")}
             onClick={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery(""); }}
             title="Find in logs"
           >
@@ -395,7 +397,7 @@ export function LogViewer({
           </Button>
           <Button
             variant="ghost" size="icon"
-            className="h-7 w-7 text-zinc-500 hover:text-zinc-200 hover:bg-white/5"
+            className="h-7 w-7 text-sidebar-muted hover:text-sidebar-foreground hover:bg-white/10"
             onClick={() => setIsFullscreen(!isFullscreen)}
             title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
           >
@@ -404,7 +406,7 @@ export function LogViewer({
           <Button
             variant="ghost" size="icon"
             className={cn(
-              "h-7 w-7 text-zinc-500 hover:text-zinc-200 hover:bg-white/5",
+              "h-7 w-7 text-sidebar-muted hover:text-sidebar-foreground hover:bg-white/10",
               copied && "text-emerald-400 hover:text-emerald-400",
             )}
             onClick={handleCopy}
@@ -416,7 +418,7 @@ export function LogViewer({
           </Button>
           <Button
             variant="ghost" size="icon"
-            className="h-7 w-7 text-zinc-500 hover:text-zinc-200 hover:bg-white/5"
+            className="h-7 w-7 text-sidebar-muted hover:text-sidebar-foreground hover:bg-white/10"
             onClick={handleDownload}
             title="Download"
           >
@@ -424,7 +426,7 @@ export function LogViewer({
           </Button>
           <Button
             variant="ghost" size="icon"
-            className="h-7 w-7 text-zinc-500 hover:text-zinc-200 hover:bg-white/5"
+            className="h-7 w-7 text-sidebar-muted hover:text-sidebar-foreground hover:bg-white/10"
             onClick={onClear}
             title="Clear"
           >
@@ -440,7 +442,7 @@ export function LogViewer({
         tabIndex={0}
       >
         {logs.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-zinc-600">
+          <div className="flex items-center justify-center h-full text-sidebar-subtle">
             <div className="text-center">
               <ScrollText className="h-8 w-8 mx-auto mb-3 opacity-20" />
               <p className="text-[13px]">{connected ? "Waiting for logs..." : "Connecting..."}</p>
@@ -461,7 +463,7 @@ export function LogViewer({
                 >
                   {/* Timestamp */}
                   {timestamp && (
-                    <span className="shrink-0 text-zinc-600 select-none mr-2 text-[12px] tabular-nums">
+                    <span className="shrink-0 text-sidebar-subtle select-none mr-2 text-[12px] tabular-nums">
                       {timestamp}
                     </span>
                   )}
@@ -469,7 +471,7 @@ export function LogViewer({
                   {/* Content */}
                   <span
                     className="flex-1 whitespace-pre-wrap break-all"
-                    style={smartColor && !hasAnsi ? { color: smartColor } : { color: "#d4d4d8" }}
+                    style={smartColor && !hasAnsi ? { color: smartColor } : { color: "#e2e8f0" }}
                   >
                     {hasAnsi ? (
                       <AnsiLine text={content} highlight={searchQuery} />
@@ -505,7 +507,7 @@ export function LogViewer({
               programmaticScrollRef.current = false;
             });
           }}
-          className="absolute bottom-4 right-4 flex h-8 items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-800 px-3 text-zinc-300 shadow-lg transition-all hover:bg-zinc-700 hover:text-white"
+          className="absolute bottom-4 right-4 flex h-8 items-center gap-1.5 rounded-full border border-sidebar-border bg-sidebar-accent px-3 text-sidebar-foreground shadow-lg transition-all hover:bg-white/10"
           title="Resume following the newest logs"
         >
           <ArrowDown className="h-3.5 w-3.5" />

@@ -41,13 +41,14 @@ const config: Config = {
         ring: "hsl(var(--ring))",
         header: "hsl(var(--header))",
         subtle: "hsl(var(--subtle-foreground))",
-        // Row/card hover surface (#1A1A1A). Same value as `secondary`, named for
+        // Row/card hover surface (#F1F4F8). Same value as `secondary`, named for
         // intent so `hover:bg-hover` reads as what it is.
         hover: "hsl(var(--secondary))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar))",
           foreground: "hsl(var(--sidebar-foreground))",
           muted: "hsl(var(--sidebar-muted))",
+          subtle: "hsl(var(--sidebar-subtle))",
           border: "hsl(var(--sidebar-border))",
           accent: "hsl(var(--sidebar-accent))",
         },

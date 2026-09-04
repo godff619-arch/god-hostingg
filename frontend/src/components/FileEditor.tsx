@@ -172,8 +172,9 @@ export function FileEditor({
     });
   };
 
-  // Dark-only product theme, so Monaco always uses its dark palette.
-  const monacoTheme = "vs-dark";
+  // The editor follows the app: a light plane, so Monaco uses its light palette.
+  // Unlike the shell canvas, a file editor has no ANSI colour to preserve.
+  const monacoTheme = resolvedTheme === "light" ? "vs" : "vs-dark";
 
   return (
     <div

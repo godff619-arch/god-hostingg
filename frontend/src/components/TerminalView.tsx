@@ -16,7 +16,6 @@ import { Input } from "@/components/ui/input";
 import { API_URL, cn } from "@/lib/utils";
 import { authFetch } from "@/lib/auth";
 import { toast } from "sonner";
-import { useTheme } from "@/lib/theme";
 import {
   fetchVersionInfo,
   getCachedVersion,
@@ -39,56 +38,36 @@ let pendingShellDeferForUpgrade = false;
 
 const PASSWORD_CANCEL = Symbol("terminal_password_cancel");
 
-function xtermTheme(mode: "dark" | "light") {
-  if (mode === "light") {
-    return {
-      background: "#fafafa",
-      foreground: "#171717",
-      cursor: "#171717",
-      cursorAccent: "#fafafa",
-      selectionBackground: "#17171722",
-      selectionForeground: "#171717",
-      black: "#171717",
-      red: "#b91c1c",
-      green: "#15803d",
-      yellow: "#a16207",
-      blue: "#1d4ed8",
-      magenta: "#6b21a8",
-      cyan: "#0e7490",
-      white: "#525252",
-      brightBlack: "#737373",
-      brightRed: "#dc2626",
-      brightGreen: "#16a34a",
-      brightYellow: "#ca8a04",
-      brightBlue: "#2563eb",
-      brightMagenta: "#7c3aed",
-      brightCyan: "#0891b2",
-      brightWhite: "#0a0a0a",
-    };
-  }
+/**
+ * The shell canvas stays dark on the light app, on the same #0F172A plane as the
+ * rail — ANSI colour is designed for a dark background, and `ls`, `htop` and
+ * every installer's progress output are unreadable when it is inverted. One
+ * palette, so there is no theme to keep in sync.
+ */
+function xtermTheme() {
   return {
-    background: "#0a0a0a",
-    foreground: "#e5e5e5",
-    cursor: "#e5e5e5",
-    cursorAccent: "#0a0a0a",
-    selectionBackground: "#e5e5e533",
-    selectionForeground: "#fafafa",
-    black: "#0a0a0a",
+    background: "#0f172a",
+    foreground: "#e2e8f0",
+    cursor: "#e2e8f0",
+    cursorAccent: "#0f172a",
+    selectionBackground: "#e2e8f033",
+    selectionForeground: "#f8fafc",
+    black: "#0f172a",
     red: "#f87171",
     green: "#4ade80",
     yellow: "#facc15",
-    blue: "#93c5fd",
-    magenta: "#d8b4fe",
+    blue: "#60a5fa",
+    magenta: "#c4b5fd",
     cyan: "#67e8f9",
-    white: "#e5e5e5",
-    brightBlack: "#737373",
+    white: "#e2e8f0",
+    brightBlack: "#64748b",
     brightRed: "#fca5a5",
     brightGreen: "#86efac",
     brightYellow: "#fde047",
-    brightBlue: "#bfdbfe",
-    brightMagenta: "#e9d5ff",
+    brightBlue: "#93c5fd",
+    brightMagenta: "#ddd6fe",
     brightCyan: "#a5f3fc",
-    brightWhite: "#fafafa",
+    brightWhite: "#f8fafc",
   };
 }
 
@@ -98,7 +77,6 @@ function formatVersion(v?: string) {
 }
 
 export function TerminalView({ className }: { className?: string }) {
-  const { resolvedTheme } = useTheme();
   const [searchParams, setSearchParams] = useSearchParams();
   const [showRebootDialog, setShowRebootDialog] = useState(false);
   const [showResetDialog, setShowResetDialog] = useState(false);
@@ -131,8 +109,6 @@ export function TerminalView({ className }: { className?: string }) {
   const wsRef = useRef<WebSocket | null>(null);
   const fitAddonRef = useRef<any>(null);
   const passwordInputRef = useRef<HTMLInputElement>(null);
-  const themeRef = useRef(resolvedTheme);
-  themeRef.current = resolvedTheme;
   const passwordResolveRef = useRef<
     ((value: string | typeof PASSWORD_CANCEL) => void) | null
   >(null);
@@ -201,7 +177,7 @@ export function TerminalView({ className }: { className?: string }) {
         lineHeight: 1.35,
         letterSpacing: 0,
         allowTransparency: false,
-        theme: xtermTheme(themeRef.current),
+        theme: xtermTheme(),
         scrollback: 5000,
         convertEol: true,
         allowProposedApi: true,
@@ -287,12 +263,6 @@ export function TerminalView({ className }: { className?: string }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Keep xterm colors in sync with app light/dark
-  useEffect(() => {
-    if (!xtermRef.current) return;
-    xtermRef.current.options.theme = xtermTheme(resolvedTheme);
-  }, [resolvedTheme]);
 
   // Handle window resize
   useEffect(() => {
@@ -855,8 +825,9 @@ export function TerminalView({ className }: { className?: string }) {
     }, 100);
   };
 
-  // Matches the dark-only shell background behind the xterm canvas.
-  const termBg = "#0a0a0a";
+  // The frame behind the xterm canvas. Same value as the palette's background
+  // above, so no seam shows around the rows when the grid does not divide evenly.
+  const termBg = "#0f172a";
   const statusLabel = connected ? "live" : connecting ? "connecting" : "offline";
   const hostLocked =
     !!waitState && !waitState.simulated && waitState.kind === "upgrade";
@@ -933,12 +904,12 @@ export function TerminalView({ className }: { className?: string }) {
       {/* Shell frame — fills remaining viewport; xterm FitAddon follows ResizeObserver */}
       <div
         className={cn(
-          "flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border/60 bg-background",
+          "flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-[0_1px_2px_0_rgba(15,23,42,0.04)]",
           isFullscreen &&
             "fixed inset-0 z-50 m-0 h-screen w-screen rounded-none border-0",
         )}
       >
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/60 px-3 py-1.5 sm:py-2">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-3 py-1.5 sm:py-2">
           <div className="flex min-w-0 items-baseline gap-2">
             <span className="truncate font-mono text-xs text-foreground">
               root@docklift
