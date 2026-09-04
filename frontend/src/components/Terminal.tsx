@@ -1,4 +1,8 @@
 // Terminal component - build log display with syntax highlighting and copy feature
+//
+// Build output is written for a dark background, so this pane stays on the navy
+// #0F172A plane with the rail and the shell canvas. Every colour comes from a
+// `sidebar-*` token; the light-plane tokens would be invisible here.
 
 import { useEffect, useRef, useState } from "react";
 import { cn, copyToClipboard } from "@/lib/utils";
@@ -37,7 +41,7 @@ export function Terminal({ logs, isBuilding, className }: TerminalProps) {
 
   const formatLogs = (text: string) => {
     return text.split("\n").map((line, i) => {
-      let lineClass = "text-zinc-400";
+      let lineClass = "text-sidebar-foreground/80";
       let icon = null;
       
       // Success indicators
@@ -86,40 +90,42 @@ export function Terminal({ logs, isBuilding, className }: TerminalProps) {
   };
 
   return (
-    <div id="terminal-wrapper" className={cn("flex flex-col bg-[#09090b] rounded-2xl border border-white/[0.08] dark:border-white/[0.05] overflow-hidden shadow-2xl", className)}>
+    <div
+      id="terminal-wrapper"
+      className={cn(
+        "flex flex-col overflow-hidden rounded-xl border border-sidebar-border bg-sidebar shadow-[0_1px_2px_0_rgba(15,23,42,0.04)]",
+        className,
+      )}
+    >
       {/* Terminal Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-zinc-900/50 border-b border-white/[0.05] backdrop-blur-md">
+      <div className="flex items-center justify-between border-b border-sidebar-border bg-sidebar-accent px-4 py-2.5">
         <div className="flex items-center gap-3">
-          <div className="flex gap-1.5 px-0.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
-            <div className="w-2.5 h-2.5 rounded-full bg-amber-500/80" />
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
-          </div>
-          <div className="w-px h-3 bg-white/10 mx-1" />
-          <div className="flex items-center gap-2 text-[11px] font-bold text-zinc-500 tracking-widest uppercase">
-            <TerminalIcon className="h-3 w-3" />
-            Output Terminal
+          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.09em] text-sidebar-muted">
+            <TerminalIcon className="h-3.5 w-3.5" strokeWidth={1.75} />
+            Output
           </div>
           {isBuilding && (
-            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-amber-500/10 rounded-full border border-amber-500/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-              <span className="text-[9px] font-bold text-amber-500 uppercase tracking-tight">Streaming</span>
+            <div className="flex items-center gap-1.5 rounded-full border border-warning-border/30 bg-warning-surface/10 px-2 py-0.5">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-warning-border" />
+              <span className="text-[9px] font-semibold uppercase tracking-tight text-warning-border">
+                Streaming
+              </span>
             </div>
           )}
         </div>
 
-        <Button 
-          variant="ghost" 
-          size="sm" 
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={handleCopy}
-          className="h-8 px-3 gap-2 text-zinc-500 hover:text-white hover:bg-white/5 transition-all active:scale-95"
+          className="h-8 gap-2 px-3 text-sidebar-muted transition-all hover:bg-white/10 hover:text-sidebar-foreground active:scale-95"
         >
           {copied ? (
-            <Check className="h-3.5 w-3.5 text-emerald-500" />
+            <Check className="h-3.5 w-3.5 text-success-border" />
           ) : (
             <Copy className="h-3.5 w-3.5" />
           )}
-          <span className="text-[10px] font-bold uppercase tracking-wider">{copied ? "Copied" : "Copy"}</span>
+          <span className="text-[10px] font-semibold uppercase tracking-wider">{copied ? "Copied" : "Copy"}</span>
         </Button>
       </div>
 
@@ -127,57 +133,43 @@ export function Terminal({ logs, isBuilding, className }: TerminalProps) {
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="flex-1 p-4 overflow-auto scrollbar-terminal font-mono text-[13px] relative selection:bg-white/20"
+        className="dark-scroll relative flex-1 overflow-auto p-4 font-mono text-[13px] selection:bg-white/20"
       >
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(120,119,198,0.05),transparent)] pointer-events-none" />
-        
         {logs ? (
           <div className="relative z-10">
             {formatLogs(logs)}
             {isBuilding && (
-              <div className="flex items-center gap-2 mt-4 text-emerald-500 animate-pulse font-bold">
-                <span className="text-emerald-500/50">$</span>
-                <span className="w-2 h-4 bg-emerald-500/80" />
+              <div className="mt-4 flex animate-pulse items-center gap-2 font-semibold text-success-border">
+                <span className="text-success-border/60">$</span>
+                <span className="h-4 w-2 bg-success-border/80" />
               </div>
             )}
           </div>
         ) : isBuilding ? (
-          <div className="text-amber-500/80 flex items-center gap-3 italic animate-pulse py-4 font-bold">
-            <div className="h-2 w-2 rounded-full bg-amber-500" />
+          <div className="flex animate-pulse items-center gap-3 py-4 font-medium italic text-warning-border">
+            <div className="h-2 w-2 rounded-full bg-warning-border" />
             Warming up build environment...
           </div>
         ) : (
-          <div className="text-zinc-600 flex flex-col items-center justify-center h-full gap-4 text-center py-20 grayscale opacity-40">
-            <TerminalIcon className="h-12 w-12" strokeWidth={1} />
+          <div className="flex h-full flex-col items-center justify-center gap-4 py-20 text-center text-sidebar-subtle">
+            <TerminalIcon className="h-12 w-12 opacity-40" strokeWidth={1} />
             <div className="space-y-1">
-              <p className="font-bold tracking-tight uppercase">Terminal Ready</p>
+              <p className="font-semibold uppercase tracking-tight">Terminal Ready</p>
               <p className="text-xs">Waiting for deployment instructions</p>
             </div>
-            <div className="mt-4 flex flex-wrap gap-2 justify-center opacity-50">
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
               {["npm run build", "docker compose up", "yarn install"].map((cmd) => (
-                <div key={cmd} className="px-3 py-1 bg-white/5 rounded-lg border border-white/10 font-mono text-[10px]">{cmd}</div>
+                <div
+                  key={cmd}
+                  className="rounded-lg border border-sidebar-border bg-white/[0.04] px-3 py-1 font-mono text-[10px]"
+                >
+                  {cmd}
+                </div>
               ))}
             </div>
           </div>
         )}
       </div>
-
-      <style>{`
-        .scrollbar-terminal::-webkit-scrollbar {
-          width: 5px;
-          height: 5px;
-        }
-        .scrollbar-terminal::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .scrollbar-terminal::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.05);
-          border-radius: 10px;
-        }
-        .scrollbar-terminal::-webkit-scrollbar-thumb:hover {
-          background: rgba(255, 255, 255, 0.1);
-        }
-      `}</style>
     </div>
   );
 }

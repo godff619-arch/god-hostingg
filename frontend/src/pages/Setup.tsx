@@ -213,12 +213,12 @@ export default function SetupPage() {
   // Show restore progress/complete view
   if (restoring || restoreComplete) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-amber-950/20 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="w-full max-w-2xl">
-          <Card className="p-8 border-amber-500/20 shadow-2xl bg-card/80 backdrop-blur-sm">
+          <Card className="p-8 border-warning-border bg-card shadow-[0_2px_10px_0_rgba(15,23,42,0.06)]">
             <div className="flex items-center gap-3 mb-6">
-              <div className="p-3 rounded-xl bg-amber-500/10">
-                <RotateCcw className={`h-6 w-6 text-amber-500 ${restoring ? 'animate-spin' : ''}`} />
+              <div className="p-3 rounded-xl border border-warning-border bg-warning-surface">
+                <RotateCcw className={`h-6 w-6 text-warning ${restoring ? 'animate-spin' : ''}`} />
               </div>
               <div>
                 <h2 className="text-2xl font-bold">
@@ -230,24 +230,26 @@ export default function SetupPage() {
               </div>
             </div>
 
-            <div className="bg-black/90 rounded-lg p-4 font-mono text-xs text-green-400 max-h-[400px] overflow-y-auto mb-6">
+            {/* Restore log — the one dark panel on this page, same navy plane as
+                the shell canvas, because it is streamed console output. */}
+            <div className="dark-scroll mb-6 max-h-[400px] overflow-y-auto rounded-lg border border-sidebar-border bg-sidebar p-4 font-mono text-xs text-sidebar-foreground/85">
               {restoreProgress.map((line, i) => (
                 <div key={i} className="whitespace-pre-wrap">{line}</div>
               ))}
-              {restoring && <span className="animate-pulse">▌</span>}
+              {restoring && <span className="animate-pulse text-success-border">▌</span>}
             </div>
 
             {restoreComplete && (
               <div className="space-y-4">
-                <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                  <p className="text-emerald-500 font-medium">Restore successful!</p>
+                <div className="rounded-lg border border-success-border bg-success-surface p-4">
+                  <p className="font-semibold text-success">Restore successful!</p>
                   <p className="text-sm text-muted-foreground mt-1">
                     You can now sign in with your existing credentials from the backup.
                   </p>
                 </div>
                 <Button
                   onClick={() => navigate('/sign-in')}
-                  className="w-full h-11 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-bold"
+                  className="w-full h-11 font-semibold"
                 >
                   Go to Sign In
                 </Button>
@@ -260,32 +262,32 @@ export default function SetupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-cyan-950/20 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <div className="relative mb-4">
-            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl blur-xl opacity-50" />
-            <div className="relative bg-gradient-to-br from-cyan-500 to-blue-600 p-4 rounded-2xl shadow-2xl">
-              <Container className="h-10 w-10 text-white" strokeWidth={2.5} />
+            <div className="absolute inset-0 rounded-2xl bg-brand/20 blur-xl" />
+            <div className="relative rounded-2xl bg-brand p-4 shadow-[0_4px_14px_0_rgba(15,23,42,0.10)]">
+              <Container className="h-10 w-10 text-brand-foreground" strokeWidth={2.5} />
             </div>
           </div>
-          <h1 className="text-4xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
             God Hosting
           </h1>
         </div>
 
         {mode === 'register' ? (
-          <Card className="p-8 border-border/50 shadow-2xl bg-card/80 backdrop-blur-sm">
+          <Card className="p-8 border-border bg-card shadow-[0_2px_10px_0_rgba(15,23,42,0.06)]">
             <div className="mb-6">
               <h2 className="text-2xl font-bold tracking-tight">Create an account</h2>
-              <p className="text-sm text-cyan-500 mt-1 font-medium">
+              <p className="text-sm text-brand mt-1 font-medium">
                 This user will be the root user (full admin access).
               </p>
             </div>
 
             {error && (
-              <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-500 text-sm">
+              <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger-border bg-danger-surface p-3 text-sm text-danger">
                 <AlertCircle className="h-4 w-4 shrink-0" />
                 {error}
               </div>
@@ -294,7 +296,7 @@ export default function SetupPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="text-sm font-medium mb-1.5 block">
-                  Name <span className="text-red-500">*</span>
+                  Name <span className="text-danger">*</span>
                 </label>
                 <Input
                   type="text"
@@ -308,7 +310,7 @@ export default function SetupPage() {
 
               <div>
                 <label className="text-sm font-medium mb-1.5 block">
-                  Email <span className="text-red-500">*</span>
+                  Email <span className="text-danger">*</span>
                 </label>
                 <Input
                   type="email"
@@ -322,7 +324,7 @@ export default function SetupPage() {
 
               <div>
                 <label className="text-sm font-medium mb-1.5 block">
-                  Password <span className="text-red-500">*</span>
+                  Password <span className="text-danger">*</span>
                 </label>
                 <div className="relative">
                   <Input
@@ -348,7 +350,7 @@ export default function SetupPage() {
 
               <div>
                 <label className="text-sm font-medium mb-1.5 block">
-                  Confirm Password <span className="text-red-500">*</span>
+                  Confirm Password <span className="text-danger">*</span>
                 </label>
                 <div className="relative">
                   <Input
@@ -368,14 +370,14 @@ export default function SetupPage() {
                   </button>
                 </div>
                 {formData.confirmPassword && !passwordsMatch && (
-                  <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
+                  <p className="text-xs text-danger mt-1">Passwords do not match</p>
                 )}
               </div>
 
               {bootstrapRequired && (
                 <div>
                   <label className="text-sm font-medium mb-1.5 block">
-                    Bootstrap secret <span className="text-red-500">*</span>
+                    Bootstrap secret <span className="text-danger">*</span>
                   </label>
                   <Input
                     type="password"
@@ -402,7 +404,7 @@ export default function SetupPage() {
                   !formData.email ||
                   (bootstrapRequired && !formData.bootstrapSecret.trim())
                 }
-                className="w-full h-11 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold"
+                className="w-full h-11 font-semibold"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Register
@@ -411,7 +413,7 @@ export default function SetupPage() {
 
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border/50"></div>
+                <div className="w-full border-t border-border"></div>
               </div>
               <div className="relative flex justify-center text-xs uppercase">
                 <span className="bg-card px-2 text-muted-foreground">Or</span>
@@ -420,9 +422,9 @@ export default function SetupPage() {
 
             <Button
               type="button"
-              variant="outline"
+              variant="warning"
               onClick={() => setMode('restore')}
-              className="w-full h-11 border-amber-500/30 text-amber-500 hover:bg-amber-500/10"
+              className="w-full h-11"
             >
               <RotateCcw className="h-4 w-4 mr-2" />
               Restore from Backup
@@ -430,13 +432,13 @@ export default function SetupPage() {
 
             <p className="text-center text-sm text-muted-foreground mt-6">
               Already registered?{" "}
-              <Link to="/sign-in" className="text-cyan-500 hover:underline font-medium">
+              <Link to="/sign-in" className="text-brand hover:underline font-medium">
                 Sign In
               </Link>
             </p>
           </Card>
         ) : (
-          <Card className="p-8 border-amber-500/20 shadow-2xl bg-card/80 backdrop-blur-sm">
+          <Card className="p-8 border-warning-border bg-card shadow-[0_2px_10px_0_rgba(15,23,42,0.06)]">
             <button
               onClick={() => setMode('register')}
               className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
@@ -447,13 +449,13 @@ export default function SetupPage() {
 
             <div className="mb-6">
               <h2 className="text-2xl font-bold tracking-tight">Restore from Backup</h2>
-              <p className="text-sm text-amber-500 mt-1 font-medium">
+              <p className="text-sm text-warning mt-1 font-medium">
                 Restore your God Hosting instance from a backup file.
               </p>
             </div>
 
             {error && (
-              <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-500 text-sm">
+              <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger-border bg-danger-surface p-3 text-sm text-danger">
                 <AlertCircle className="h-4 w-4 shrink-0" />
                 {error}
               </div>
@@ -462,7 +464,7 @@ export default function SetupPage() {
             {bootstrapRequired && (
               <div className="mb-4">
                 <label className="text-sm font-medium mb-1.5 block">
-                  Bootstrap secret <span className="text-red-500">*</span>
+                  Bootstrap secret <span className="text-danger">*</span>
                 </label>
                 <Input
                   type="password"
@@ -476,18 +478,18 @@ export default function SetupPage() {
             )}
 
             <div
-              className={`p-6 rounded-lg border-2 border-dashed transition-all ${
+              className={`rounded-lg border-2 border-dashed p-6 transition-colors ${
                 isDragging
-                  ? 'border-amber-500 bg-amber-500/10 scale-[1.02]'
-                  : 'border-amber-500/30 bg-amber-500/5'
+                  ? 'border-warning bg-warning-surface'
+                  : 'border-warning-border bg-warning-surface/60'
               }`}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
             >
               <div className="flex flex-col items-center gap-4 text-center">
-                <div className={`p-4 rounded-full transition-all ${isDragging ? 'bg-amber-500/20 scale-110' : 'bg-amber-500/10'}`}>
-                  <FileUp className={`h-8 w-8 text-amber-500 ${isDragging ? 'animate-bounce' : ''}`} />
+                <div className="rounded-full border border-warning-border bg-card p-4">
+                  <FileUp className={`h-8 w-8 text-warning ${isDragging ? 'animate-bounce' : ''}`} />
                 </div>
                 <div>
                   <p className="font-medium">
@@ -505,12 +507,7 @@ export default function SetupPage() {
                     className="hidden"
                     disabled={restoring}
                   />
-                  <Button
-                    type="button"
-                    className="bg-amber-600 hover:bg-amber-700"
-                    disabled={restoring}
-                    asChild
-                  >
+                  <Button type="button" disabled={restoring} asChild>
                     <span>
                       {restoring ? (
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -524,7 +521,7 @@ export default function SetupPage() {
               </div>
             </div>
 
-            <div className="mt-4 p-3 rounded-lg bg-secondary/30 border border-border/50 text-sm">
+            <div className="mt-4 rounded-lg border border-border bg-secondary p-3 text-sm">
               <p className="font-medium mb-2">Backup will restore:</p>
               <ul className="list-disc list-inside text-muted-foreground space-y-1 text-xs">
                 <li>All user accounts and credentials</li>
@@ -535,8 +532,8 @@ export default function SetupPage() {
               </ul>
             </div>
 
-            <div className="mt-3 p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-sm">
-              <p className="font-medium text-cyan-500 mb-2">After restore:</p>
+            <div className="mt-3 rounded-lg border border-brand/20 bg-brand/5 p-3 text-sm">
+              <p className="font-medium text-brand mb-2">After restore:</p>
               <ul className="list-disc list-inside text-muted-foreground space-y-1 text-xs">
                 <li>Sign in with your credentials from the backup</li>
                 <li>Redeploy each project (containers need rebuilding)</li>

@@ -35,9 +35,11 @@ export function ScrollToTop() {
       <Button
         onClick={scrollToTop}
         size="icon"
-        className="h-12 w-12 rounded-full shadow-2xl bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-200 border border-white/20 dark:border-zinc-300 flex items-center justify-center group transition-all"
+        aria-label="Scroll back to top"
+        title="Back to top"
+        className="group flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-[0_4px_14px_0_rgba(15,23,42,0.10)] transition-all hover:bg-secondary hover:text-foreground"
       >
-        <ChevronUp className="h-6 w-6 text-white dark:text-zinc-900 transition-transform group-hover:-translate-y-1" />
+        <ChevronUp className="h-5 w-5 transition-transform group-hover:-translate-y-0.5" />
       </Button>
     </div>
   );

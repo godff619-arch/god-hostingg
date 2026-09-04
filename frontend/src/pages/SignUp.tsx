@@ -49,19 +49,19 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-cyan-950/20 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-8">
           <div className="relative mb-4">
-            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl blur-xl opacity-50" />
-            <BrandLogo className="relative h-16 w-16 rounded-2xl shadow-2xl" />
+            <div className="absolute inset-0 rounded-2xl bg-brand/20 blur-xl" />
+            <BrandLogo className="relative h-16 w-16 rounded-2xl shadow-[0_4px_14px_0_rgba(15,23,42,0.10)]" />
           </div>
-          <h1 className="text-4xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
             {APP_NAME}
           </h1>
         </div>
 
-        <Card className="p-8 border-border/50 shadow-2xl bg-card/80 backdrop-blur-sm">
+        <Card className="p-8 border-border bg-card shadow-[0_2px_10px_0_rgba(15,23,42,0.06)]">
           <div className="mb-6">
             <h2 className="text-2xl font-bold tracking-tight">Create your account</h2>
             <p className="text-sm text-muted-foreground mt-1">
@@ -70,14 +70,14 @@ export default function SignUpPage() {
           </div>
 
           {!registrationEnabled && (
-            <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center gap-2 text-amber-500 text-sm">
+            <div className="mb-4 flex items-center gap-2 rounded-lg border border-warning-border bg-warning-surface p-3 text-sm text-warning">
               <AlertCircle className="h-4 w-4 shrink-0" />
               Registration is currently disabled. Contact an administrator.
             </div>
           )}
 
           {error && (
-            <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-500 text-sm">
+            <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger-border bg-danger-surface p-3 text-sm text-danger">
               <AlertCircle className="h-4 w-4 shrink-0" />
               {error}
             </div>
@@ -142,7 +142,7 @@ export default function SignUpPage() {
                 !formData.email ||
                 formData.password.length < 8
               }
-              className="w-full h-11 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold gap-2"
+              className="w-full h-11 gap-2 font-semibold"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
               Create account
@@ -151,7 +151,7 @@ export default function SignUpPage() {
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Already have an account?{" "}
-            <Link to="/sign-in" className="font-semibold text-cyan-500 hover:text-cyan-400">
+            <Link to="/sign-in" className="font-semibold text-brand hover:text-brand-strong">
               Sign in
             </Link>
           </p>

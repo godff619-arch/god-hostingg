@@ -228,7 +228,7 @@ export function CommandPalette() {
         type="button"
         aria-label="Close command palette"
         onClick={() => setPaletteOpen(false)}
-        className="absolute inset-0 cursor-default bg-black/70 animate-in fade-in duration-150"
+        className="absolute inset-0 cursor-default bg-foreground/40 animate-in fade-in duration-150"
       />
 
       <div
@@ -237,7 +237,7 @@ export function CommandPalette() {
         aria-modal="true"
         aria-label="Search"
         onKeyDown={onKeyDown}
-        className="relative w-full max-w-xl overflow-hidden rounded-md border border-border bg-card animate-in fade-in zoom-in-95 duration-150"
+        className="relative w-full max-w-xl overflow-hidden rounded-md border border-border bg-card shadow-[0_12px_32px_-12px_rgba(15,23,42,0.25)] animate-in fade-in zoom-in-95 duration-150"
       >
         <div className="flex items-center gap-3 border-b border-border px-4">
           <Search className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.75} />

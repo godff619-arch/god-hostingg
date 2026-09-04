@@ -257,7 +257,7 @@ SESSION_SECRET=your-secret-here
 # Lines starting with # are ignored`}
                   value={bulkContent}
                   onChange={(e) => setBulkContent(e.target.value)}
-                  className="w-full h-40 p-4 font-mono text-sm bg-background/50 border border-border/60 rounded-xl resize-none focus:outline-none focus:border-cyan-500/50"
+                  className="w-full h-40 p-4 font-mono text-sm bg-background/50 border border-border/60 rounded-xl resize-none focus:outline-none focus:border-brand/50"
                 />
               </div>
               
@@ -297,7 +297,7 @@ SESSION_SECRET=your-secret-here
                 <Button 
                   onClick={handleBulkImport} 
                   disabled={bulkAdding} 
-                  className="px-8 h-11 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl shadow-lg shadow-cyan-600/20 font-bold transition-all"
+                  className="px-8 h-11 rounded-xl font-semibold"
                 >
                   {bulkAdding ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
                   Import All
@@ -313,7 +313,7 @@ SESSION_SECRET=your-secret-here
                 placeholder="e.g. DATABASE_URL"
                 value={newKey}
                 onChange={(e) => setNewKey(e.target.value.toUpperCase().replace(/\s+/g, '_'))}
-                className="font-mono h-11 border-border/60 focus:border-cyan-500/50 bg-background/50"
+                className="font-mono h-11 border-border/60 focus:border-brand/50 bg-background/50"
               />
             </div>
             <div className="space-y-2">
@@ -322,7 +322,7 @@ SESSION_SECRET=your-secret-here
                 placeholder="••••••••••••"
                 value={newValue}
                 onChange={(e) => setNewValue(e.target.value)}
-                className="h-11 border-border/60 focus:border-cyan-500/50 bg-background/50"
+                className="h-11 border-border/60 focus:border-brand/50 bg-background/50"
                 type="password"
               />
             </div>
@@ -333,7 +333,7 @@ SESSION_SECRET=your-secret-here
               <div className="flex items-center gap-2 group cursor-pointer" onClick={() => setIsBuildArg(!isBuildArg)}>
                 <div className={cn(
                   "h-4 w-4 rounded border transition-colors flex items-center justify-center",
-                  isBuildArg ? "bg-cyan-500 border-cyan-500" : "bg-transparent border-muted-foreground/40"
+                  isBuildArg ? "bg-brand border-brand" : "bg-transparent border-muted-foreground/40"
                 )}>
                   {isBuildArg && <Check className="h-3 w-3 text-white" strokeWidth={4} />}
                 </div>
@@ -375,7 +375,7 @@ SESSION_SECRET=your-secret-here
             <Button 
               onClick={handleAdd} 
               disabled={adding} 
-              className="w-full sm:w-auto px-8 h-11 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl shadow-lg shadow-cyan-600/20 font-bold transition-all"
+              className="w-full sm:w-auto px-8 h-11 rounded-xl font-semibold"
             >
               {adding ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
               Save Variable
@@ -440,7 +440,7 @@ SESSION_SECRET=your-secret-here
                     </p>
                     <button
                       onClick={() => toggleVisibility(env.id)}
-                      className="text-muted-foreground hover:text-cyan-500 transition-colors p-1"
+                      className="text-muted-foreground hover:text-brand transition-colors p-1"
                     >
                       {visibleValues.has(env.id) ? (
                         <EyeOff className="h-3.5 w-3.5" />

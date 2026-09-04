@@ -193,6 +193,32 @@
   overscroll-behavior: contain;
 }
 
+/* Scrollbar for the navy plane — the rail, the shell canvas and the log panes.
+   The light-plane default (a dark thumb) disappears against #0F172A. */
+.dark-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(226, 232, 240, 0.16) transparent;
+  overscroll-behavior: contain;
+}
+
+.dark-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.dark-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dark-scroll::-webkit-scrollbar-thumb {
+  background: rgba(226, 232, 240, 0.16);
+  border-radius: 9999px;
+}
+
+.dark-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(226, 232, 240, 0.28);
+}
+
 /* Global toasts — above sticky CTAs / shell chrome; readable on every route */
 [data-sonner-toaster] {
   z-index: 200 !important;

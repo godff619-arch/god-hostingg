@@ -825,10 +825,10 @@ function SettingsContent() {
                             </div>
                           </div>
                         ) : (
-                          <Button 
+                          <Button
                             onClick={handleConnectGitHub}
                             size="lg"
-                            className="gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-lg shadow-cyan-500/25"
+                            className="gap-2"
                           >
                             <Sparkles className="h-4 w-4" />
                             Connect GitHub
@@ -1562,7 +1562,7 @@ function SettingsContent() {
               {creatingBackup ? 'Creating Backup...' : 'Backup Complete'}
             </DialogTitle>
           </DialogHeader>
-          <div className="bg-black/90 rounded-lg p-4 font-mono text-xs text-green-400 max-h-[400px] overflow-y-auto">
+          <div className="dark-scroll max-h-[400px] overflow-y-auto rounded-lg border border-sidebar-border bg-sidebar p-4 font-mono text-xs text-sidebar-foreground/85">
             {backupProgress.map((line, i) => (
               <div key={i} className="whitespace-pre-wrap">{line}</div>
             ))}
@@ -1588,7 +1588,7 @@ function SettingsContent() {
               {(restoringBackup || uploadingBackup) ? 'Restoring Backup...' : 'Restore Complete'}
             </DialogTitle>
           </DialogHeader>
-          <div className="bg-black/90 rounded-lg p-4 font-mono text-xs text-green-400 max-h-[400px] overflow-y-auto">
+          <div className="dark-scroll max-h-[400px] overflow-y-auto rounded-lg border border-sidebar-border bg-sidebar p-4 font-mono text-xs text-sidebar-foreground/85">
             {restoreProgress.map((line, i) => (
               <div key={i} className="whitespace-pre-wrap">{line}</div>
             ))}
