@@ -261,16 +261,31 @@ async function runNativeDeploy(args: {
   projectPath: string;
   deploymentId: string;
   envVars: Array<{ key: string; value: string }>;
+  /** Why the engine was judged unreachable, from getDockerEngineInfo(). */
+  engineMessage?: string | null;
   writeLog: (text: string) => void;
   syncLogsToDb: (force?: boolean) => Promise<void>;
 }): Promise<void> {
-  const { project, projectId, projectPath, deploymentId, envVars, writeLog, syncLogsToDb } = args;
+  const {
+    project,
+    projectId,
+    projectPath,
+    deploymentId,
+    envVars,
+    engineMessage,
+    writeLog,
+    syncLogsToDb,
+  } = args;
 
   writeLog(`\n${'━'.repeat(50)}\n`);
   writeLog(`🧩 DOCKER-FREE MODE — the Docker engine is not reachable\n`);
+  if (engineMessage) writeLog(`   Reason: ${engineMessage}\n`);
   writeLog(`   Hosting this app as a managed native process on the host.\n`);
   writeLog(`   ⚠️  No container isolation: it runs with the server's own privileges.\n`);
   writeLog(`       Fine for a single-operator box; use Docker for untrusted workloads.\n`);
+  writeLog(`   To get real containers back, give the panel the host engine socket:\n`);
+  writeLog(`       -v /var/run/docker.sock:/var/run/docker.sock\n`);
+  writeLog(`       (docker-compose.coolify.yml already mounts it — deploy with that file.)\n`);
   writeLog(`${'━'.repeat(50)}\n\n`);
 
   const baseDir = project.base_directory
@@ -279,9 +294,15 @@ async function runNativeDeploy(args: {
 
   const runtime: NativeRuntime | null = detectNativeRuntime(baseDir);
   if (!runtime) {
+    const where = project.base_directory
+      ? `base directory "${project.base_directory}"`
+      : 'the repository root';
     throw new Error(
-      'Docker-free mode supports Node, Python and static sites, but none were ' +
-        'detected (no package.json, Python entry, or index.html). This project needs Docker.',
+      `Docker-free mode found nothing it can run in ${where}: no package.json (Node), ` +
+        'no Python entry (requirements.txt / pyproject.toml / main.py / app.py / bot.py), ' +
+        'and no index.html (static). This project needs Docker — mount ' +
+        '/var/run/docker.sock into the panel container, then redeploy. ' +
+        'If the app does live in a subfolder, set the project base directory to it.',
     );
   }
   writeLog(`🔎 Detected runtime: ${runtime}\n`);
@@ -980,6 +1001,7 @@ async function deployProject(req: AuthenticatedRequest, res: Response) {
       if (isManagedDb) {
         throw new Error(
           'Managed databases require Docker, and the Docker engine is not reachable. ' +
+            (engineInfo.message ? `${engineInfo.message} ` : '') +
             'Start Docker to deploy a database — apps and bots can be hosted without it.',
         );
       }
@@ -989,6 +1011,7 @@ async function deployProject(req: AuthenticatedRequest, res: Response) {
         projectPath,
         deploymentId: deployment.id,
         envVars,
+        engineMessage: engineInfo.message,
         writeLog,
         syncLogsToDb,
       });

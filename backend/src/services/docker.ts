@@ -5,7 +5,11 @@ import { Response } from 'express';
 import path from 'path';
 import { config } from '../lib/config.js';
 import { projectNetworkName } from '../lib/naming.js';
-import { isDockerDaemonUnreachable, dockerCliAvailable } from '../lib/dockerBin.js';
+import {
+  isDockerDaemonUnreachable,
+  isDockerPermissionDenied,
+  dockerCliAvailable,
+} from '../lib/dockerBin.js';
 
 const DEFAULT_PULL_TIMEOUT_MS = 600_000;
 
@@ -88,11 +92,39 @@ export async function getDockerEngineInfo(): Promise<DockerEngineInfo> {
       daemonReachable: false,
       version: null,
       runningContainers: null,
-      message: isDockerDaemonUnreachable(err)
-        ? 'Docker engine is not reachable — install and start Docker to run containers.'
-        : `Docker engine error: ${(err as Error)?.message || 'unknown error'}`,
+      message: dockerUnreachableReason(err, cliAvailable),
     };
   }
+}
+
+/**
+ * Why the engine is unreachable, phrased as the fix rather than the symptom.
+ *
+ * The three cases need three different actions, and getting them mixed up wastes
+ * an operator's afternoon:
+ *   - socket mounted but not permitted (EACCES) → fix ownership, don't reinstall;
+ *   - CLI present, socket absent → this is a container without the socket mounted,
+ *     which is the normal state of a panel deployed by a PaaS build pack;
+ *   - no CLI at all → Docker really is missing from this machine.
+ */
+function dockerUnreachableReason(err: unknown, cliAvailable: boolean): string {
+  if (isDockerPermissionDenied(err)) {
+    return (
+      'Docker socket found but permission denied — this process may not use ' +
+      '/var/run/docker.sock. Run the panel as root or add its user to the docker group.'
+    );
+  }
+  if (cliAvailable) {
+    return (
+      'Docker engine is not reachable — the docker CLI is installed but no engine ' +
+      'socket answered. If the panel runs in a container, mount the host socket: ' +
+      '-v /var/run/docker.sock:/var/run/docker.sock (see docker-compose.coolify.yml).'
+    );
+  }
+  if (isDockerDaemonUnreachable(err)) {
+    return 'Docker engine is not reachable — install and start Docker to run containers.';
+  }
+  return `Docker engine error: ${(err as Error)?.message || 'unknown error'}`;
 }
 
 /**

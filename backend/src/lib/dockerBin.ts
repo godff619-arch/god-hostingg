@@ -37,6 +37,20 @@ export function isDockerDaemonUnreachable(err: unknown): boolean {
 }
 
 /**
+ * True when the socket is there but this process is not allowed to use it.
+ *
+ * Worth telling apart from "no engine": the fix is completely different. A panel
+ * container that mounted `/var/run/docker.sock` but runs as a non-root user hits
+ * this, and telling its operator to "install and start Docker" sends them off to
+ * fix something that is already working.
+ */
+export function isDockerPermissionDenied(err: unknown): boolean {
+  const e = err as { code?: string; message?: string } | undefined;
+  const msg = String(e?.message || err || '');
+  return e?.code === 'EACCES' || /\bEACCES\b|permission denied/i.test(msg);
+}
+
+/**
  * Whether the docker CLI is installed and resolvable. Client-only probe
  * (`docker --version`) — does NOT require the daemon to be running. Cached after
  * the first call. When false, this process cannot manage containers at all.
