@@ -1,6 +1,7 @@
 // Admin Settings (/admin/settings) — platform configuration form.
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { Settings, Save, Loader2, Flag, AlertTriangle, Download, Archive } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shell/PageHeader";
@@ -43,17 +44,12 @@ export default function AdminSettings() {
   const update = <K extends keyof SettingsData>(key: K, value: SettingsData[K]) =>
     setSettings((prev) => (prev ? { ...prev, [key]: value } : prev));
 
-  const toggleFlag = (flag: string) =>
-    setSettings((prev) =>
-      prev
-        ? { ...prev, feature_flags: { ...prev.feature_flags, [flag]: !prev.feature_flags[flag] } }
-        : prev,
-    );
-
   const handleSave = async () => {
     if (!settings) return;
     setSaving(true);
     try {
+      // `feature_flags` is deliberately not sent: it has its own page, and echoing
+      // a stale copy back here would silently undo a change made there.
       await adminSend("/settings", "PATCH", {
         platform_name: settings.platform_name,
         registration_enabled: settings.registration_enabled,
@@ -61,7 +57,6 @@ export default function AdminSettings() {
         default_plan_key: settings.default_plan_key,
         maintenance_mode: settings.maintenance_mode,
         maintenance_message: settings.maintenance_message,
-        feature_flags: settings.feature_flags,
         audit_retention_days: settings.audit_retention_days,
         error_retention_days: settings.error_retention_days,
         error_resolved_retention_days: settings.error_resolved_retention_days,
@@ -107,6 +102,7 @@ export default function AdminSettings() {
   }
 
   const flagKeys = Object.keys(settings.feature_flags ?? {});
+  const offCount = flagKeys.filter((k) => settings.feature_flags[k] === false).length;
 
   return (
     <>
@@ -163,7 +159,7 @@ export default function AdminSettings() {
           />
           <Toggle
             label="Deployments enabled"
-            description="Allow users to build and deploy applications."
+            description="Allow new builds, redeploys and rollbacks. Stop and restart keep working."
             checked={settings.deployments_enabled}
             onChange={(v) => update("deployments_enabled", v)}
           />
@@ -172,7 +168,7 @@ export default function AdminSettings() {
         <SettingsCard title="Maintenance">
           <Toggle
             label="Maintenance mode"
-            description="Show a maintenance banner and restrict access."
+            description="Show users a maintenance page and refuse the API. Sign-in and this admin panel stay available."
             checked={settings.maintenance_mode}
             onChange={(v) => update("maintenance_mode", v)}
             tone="warning"
@@ -239,21 +235,21 @@ export default function AdminSettings() {
         </SettingsCard>
 
         <SettingsCard title="Feature flags">
-          {flagKeys.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No feature flags configured.</p>
-          ) : (
-            <div className="space-y-3">
-              {flagKeys.map((flag) => (
-                <Toggle
-                  key={flag}
-                  label={flag}
-                  icon={<Flag className="h-4 w-4 text-brand" />}
-                  checked={settings.feature_flags[flag]}
-                  onChange={() => toggleFlag(flag)}
-                />
-              ))}
-            </div>
-          )}
+          {/* Edited on their own page: the registry there labels each switch and
+              names its enforcement point, which a raw key list cannot. */}
+          <p className="text-sm text-muted-foreground">
+            {flagKeys.length === 0
+              ? "This build registers no feature flags."
+              : offCount === 0
+                ? `All ${flagKeys.length} platform features are enabled.`
+                : `${offCount} of ${flagKeys.length} platform features ${offCount === 1 ? "is" : "are"} switched off.`}
+          </p>
+          <Button variant="outline" asChild className="w-fit">
+            <Link to="/admin/feature-flags">
+              <Flag className="h-4 w-4" />
+              Manage feature flags
+            </Link>
+          </Button>
         </SettingsCard>
       </div>
     </>

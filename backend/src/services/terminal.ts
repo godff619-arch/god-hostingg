@@ -9,6 +9,7 @@ import { isFullAdmin } from '../lib/platformRoles.js';
 import { PrismaClient } from '@prisma/client';
 import { config } from '../lib/config.js';
 import { isTrustedOrigin } from '../lib/originCheck.js';
+import { isFeatureEnabled } from '../lib/featureFlags.js';
 
 const prisma = new PrismaClient();
 
@@ -133,6 +134,25 @@ export function setupTerminalWebSocket(server: HttpServer) {
     const user = await verifyTerminalToken(token);
     if (!user) {
       socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+      socket.destroy();
+      return;
+    }
+
+    // `web_terminal` feature flag. Checked after auth so an unauthenticated prober
+    // learns nothing about the platform's configuration, and refused at the
+    // upgrade — a disabled shell must never get as far as spawning a process.
+    if (!(await isFeatureEnabled('web_terminal'))) {
+      const body = JSON.stringify({
+        error: 'The web terminal is disabled on this platform.',
+        feature: 'web_terminal',
+        featureDisabled: true,
+      });
+      socket.write(
+        'HTTP/1.1 403 Forbidden\r\n' +
+          'Content-Type: application/json\r\n' +
+          `Content-Length: ${Buffer.byteLength(body)}\r\n\r\n` +
+          body,
+      );
       socket.destroy();
       return;
     }

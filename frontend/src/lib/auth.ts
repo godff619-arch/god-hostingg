@@ -3,16 +3,45 @@
 import { API_URL } from "@/lib/utils";
 
 let unauthorizedHandler: (() => void) | null = null;
+let maintenanceHandler: ((message: string) => void) | null = null;
 
 /** Called once from AuthProvider so 401 responses clear session app-wide. */
 export function registerAuthUnauthorizedHandler(handler: () => void): void {
   unauthorizedHandler = handler;
 }
 
+/**
+ * Called once from the shell so a 503 `{maintenance: true}` from anywhere in the
+ * app raises the maintenance page, instead of each caller surfacing its own
+ * unexplained "HTTP 503" toast.
+ */
+export function registerMaintenanceHandler(handler: (message: string) => void): void {
+  maintenanceHandler = handler;
+}
+
 function handleUnauthorized(response: Response): void {
   if (response.status === 401 && unauthorizedHandler) {
     unauthorizedHandler();
   }
+}
+
+/**
+ * Sniff an operator maintenance window out of a 503. The body is read from a
+ * clone so the original response stays intact for whoever asked for it, and only
+ * for 503s — every other status skips this entirely.
+ */
+function handleMaintenance(response: Response): void {
+  if (response.status !== 503 || !maintenanceHandler) return;
+  void response
+    .clone()
+    .json()
+    .then((body: unknown) => {
+      const data = body as { maintenance?: boolean; error?: string } | null;
+      if (data?.maintenance) maintenanceHandler?.(data.error || "");
+    })
+    .catch(() => {
+      /* a 503 without a JSON body is a proxy/gateway error, not our gate */
+    });
 }
 
 // Get auth headers for API calls
@@ -81,6 +110,7 @@ export async function authFetch(url: string, options: RequestInit = {}): Promise
     headers,
   });
   handleUnauthorized(response);
+  handleMaintenance(response);
   return response;
 }
 

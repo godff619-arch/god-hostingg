@@ -322,6 +322,13 @@ export const router = createBrowserRouter([
                 },
               },
               {
+                path: "feature-flags",
+                lazy: async () => {
+                  const m = await import("@/pages/admin/AdminFeatureFlags");
+                  return { Component: m.default };
+                },
+              },
+              {
                 path: "errors",
                 lazy: async () => {
                   const m = await import("@/pages/admin/AdminErrors");

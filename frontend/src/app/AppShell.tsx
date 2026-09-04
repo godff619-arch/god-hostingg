@@ -6,6 +6,7 @@
 import { useRef } from "react";
 import { Outlet } from "react-router-dom";
 import { CommandPalette } from "@/components/shell/CommandPalette";
+import { MaintenanceBanner, MaintenanceGate } from "@/components/shell/MaintenanceGate";
 import { Sidebar } from "@/components/shell/Sidebar";
 import { ShellProvider, useShell } from "@/components/shell/ShellContext";
 import { TopHeader } from "@/components/shell/TopHeader";
@@ -49,6 +50,7 @@ function ShellFrame() {
       </aside>
 
       <div className="shell-inset">
+        <MaintenanceBanner />
         <main className="w-full px-4 py-6 sm:px-6 lg:px-8">
           <Outlet />
         </main>
@@ -62,9 +64,14 @@ function ShellFrame() {
 export function AppShell() {
   return (
     <ShellProvider>
-      <WorkspaceProvider>
-        <ShellFrame />
-      </WorkspaceProvider>
+      {/* Outside WorkspaceProvider: when the gate takes over for a normal user it
+          unmounts everything below, so nothing keeps polling an API that is
+          refusing by design. */}
+      <MaintenanceGate>
+        <WorkspaceProvider>
+          <ShellFrame />
+        </WorkspaceProvider>
+      </MaintenanceGate>
     </ShellProvider>
   );
 }

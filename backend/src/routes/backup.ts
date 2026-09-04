@@ -19,6 +19,7 @@ import {
   restoreLockReason,
 } from '../lib/restoreLock.js';
 import { requireStepUpPassword } from '../lib/stepUpAuth.js';
+import { requireFeature } from '../lib/featureFlags.js';
 import { recordError } from '../lib/errorCenter.js';
 import { getRequestId } from '../lib/requestId.js';
 import {
@@ -485,7 +486,9 @@ router.delete('/uploads/:filename', async (req: Request, res: Response) => {
 });
 
 // POST /api/backup/create - Create new backup with streaming progress
-router.post('/create', async (req: Request, res: Response) => {
+// Gated by the `backups` feature flag. Only creation: restore and delete stay
+// open so a flag stored in the database can never block recovering that database.
+router.post('/create', requireFeature('backups'), async (req: Request, res: Response) => {
   // Get optional custom name from request body
   const { name } = req.body || {};
 

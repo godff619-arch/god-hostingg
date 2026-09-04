@@ -23,6 +23,8 @@ import { dedupeEnvVariables } from './lib/envVariables.js';
 import { requestId, getRequestId } from './lib/requestId.js';
 import { recordError, recordRequestError } from './lib/errorCenter.js';
 import { runRetentionSweep } from './lib/retention.js';
+import { requireFeatureForWrites } from './lib/featureFlags.js';
+import { platformMaintenanceGate } from './lib/platformSwitches.js';
 import {
   apiLimiter,
   backupLimiter,
@@ -228,20 +230,39 @@ const mutating = (limiter: express.RequestHandler): express.RequestHandler => (r
 
 app.use('/api', apiLimiter);
 
+// Operator maintenance window (Admin → Settings). Normal users get a 503 the
+// frontend renders as a maintenance page; the ops center and sign-in stay up so
+// whoever enabled it can turn it off again. Distinct from the restore-time gate
+// above, which blocks everyone including admins.
+app.use('/api', platformMaintenanceGate);
+
 // Ops center: `viewer` tier gets in for read-only; the router's own write gate
 // (requireAdminWrite) blocks every mutation for viewers while full admins pass.
 app.use('/api/admin', authMiddleware, requireAdminAccess, adminRouter);
 app.use('/api/workspace', authMiddleware, workspaceRouter);
 app.use('/api/billing', authMiddleware, billingRouter);
 app.use('/api/integrations', authMiddleware, integrationsRouter);
-app.use('/api/env-groups', authMiddleware, envGroupsRouter);
+// Feature flags (Admin → Feature Flags) gate writes only, so switching a feature
+// off never hides what a user already has — see lib/featureFlags.ts.
+app.use('/api/env-groups', authMiddleware, requireFeatureForWrites('env_groups'), envGroupsRouter);
 app.use('/api/notifications', authMiddleware, notificationsRouter);
-app.use('/api/private-links', authMiddleware, privateLinksRouter);
-app.use('/api/blueprints', authMiddleware, blueprintsRouter);
+app.use(
+  '/api/private-links',
+  authMiddleware,
+  requireFeatureForWrites('private_links'),
+  privateLinksRouter,
+);
+app.use('/api/blueprints', authMiddleware, requireFeatureForWrites('blueprints'), blueprintsRouter);
 app.use('/api/projects', authMiddleware, mutating(provisionLimiter), projectsRouter);
 app.use('/api/deployments', authMiddleware, mutating(deployLimiter), deploymentsRouter);
-app.use('/api/databases', authMiddleware, mutating(provisionLimiter), databasesRouter);
-app.use('/api/files', authMiddleware, filesRouter);
+app.use(
+  '/api/databases',
+  authMiddleware,
+  mutating(provisionLimiter),
+  requireFeatureForWrites('databases'),
+  databasesRouter,
+);
+app.use('/api/files', authMiddleware, requireFeatureForWrites('file_manager'), filesRouter);
 app.use('/api/ports', authMiddleware, portsRouter);
 app.use('/api/github', (req, res, next) => {
   // Allow public access for webhooks and callbacks
@@ -263,7 +284,13 @@ app.use('/api/system', (req, res, next) => {
   }
   return authMiddleware(req, res, next);
 }, systemRouter);
-app.use('/api/domains', authMiddleware, mutating(provisionLimiter), domainRouter);
+app.use(
+  '/api/domains',
+  authMiddleware,
+  mutating(provisionLimiter),
+  requireFeatureForWrites('custom_domains'),
+  domainRouter,
+);
 app.use('/api/logs', (req, res, next) => {
   // Only container log SSE uses query SSE tokens; container list stays Bearer-only
   if (req.method === 'GET' && /\/stream\//.test(req.path)) {

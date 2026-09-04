@@ -31,6 +31,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   SquareTerminal,
+  ToggleLeft,
   TriangleAlert,
   Users,
   Webhook,
@@ -288,6 +289,13 @@ export const navGroups: NavGroup[] = [
         section: ["/admin/plans"],
       },
       {
+        label: "Feature Flags",
+        href: "/admin/feature-flags",
+        icon: ToggleLeft,
+        description: "Turn platform capabilities on or off",
+        section: ["/admin/feature-flags"],
+      },
+      {
         // The server shell belongs with the operator tools, not the tenant rail.
         label: "Terminal",
         href: "/terminal",
@@ -397,6 +405,7 @@ const segmentLabels: Record<string, string> = {
   errors: "Errors",
   domains: "Domains",
   "audit-logs": "Audit Logs",
+  "feature-flags": "Feature Flags",
 };
 
 export interface Crumb {

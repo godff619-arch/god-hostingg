@@ -18,8 +18,6 @@ import {
   setSetting,
   getBoolSetting,
   setBoolSetting,
-  getJsonSetting,
-  setJsonSetting,
 } from '../lib/settings.js';
 import {
   getRetentionConfig,
@@ -33,6 +31,12 @@ import {
   previewSubdomain,
   setPlatformDomainConfig,
 } from '../lib/platformDomain.js';
+import {
+  FEATURE_FLAGS,
+  getFeatureFlags,
+  setFeatureFlags,
+} from '../lib/featureFlags.js';
+import { invalidatePlatformSwitchCache } from '../lib/platformSwitches.js';
 import { getSystemStats } from './system.js';
 import { getContainerStatus, getDockerEngineInfo } from '../services/docker.js';
 import { getCertificateStatus } from '../services/certs.js';
@@ -1119,14 +1123,15 @@ const S_DEPLOYMENTS = 'deployments_enabled';
 const S_DEFAULT_PLAN = 'default_plan_key';
 const S_MAINTENANCE = 'maintenance_mode';
 const S_MAINTENANCE_MSG = 'maintenance_message';
-const S_FEATURE_FLAGS = 'feature_flags';
 
 async function readSettings() {
   const [name, defaultPlan, msg, flags, reg, dep, maint, retention, domainCfg] = await Promise.all([
     getSetting(S_PLATFORM_NAME),
     getSetting(S_DEFAULT_PLAN),
     getSetting(S_MAINTENANCE_MSG),
-    getJsonSetting<Record<string, boolean>>(S_FEATURE_FLAGS, {}),
+    // The registry-backed set: every key here is enforced somewhere in the API
+    // (see lib/featureFlags.ts), and unknown leftovers are dropped on read.
+    getFeatureFlags(),
     getBoolSetting(S_REGISTRATION, true),
     getBoolSetting(S_DEPLOYMENTS, true),
     getBoolSetting(S_MAINTENANCE, false),
@@ -1188,8 +1193,27 @@ router.patch('/settings', async (req: AuthenticatedRequest, res: Response) => {
     if (b.deployments_enabled !== undefined)
       await setBoolSetting(S_DEPLOYMENTS, !!b.deployments_enabled);
     if (b.maintenance_mode !== undefined) await setBoolSetting(S_MAINTENANCE, !!b.maintenance_mode);
-    if (b.feature_flags && typeof b.feature_flags === 'object')
-      await setJsonSetting(S_FEATURE_FLAGS, b.feature_flags);
+    // Deployments / maintenance are read through a short-lived cache on the hot
+    // request path, so a change here has to drop it or the switch lags by a few
+    // seconds — long enough for an operator to think the toggle did nothing.
+    if (
+      b.deployments_enabled !== undefined ||
+      b.maintenance_mode !== undefined ||
+      b.maintenance_message !== undefined
+    ) {
+      invalidatePlatformSwitchCache();
+    }
+    if (b.feature_flags && typeof b.feature_flags === 'object') {
+      // Only registry keys are accepted: a typo must fail loudly rather than
+      // persist a switch that nothing reads.
+      try {
+        await setFeatureFlags(b.feature_flags as Record<string, unknown>);
+      } catch (flagErr) {
+        return res
+          .status(400)
+          .json({ error: flagErr instanceof Error ? flagErr.message : 'Invalid feature flags' });
+      }
+    }
 
     // Log retention (days; 0 = keep forever). Coerced + clamped; invalid → ignored.
     const auditDays = coerceRetentionDays(b.audit_retention_days);
@@ -1205,6 +1229,63 @@ router.patch('/settings', async (req: AuthenticatedRequest, res: Response) => {
   } catch (error) {
     console.error('[admin] update settings failed:', error);
     res.status(500).json({ error: 'Failed to update settings' });
+  }
+});
+
+// ── Feature flags ───────────────────────────────────────────────────────────
+// The registry travels with the values so the page can label each switch and say
+// where it is enforced, instead of hardcoding a copy of the list in the frontend.
+
+router.get('/feature-flags', async (_req: AuthenticatedRequest, res: Response) => {
+  try {
+    const flags = await getFeatureFlags();
+    res.json({
+      flags,
+      definitions: FEATURE_FLAGS,
+      disabled: FEATURE_FLAGS.filter((f) => !flags[f.key]).length,
+    });
+  } catch (error) {
+    console.error('[admin] read feature flags failed:', error);
+    res.status(500).json({ error: 'Failed to load feature flags' });
+  }
+});
+
+router.patch('/feature-flags', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const body = req.body ?? {};
+    // Accept both `{flags: {...}}` and a bare `{key: bool}` map.
+    const patch = (
+      body.flags && typeof body.flags === 'object' ? body.flags : body
+    ) as Record<string, unknown>;
+    if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
+      return res.status(400).json({ error: 'A map of flag keys to true/false is required' });
+    }
+    let result;
+    try {
+      result = await setFeatureFlags(patch);
+    } catch (flagErr) {
+      return res
+        .status(400)
+        .json({ error: flagErr instanceof Error ? flagErr.message : 'Invalid feature flags' });
+    }
+    // Only a real change is audited — a no-op save should not pad the trail.
+    if (result.changed.length) {
+      await writeAudit(req, 'settings.feature_flags', null, {
+        changed: result.changed,
+        disabled: Object.entries(result.flags)
+          .filter(([, on]) => !on)
+          .map(([key]) => key),
+      });
+    }
+    res.json({
+      flags: result.flags,
+      definitions: FEATURE_FLAGS,
+      changed: result.changed,
+      disabled: FEATURE_FLAGS.filter((f) => !result.flags[f.key]).length,
+    });
+  } catch (error) {
+    console.error('[admin] update feature flags failed:', error);
+    res.status(500).json({ error: 'Failed to update feature flags' });
   }
 });
 

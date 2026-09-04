@@ -268,6 +268,29 @@ export interface AdminDomainsResponse {
   };
 }
 
+// ── Feature flags ────────────────────────────────────────────────────────────
+// The definitions travel with the values: the backend owns the registry (only
+// keys it actually enforces are in it), so the page never hardcodes its own copy.
+
+export interface FeatureFlagDef {
+  key: string;
+  label: string;
+  description: string;
+  group: string;
+  default: boolean;
+  /** Where the server enforces it, shown so an operator can audit the claim. */
+  enforcedAt: string;
+}
+
+export interface FeatureFlagsResponse {
+  flags: Record<string, boolean>;
+  definitions: FeatureFlagDef[];
+  /** How many are switched off right now. */
+  disabled: number;
+  /** Only on a PATCH response: keys whose value actually moved. */
+  changed?: string[];
+}
+
 export interface AuditRow {
   id: string;
   action: string;
