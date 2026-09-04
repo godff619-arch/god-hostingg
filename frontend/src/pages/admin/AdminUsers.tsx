@@ -10,6 +10,7 @@ import {
   ChevronRight,
   ChevronUp,
   ChevronDown,
+  CreditCard,
   Pencil,
   Ban,
   CircleCheck,
@@ -55,6 +56,14 @@ function assignableRoles(actorRole: string | null | undefined): UserRole[] {
 const PAGE_SIZE = 15;
 type SortKey = "name" | "email" | "created_at" | "app_count";
 type SortOrder = "asc" | "desc";
+/** Server-side filter on "does this account have a card on file". */
+type CardFilter = "all" | "yes" | "no";
+
+const CARD_FILTERS: { value: CardFilter; label: string }[] = [
+  { value: "all", label: "Any card" },
+  { value: "yes", label: "Card saved" },
+  { value: "no", label: "No card" },
+];
 
 const OVERRIDE_FIELDS: { key: keyof QuotaOverrides; label: string }[] = [
   { key: "ram_mb", label: "RAM (MB)" },
@@ -70,10 +79,54 @@ function formatDate(iso: string): string {
   return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString();
 }
 
+/** `Visa •••• 4242`. The brand comes from the provider, so casing varies. */
+function cardLabel(user: AdminUser): string | null {
+  const card = user.payment_method;
+  if (!card) return null;
+  const brand = card.brand ? card.brand.replace(/^./, (c) => c.toUpperCase()) : "Card";
+  return `${brand} •••• ${card.last4}`;
+}
+
+/** True once the printed month has passed — the card will fail on next charge. */
+function cardExpired(user: AdminUser): boolean {
+  const card = user.payment_method;
+  if (!card || !card.exp_year || !card.exp_month) return false;
+  const now = new Date();
+  const endOfMonth = new Date(card.exp_year, card.exp_month, 1);
+  return endOfMonth <= new Date(now.getFullYear(), now.getMonth(), 1);
+}
+
 /** "" -> null (inherit); otherwise Number(value). */
 function toQuota(value: string): number | null {
   const t = value.trim();
   return t === "" ? null : Number(t);
+}
+
+/** The saved-card cell — an em dash reads as "none on file", not as missing data. */
+function CardCell({ user }: { user: AdminUser }) {
+  const label = cardLabel(user);
+  if (!label) {
+    return <span className="text-xs text-muted-foreground">No card</span>;
+  }
+  const expired = cardExpired(user);
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <CreditCard
+        className={cn("h-3.5 w-3.5 shrink-0", expired ? "text-danger" : "text-success")}
+      />
+      <span className={cn("font-mono text-xs", expired ? "text-danger" : "text-foreground")}>
+        {label}
+      </span>
+      {expired && (
+        <span className="rounded border border-danger-border bg-danger-surface px-1 text-[10px] font-semibold uppercase text-danger">
+          exp
+        </span>
+      )}
+      {user.card_count > 1 && (
+        <span className="text-[10px] text-muted-foreground">+{user.card_count - 1}</span>
+      )}
+    </span>
+  );
 }
 
 export default function AdminUsers() {
@@ -86,6 +139,7 @@ export default function AdminUsers() {
   const [q, setQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
   const [status, setStatus] = useState<"all" | UserStatus>("all");
+  const [card, setCard] = useState<CardFilter>("all");
   const [sort, setSort] = useState<SortKey>("created_at");
   const [order, setOrder] = useState<SortOrder>("desc");
   const [page, setPage] = useState(1);
@@ -103,7 +157,7 @@ export default function AdminUsers() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedQ, status, sort, order]);
+  }, [debouncedQ, status, card, sort, order]);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -111,6 +165,7 @@ export default function AdminUsers() {
       const params = new URLSearchParams({
         q: debouncedQ,
         status: status === "all" ? "" : status,
+        card: card === "all" ? "" : card,
         sort,
         order,
         page: String(page),
@@ -125,7 +180,7 @@ export default function AdminUsers() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedQ, status, sort, order, page]);
+  }, [debouncedQ, status, card, sort, order, page]);
 
   useEffect(() => {
     fetchUsers();
@@ -200,7 +255,7 @@ export default function AdminUsers() {
       />
 
       {/* Filters */}
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -210,7 +265,7 @@ export default function AdminUsers() {
             className="pl-9"
           />
         </div>
-        <div className="flex gap-1.5">
+        <div className="flex flex-wrap gap-1.5">
           {(["all", "active", "suspended", "pending"] as const).map((s) => (
             <button
               key={s}
@@ -224,6 +279,25 @@ export default function AdminUsers() {
               )}
             >
               {s}
+            </button>
+          ))}
+        </div>
+        {/* Billing filter — "who saved a card" is a question admins ask directly. */}
+        <div className="flex flex-wrap gap-1.5">
+          {CARD_FILTERS.map((f) => (
+            <button
+              key={f.value}
+              type="button"
+              onClick={() => setCard(f.value)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-sm font-medium transition-colors",
+                card === f.value
+                  ? "border-brand/30 bg-brand/10 text-brand"
+                  : "border-border/60 bg-secondary/40 text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {f.value === "yes" && <CreditCard className="h-3.5 w-3.5" />}
+              {f.label}
             </button>
           ))}
         </div>
@@ -271,6 +345,9 @@ export default function AdminUsers() {
                   <span>{user.app_count} apps</span>
                   <span>{formatDate(user.created_at)}</span>
                 </div>
+                <div className="mt-2">
+                  <CardCell user={user} />
+                </div>
                 <div
                   className="mt-3 flex flex-wrap gap-1.5 border-t border-border/40 pt-3"
                   onClick={(e) => e.stopPropagation()}
@@ -300,7 +377,7 @@ export default function AdminUsers() {
           {/* Desktop table */}
           <div className="hidden overflow-hidden rounded-2xl border border-border/60 bg-card md:block">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[820px] text-left text-sm">
+              <table className="w-full min-w-[980px] text-left text-sm">
                 <thead>
                   <tr className="border-b border-border/60 bg-secondary/30 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                     <SortableTh label="Name" sortKey="name" active={sort} order={order} onSort={toggleSort} />
@@ -308,6 +385,7 @@ export default function AdminUsers() {
                     <th className="px-4 py-3 font-semibold">Role</th>
                     <th className="px-4 py-3 font-semibold">Status</th>
                     <th className="px-4 py-3 font-semibold">Plan</th>
+                    <th className="px-4 py-3 font-semibold">Card</th>
                     <SortableTh label="Apps" sortKey="app_count" active={sort} order={order} onSort={toggleSort} />
                     <SortableTh label="Created" sortKey="created_at" active={sort} order={order} onSort={toggleSort} />
                     <th className="px-4 py-3 text-right font-semibold">Actions</th>
@@ -328,6 +406,9 @@ export default function AdminUsers() {
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">
                         {user.plan_name || user.plan_key || "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <CardCell user={user} />
                       </td>
                       <td className="px-4 py-3 tabular-nums">{user.app_count}</td>
                       <td className="px-4 py-3 tabular-nums text-muted-foreground">

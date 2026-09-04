@@ -308,6 +308,13 @@ export const router = createBrowserRouter([
                 },
               },
               {
+                path: "domains",
+                lazy: async () => {
+                  const m = await import("@/pages/admin/AdminDomains");
+                  return { Component: m.default };
+                },
+              },
+              {
                 path: "errors",
                 lazy: async () => {
                   const m = await import("@/pages/admin/AdminErrors");

@@ -28,8 +28,15 @@ import {
   S_ERROR_RETENTION_DAYS,
   S_ERROR_RESOLVED_RETENTION_DAYS,
 } from '../lib/retention.js';
+import {
+  getPlatformDomainConfig,
+  previewSubdomain,
+  setPlatformDomainConfig,
+} from '../lib/platformDomain.js';
 import { getSystemStats } from './system.js';
 import { getContainerStatus, getDockerEngineInfo } from '../services/docker.js';
+import { getCertificateStatus } from '../services/certs.js';
+import { getServerPublicIp } from '../services/dnsCheck.js';
 import { isMaintenanceMode, maintenanceReason } from '../lib/maintenance.js';
 import {
   listArchivedUploads,
@@ -115,7 +122,58 @@ const EXPORT_ROW_CAP = 50_000;
 
 type UserWithRels = Prisma.UserGetPayload<{ include: { plan: true; _count: { select: { projects: true } } } }>;
 
-function mapUser(u: UserWithRels) {
+/**
+ * Card on file, for the admin users table. Display metadata only — `brand` and
+ * `last4` are all that is stored, so there is nothing sensitive to leak here
+ * (the provider token is never selected).
+ */
+export interface CardSummary {
+  brand: string;
+  last4: string;
+  exp_month: number;
+  exp_year: number;
+  count: number;
+}
+
+/**
+ * Cards per account owner for the given users. A card belongs to a workspace, so
+ * "this user saved a card" means: a workspace they own has a payment method.
+ * The default card wins; `count` is every card across their workspaces.
+ */
+async function cardsByOwner(userIds: string[]): Promise<Map<string, CardSummary>> {
+  const byOwner = new Map<string, CardSummary>();
+  if (userIds.length === 0) return byOwner;
+  const rows = await prisma.paymentMethod.findMany({
+    where: { workspace: { owner_id: { in: userIds } } },
+    orderBy: [{ is_default: 'desc' }, { created_at: 'desc' }],
+    select: {
+      brand: true,
+      last4: true,
+      exp_month: true,
+      exp_year: true,
+      workspace: { select: { owner_id: true } },
+    },
+  });
+  for (const row of rows) {
+    const ownerId = row.workspace?.owner_id;
+    if (!ownerId) continue;
+    const existing = byOwner.get(ownerId);
+    if (existing) {
+      existing.count += 1;
+      continue;
+    }
+    byOwner.set(ownerId, {
+      brand: row.brand,
+      last4: row.last4,
+      exp_month: row.exp_month,
+      exp_year: row.exp_year,
+      count: 1,
+    });
+  }
+  return byOwner;
+}
+
+function mapUser(u: UserWithRels, card?: CardSummary | null) {
   return {
     id: u.id,
     name: u.name,
@@ -127,6 +185,16 @@ function mapUser(u: UserWithRels) {
     plan_name: u.plan?.name ?? null,
     created_at: u.created_at,
     app_count: u._count.projects,
+    // Saved card: null when this account has none on file.
+    payment_method: card
+      ? {
+          brand: card.brand,
+          last4: card.last4,
+          exp_month: card.exp_month,
+          exp_year: card.exp_year,
+        }
+      : null,
+    card_count: card?.count ?? 0,
     overrides: {
       ram_mb: u.ram_mb_override,
       cpus_milli: u.cpus_milli_override,
@@ -352,6 +420,11 @@ router.get('/users', async (req: AuthenticatedRequest, res: Response) => {
     if (status && status !== 'all') where.status = status;
     if (planId && planId !== 'all') where.plan_id = planId;
     if (q) where.OR = [{ name: { contains: q } }, { email: { contains: q } }];
+    // Card on file — "who saved a payment method". A card belongs to a workspace,
+    // so this asks whether any workspace this user owns has one.
+    const card = (req.query.card as string)?.trim();
+    if (card === 'yes') where.workspaces = { some: { payment_methods: { some: {} } } };
+    else if (card === 'no') where.workspaces = { none: { payment_methods: { some: {} } } };
 
     let orderBy: Prisma.UserOrderByWithRelationInput;
     if (sort === 'app_count') orderBy = { projects: { _count: order } };
@@ -370,13 +443,18 @@ router.get('/users', async (req: AuthenticatedRequest, res: Response) => {
       prisma.user.count({ where }),
     ]);
 
-    res.json({ users: rows.map(mapUser), total, page, pageSize });
+    const cards = await cardsByOwner(rows.map((r) => r.id));
+    res.json({
+      users: rows.map((u) => mapUser(u, cards.get(u.id) ?? null)),
+      total,
+      page,
+      pageSize,
+    });
   } catch (error) {
     console.error('[admin] list users failed:', error);
     res.status(500).json({ error: 'Failed to list users' });
   }
 });
-
 router.get('/users/:id', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const user = await prisma.user.findUnique({
@@ -402,7 +480,8 @@ router.get('/users/:id', async (req: AuthenticatedRequest, res: Response) => {
       for (const d of (s.domain || '').split(/[\s,]+/).map((x) => x.trim().toLowerCase()).filter(Boolean))
         domainSet.add(d);
 
-    const mapped = mapUser(user);
+    const cards = await cardsByOwner([user.id]);
+    const mapped = mapUser(user, cards.get(user.id) ?? null);
     // Effective quotas = override ?? plan value (admins => all null/unlimited)
     const effective: Record<QuotaKey, number | null> = {} as Record<QuotaKey, number | null>;
     for (const k of QUOTA_KEYS) {
@@ -937,6 +1016,102 @@ router.delete('/plans/:id', async (req: AuthenticatedRequest, res: Response) => 
   }
 });
 
+// ── Domains (platform-wide hostnames) ─────────────────────────────────────────
+// Every hostname the platform serves for a tenant, plus the base domain that new
+// apps are published under. Certificate state is read for the current page only —
+// resolving it walks the certbot directory per hostname.
+router.get('/domains', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { page, pageSize, skip } = parsePaging(req);
+    const search = String(req.query.search ?? '').trim().toLowerCase();
+
+    const [cfg, services, serverIp] = await Promise.all([
+      getPlatformDomainConfig(),
+      prisma.service.findMany({
+        where: { domain: { not: null } },
+        orderBy: { created_at: 'desc' },
+        select: {
+          id: true,
+          name: true,
+          domain: true,
+          status: true,
+          created_at: true,
+          project: {
+            select: {
+              id: true,
+              name: true,
+              owner: { select: { id: true, name: true, email: true } },
+            },
+          },
+        },
+      }),
+      getServerPublicIp().catch(() => null),
+    ]);
+
+    // One row per hostname — `Service.domain` holds a comma-separated list.
+    const rows = services.flatMap((svc) =>
+      String(svc.domain ?? '')
+        .split(',')
+        .map((d) => d.trim().toLowerCase())
+        .filter(Boolean)
+        .map((hostname) => ({
+          hostname,
+          service_id: svc.id,
+          service_name: svc.name,
+          project_id: svc.project?.id ?? null,
+          project_name: svc.project?.name ?? null,
+          owner: svc.project?.owner ?? null,
+          status: svc.status,
+          created_at: svc.created_at,
+          // Under the platform's own domain (issued by us) vs a tenant's own domain.
+          managed: !!cfg.baseDomain && hostname.endsWith(`.${cfg.baseDomain}`),
+        })),
+    );
+
+    const filtered = search
+      ? rows.filter(
+          (r) =>
+            r.hostname.includes(search) ||
+            (r.project_name ?? '').toLowerCase().includes(search) ||
+            (r.owner?.email ?? '').toLowerCase().includes(search),
+        )
+      : rows;
+
+    const pageRows = filtered.slice(skip, skip + pageSize);
+    const withSsl = await Promise.all(
+      pageRows.map(async (row) => {
+        try {
+          const ssl = await getCertificateStatus(row.hostname);
+          return { ...row, ssl: { status: ssl.status, expires_at: ssl.expiresAt } };
+        } catch {
+          return { ...row, ssl: null };
+        }
+      }),
+    );
+
+    res.json({
+      domains: withSsl,
+      total: filtered.length,
+      page,
+      pageSize,
+      server_ip: serverIp,
+      config: {
+        base_domain: cfg.baseDomain ?? '',
+        auto_subdomain_enabled: cfg.autoSubdomain,
+        subdomain_template: cfg.template,
+        example: cfg.baseDomain ? previewSubdomain('my-app', 'my-app', cfg) : null,
+      },
+      counts: {
+        managed: filtered.filter((r) => r.managed).length,
+        custom: filtered.filter((r) => !r.managed).length,
+      },
+    });
+  } catch (error) {
+    console.error('[admin] list domains failed:', error);
+    res.status(500).json({ error: 'Failed to list domains' });
+  }
+});
+
 // ── Settings ──────────────────────────────────────────────────────────────────
 const S_PLATFORM_NAME = 'platform_name';
 const S_REGISTRATION = 'registration_enabled';
@@ -947,7 +1122,7 @@ const S_MAINTENANCE_MSG = 'maintenance_message';
 const S_FEATURE_FLAGS = 'feature_flags';
 
 async function readSettings() {
-  const [name, defaultPlan, msg, flags, reg, dep, maint, retention] = await Promise.all([
+  const [name, defaultPlan, msg, flags, reg, dep, maint, retention, domainCfg] = await Promise.all([
     getSetting(S_PLATFORM_NAME),
     getSetting(S_DEFAULT_PLAN),
     getSetting(S_MAINTENANCE_MSG),
@@ -956,6 +1131,7 @@ async function readSettings() {
     getBoolSetting(S_DEPLOYMENTS, true),
     getBoolSetting(S_MAINTENANCE, false),
     getRetentionConfig(),
+    getPlatformDomainConfig(),
   ]);
   return {
     platform_name: name ?? 'Docklift',
@@ -965,6 +1141,10 @@ async function readSettings() {
     maintenance_mode: maint,
     maintenance_message: msg ?? '',
     feature_flags: flags,
+    // Platform base domain — user apps are published as <app>.<base_domain>.
+    base_domain: domainCfg.baseDomain ?? '',
+    auto_subdomain_enabled: domainCfg.autoSubdomain,
+    subdomain_template: domainCfg.template,
     // Log retention in days; 0 = keep forever.
     audit_retention_days: retention.auditDays,
     error_retention_days: retention.errorDays,
@@ -984,6 +1164,21 @@ router.get('/settings', async (_req: AuthenticatedRequest, res: Response) => {
 router.patch('/settings', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const b = req.body ?? {};
+    // Base domain / subdomain template are validated first: a bad hostname must
+    // reject the whole request rather than half-apply the rest of the form.
+    if (
+      b.base_domain !== undefined ||
+      b.subdomain_template !== undefined ||
+      b.auto_subdomain_enabled !== undefined
+    ) {
+      try {
+        await setPlatformDomainConfig(b);
+      } catch (domainErr) {
+        return res
+          .status(400)
+          .json({ error: domainErr instanceof Error ? domainErr.message : 'Invalid domain settings' });
+      }
+    }
     if (typeof b.platform_name === 'string') await setSetting(S_PLATFORM_NAME, b.platform_name);
     if (typeof b.default_plan_key === 'string') await setSetting(S_DEFAULT_PLAN, b.default_plan_key);
     if (typeof b.maintenance_message === 'string')

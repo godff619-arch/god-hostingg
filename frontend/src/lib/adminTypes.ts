@@ -26,6 +26,17 @@ export interface EffectiveQuota {
   max_backups: number | null;
 }
 
+/**
+ * The card on file for an account. Only the display fields the payment provider
+ * hands back — never a card number, never the provider token.
+ */
+export interface AdminPaymentMethod {
+  brand: string;
+  last4: string;
+  exp_month: number;
+  exp_year: number;
+}
+
 export interface AdminUser {
   id: string;
   name: string;
@@ -38,6 +49,10 @@ export interface AdminUser {
   created_at: string;
   app_count: number;
   overrides: QuotaOverrides;
+  /** Default card across the workspaces this user owns; null when none saved. */
+  payment_method: AdminPaymentMethod | null;
+  /** How many cards are on file, so "+2 more" can be shown. */
+  card_count: number;
 }
 
 export interface AdminUsersResponse {
@@ -210,6 +225,47 @@ export interface AdminSettings {
   audit_retention_days: number;
   error_retention_days: number;
   error_resolved_retention_days: number;
+  /** Apex the platform owns, e.g. `godhosting.bond`. "" = feature off. */
+  base_domain: string;
+  /** Give every deployed service a hostname under the base domain. */
+  auto_subdomain_enabled: boolean;
+  /** How that hostname is built — must contain {slug} and {base}. */
+  subdomain_template: string;
+}
+
+// ── Domains & DNS ────────────────────────────────────────────────────────────
+// One row per hostname (a service may hold several, comma-separated).
+
+export interface AdminDomainRow {
+  hostname: string;
+  service_id: string;
+  service_name: string;
+  project_id: string | null;
+  project_name: string | null;
+  owner: { id: string; name: string; email: string } | null;
+  status: string;
+  created_at: string;
+  /** True when the hostname sits under the platform base domain. */
+  managed: boolean;
+  /** null when certificate state could not be read. */
+  ssl: { status: string; expires_at: string | null } | null;
+}
+
+export interface AdminDomainsResponse {
+  domains: AdminDomainRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  counts: { managed: number; custom: number };
+  /** Public IP the wildcard DNS record should point at; null when unknown. */
+  server_ip: string | null;
+  config: {
+    base_domain: string;
+    auto_subdomain_enabled: boolean;
+    subdomain_template: string;
+    /** Rendered sample, e.g. `my-app.godhosting.bond`. */
+    example: string | null;
+  };
 }
 
 export interface AuditRow {

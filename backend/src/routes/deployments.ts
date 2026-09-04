@@ -44,6 +44,7 @@ import {
 } from '../lib/imageCleanup.js';
 import { requireStepUpPassword } from '../lib/stepUpAuth.js';
 import { cleanupServiceDomain, updateServiceDomain } from '../services/nginx.js';
+import { ensureProjectSubdomains } from '../lib/platformDomain.js';
 import {
   appendSslEvent,
   clearSslEvents,
@@ -892,6 +893,13 @@ async function deployProject(req: AuthenticatedRequest, res: Response) {
     
     // Send initial chunk
     writeLog('🚀 Starting deployment...\n');
+
+    // Platform base domain (Admin → Domains): any service without a hostname of
+    // its own is published at `<app>.<base-domain>` before the proxy is wired, so
+    // the URL is live the moment this deploy finishes.
+    for (const assignment of await ensureProjectSubdomains(projectId)) {
+      writeLog(`🌐 Subdomain assigned: ${assignment.service} → ${assignment.domain}\n`);
+    }
     
     // Pull latest if GitHub project
     if (project.source_type === 'github' && project.github_url) {
@@ -1670,6 +1678,21 @@ async function deployProject(req: AuthenticatedRequest, res: Response) {
           writeLog(`   Prefer linking over publishing host ports.\n`);
         } else {
           writeLog(`🌐 ENDPOINTS:\n`);
+          // Domains lead: they are the URL a user should share (HTTPS, no origin
+          // IP on show). Read fresh so an auto-assigned subdomain appears here.
+          const domainRows = await prisma.service
+            .findMany({
+              where: { project_id: projectId, domain: { not: null } },
+              select: { name: true, domain: true },
+            })
+            .catch(() => [] as Array<{ name: string; domain: string | null }>);
+          let anyDomain = false;
+          for (const row of domainRows) {
+            for (const d of domainList(row.domain)) {
+              anyDomain = true;
+              writeLog(`  🔗 ${row.name}: https://${d}\n`);
+            }
+          }
           let anyHost = false;
           for (const svc of servicesData) {
             if (svc.port) {
@@ -1677,7 +1700,7 @@ async function deployProject(req: AuthenticatedRequest, res: Response) {
               writeLog(`  📍 ${svc.name}: http://${host}:${svc.port}\n`);
             }
           }
-          if (!anyHost) {
+          if (!anyHost && !anyDomain) {
             writeLog(`  📍 Host ports disabled — use your custom domain (nginx-proxy → container DNS)\n`);
           }
         }

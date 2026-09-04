@@ -20,6 +20,7 @@ import {
   type ProjectWorkspace,
 } from "@/components/project/ServiceSwitcher";
 import { ProjectActionBar } from "@/components/project/ProjectActionBar";
+import { LiveEndpointBar } from "@/components/project/LiveEndpointBar";
 import { ManagedDatabasePanel } from "@/components/databases/ManagedDatabasePanel";
 import { AttachDatabasePanel } from "@/components/databases/AttachDatabasePanel";
 import { Button } from "@/components/ui/button";
@@ -1342,6 +1343,26 @@ export default function ProjectDetail() {
             }
           />
         </div>
+
+        {/* The public URL, above the tabs — so it is the first thing on the page
+            rather than a line buried in the deploy log. */}
+        {!isDatabase && (
+          <LiveEndpointBar
+            services={
+              workspace === "service" && selectedService ? [selectedService] : services
+            }
+            serverIP={serverIP}
+            status={project.status}
+            className="mb-6 sm:mb-8"
+            onAddDomain={() => {
+              if (multiService && workspace === "project") {
+                if (services[0]) selectService(services[0].id, "domains");
+                return;
+              }
+              setActiveTab("domains");
+            }}
+          />
+        )}
 
         <Tabs
           value={activeTab}

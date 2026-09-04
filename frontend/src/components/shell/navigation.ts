@@ -20,6 +20,7 @@ import {
   CreditCard,
   Database,
   Gauge,
+  Globe,
   Layers,
   LayoutGrid,
   Link2,
@@ -204,14 +205,6 @@ export const navGroups: NavGroup[] = [
         section: ["/logs"],
       },
       {
-        label: "Terminal",
-        href: "/terminal",
-        icon: SquareTerminal,
-        description: "Interactive shell on the server",
-        section: ["/terminal"],
-        fullAdminOnly: true,
-      },
-      {
         label: "Docs",
         href: "/docs",
         icon: BookOpen,
@@ -260,6 +253,13 @@ export const navGroups: NavGroup[] = [
         section: ["/admin/deployments"],
       },
       {
+        label: "Domains",
+        href: "/admin/domains",
+        icon: Globe,
+        description: "Base domain, per-app subdomains and SSL",
+        section: ["/admin/domains"],
+      },
+      {
         label: "Uploads",
         href: "/admin/uploads",
         icon: Archive,
@@ -279,6 +279,15 @@ export const navGroups: NavGroup[] = [
         icon: CreditCard,
         description: "Quota tiers and pricing",
         section: ["/admin/plans"],
+      },
+      {
+        // The server shell belongs with the operator tools, not the tenant rail.
+        label: "Terminal",
+        href: "/terminal",
+        icon: SquareTerminal,
+        description: "Interactive shell on the server",
+        section: ["/terminal"],
+        fullAdminOnly: true,
       },
       {
         label: "Settings",
@@ -379,6 +388,7 @@ const segmentLabels: Record<string, string> = {
   plans: "Plans",
   uploads: "Uploads",
   errors: "Errors",
+  domains: "Domains",
 };
 
 export interface Crumb {
