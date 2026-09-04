@@ -1,0 +1,86 @@
+# God Hosting on Coolify (or any single-container host) — WITH Docker.
+#
+# Coolify → New Resource → Docker Compose:
+#   Repository        https://github.com/godff619-arch/god-hostingg
+#   Branch            main
+#   Base directory    /
+#   Compose file      /docker-compose.coolify.yml
+#
+# Everything below is the source of truth for the deploy; the only thing left to do
+# in the UI is assign the domain (Coolify appends the container port, e.g.
+# http://your-app.sslip.io:3000).
+#
+# What the socket mount buys you: the panel builds and runs the apps you deploy on
+# THIS host's Docker engine. Without it the panel still boots and says "Docker
+# unavailable" honestly instead of pretending.
+#
+# Reachability of the apps you deploy: Coolify's own Traefik owns :80/:443 here, so
+# God Hosting cannot run its own edge proxy — it detects that and publishes a host
+# port per app instead (5500-5600 below), reachable at http://YOUR_VPS_IP:5500 and up.
+# Open that range in the firewall. Custom domains managed *by God Hosting* need its
+# nginx edge proxy and therefore a host where 80/443 are free (docker-compose.yml).
+#
+# No container_name anywhere: Coolify rewrites service and container names to
+# <name>-<uuid>, and a fixed name collides with that.
+
+services:
+  god-hosting:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    # Published so the panel is reachable at http://YOUR_VPS_IP:3000 even before a
+    # domain is set. Assigning a domain in Coolify works alongside this.
+    ports:
+      - "3000:3000"
+    volumes:
+      # The panel drives the host engine through this socket. Root inside the
+      # container is required for it — the app never hands the socket to users.
+      - /var/run/docker.sock:/var/run/docker.sock
+      # SQLite database + JWT/session secrets. Lose this and every account,
+      # project and session is gone, so keep it a named volume, not a bind.
+      - god-hosting-data:/app/data
+      # Cloned repositories and generated compose files per project.
+      - god-hosting-deployments:/deployments
+      # Generated vhosts. Unused until an nginx edge proxy reads them, but backed
+      # up and restored with everything else.
+      - god-hosting-nginx-conf:/nginx-conf
+      # Host facts for the metrics view (never written to).
+      - /etc/os-release:/host/os-release:ro
+      - /proc:/host/proc:ro
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: file:/app/data/docklift.db
+      DATA_PATH: /app/data
+      DEPLOYMENTS_PATH: /deployments
+      NGINX_CONF_PATH: /nginx-conf
+      BACKUP_PATH: /app/data/backups
+      DOCKER_NETWORK: docklift_network
+      # Host ports handed out to deployed apps. 5500+ keeps clear of Coolify's own
+      # ports and of the Hyper-V reserved 3000-5000 range on Windows hosts.
+      PORT_RANGE_START: 5500
+      PORT_RANGE_END: 5600
+      # Optional — left empty, both are generated once and persisted to
+      # /app/data/.secrets, so sessions survive a redeploy. Set them to rotate.
+      JWT_SECRET: "${JWT_SECRET:-}"
+      INTERNAL_API_SECRET: "${INTERNAL_API_SECRET:-}"
+      # Extra browser origins, when the dashboard is reached from another hostname.
+      CORS_ORIGIN: "${CORS_ORIGIN:-}"
+      # First account: open by default (whoever opens /setup first becomes OWNER and
+      # the window then closes for good). Set this to true to demand the secret that
+      # the container prints to its logs on a fresh start instead.
+      REQUIRE_BOOTSTRAP_SECRET: "${REQUIRE_BOOTSTRAP_SECRET:-false}"
+    healthcheck:
+      # No auth, no database — an unconfigured install still reports healthy
+      # instead of crash-looping behind the platform's proxy.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health/live >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 45s
+
+volumes:
+  god-hosting-data:
+  god-hosting-deployments:
+  god-hosting-nginx-conf:

@@ -8,10 +8,18 @@
 # Coolify, Render, Railway, Fly, or a plain `docker run` — where a panel split
 # across two ports is unreachable.
 #
-# Coolify: Build pack = Dockerfile, Base directory = /, Port = 3000.
-#   • Add a persistent volume at /app/data  (SQLite database + secrets).
-#   • To let Docklift deploy apps, also map /var/run/docker.sock:/var/run/docker.sock.
-#     Without it the panel still boots and reports "Docker unavailable" honestly.
+# Coolify: use docker-compose.coolify.yml (Build pack = Docker Compose, Base
+#   directory = /, Compose file = /docker-compose.coolify.yml). It already wires the
+#   socket, the volumes and the port, so nothing has to be reproduced by hand.
+#   Prefer the Dockerfile build pack instead? Port = 3000, and add these mounts:
+#     • /app/data        persistent volume — SQLite database + session secrets
+#     • /deployments     persistent volume — cloned repos + generated compose files
+#     • /var/run/docker.sock:/var/run/docker.sock — lets the panel deploy apps.
+#       Without it the panel still boots and reports "Docker unavailable" honestly.
+#
+# First account: open by default — whoever opens /setup first becomes OWNER, and
+# registration then closes. Set REQUIRE_BOOTSTRAP_SECRET=true to instead demand the
+# secret this container prints to its logs on a fresh start.
 #
 # Build:  docker build -t docklift .
 # Run:    docker run -p 3000:3000 -v docklift-data:/app/data \
