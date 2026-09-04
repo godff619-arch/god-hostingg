@@ -723,13 +723,13 @@ function SettingsContent() {
             {activeTab === 'github' && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="relative group">
-                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 rounded-3xl blur-xl opacity-75" />
-                  <Card className="relative p-6 border-cyan-500/20 bg-card/50 backdrop-blur-sm">
+                  <Card className="relative p-6 border-border">
                     <div className="flex flex-col sm:flex-row items-center gap-6">
                       <div className="relative shrink-0">
-                        <div className="absolute inset-0 bg-cyan-500/20 blur-xl rounded-full" />
-                        <div className="relative p-4 rounded-2xl bg-gradient-to-br from-zinc-900 to-black border border-zinc-800 shadow-xl">
-                          <GithubIcon className="h-8 w-8 text-white" />
+                        {/* GitHub's own mark is monochrome, so this tile keeps the
+                            navy plane rather than tinting it brand blue. */}
+                        <div className="relative p-4 rounded-2xl bg-sidebar border border-sidebar-border shadow-[0_2px_10px_0_rgba(15,23,42,0.06)]">
+                          <GithubIcon className="h-8 w-8 text-sidebar-foreground" />
                         </div>
                       </div>
                       
@@ -743,7 +743,7 @@ function SettingsContent() {
                                 href={`https://github.com/apps/${githubStatus.app_slug}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="font-medium text-cyan-600 hover:underline dark:text-cyan-400"
+                                className="font-medium text-brand hover:underline"
                               >
                                 {githubStatus.app_name}
                               </a>
@@ -771,12 +771,12 @@ function SettingsContent() {
                                 githubInstallations.map((inst) => (
                                   <div 
                                     key={inst.id} 
-                                    className="flex items-center gap-3 bg-green-500/10 border border-green-500/20 px-4 py-2.5 rounded-xl"
+                                    className="flex items-center gap-3 bg-success-surface border border-success-border px-4 py-2.5 rounded-xl"
                                   >
                                     {inst.avatar_url ? (
-                                      <img src={inst.avatar_url} alt={inst.login} className="h-8 w-8 rounded-lg border border-green-500/20" />
+                                      <img src={inst.avatar_url} alt={inst.login} className="h-8 w-8 rounded-lg border border-success-border" />
                                     ) : (
-                                      <div className="h-8 w-8 rounded-lg bg-green-500/20 flex items-center justify-center font-bold text-green-500 text-sm">
+                                      <div className="h-8 w-8 rounded-lg bg-success/15 flex items-center justify-center font-bold text-success text-sm">
                                         {inst.login?.charAt(0).toUpperCase()}
                                       </div>
                                     )}
@@ -786,13 +786,13 @@ function SettingsContent() {
                                         {inst.type === 'Organization' ? '🏢 Organization' : '👤 Personal'}
                                       </span>
                                     </div>
-                                    <Check className="h-4 w-4 text-green-500 ml-auto" />
+                                    <Check className="h-4 w-4 text-success ml-auto" />
                                   </div>
                                 ))
                               ) : (
-                                <div className="flex items-center gap-3 bg-green-500/10 border border-green-500/20 px-4 py-2.5 rounded-xl">
-                                  <Check className="h-5 w-5 text-green-500" />
-                                  <span className="text-sm font-medium text-green-500">Connected</span>
+                                <div className="flex items-center gap-3 bg-success-surface border border-success-border px-4 py-2.5 rounded-xl">
+                                  <Check className="h-5 w-5 text-success" />
+                                  <span className="text-sm font-medium text-success">Connected</span>
                                 </div>
                               )}
                             </div>
@@ -801,7 +801,7 @@ function SettingsContent() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="h-9 px-3 rounded-xl border-cyan-500/20 text-cyan-500 hover:text-cyan-600 hover:bg-cyan-500/10"
+                                className="h-9 px-3 rounded-xl"
                                 title="Add another account or organization — repos will be combined"
                                 onClick={handleAddGithubAccount}
                               >
@@ -813,7 +813,7 @@ function SettingsContent() {
                                 size="sm"
                                 onClick={handleDisconnectGitHub}
                                 disabled={disconnecting}
-                                className="h-9 px-4 text-xs font-semibold shadow-lg shadow-red-500/20 hover:bg-red-600 transition-all rounded-xl"
+                                className="h-9 px-4 text-xs font-semibold rounded-xl"
                               >
                                 {disconnecting ? (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />
@@ -950,8 +950,8 @@ function SettingsContent() {
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <Card className="p-6">
                   <div className="flex items-center gap-3 mb-6">
-                    <div className="p-3 rounded-xl bg-emerald-500/10">
-                      <Network className="h-6 w-6 text-emerald-500" />
+                    <div className="p-3 rounded-xl bg-success-surface">
+                      <Network className="h-6 w-6 text-success" />
                     </div>
                     <div>
                       <h2 className="text-xl font-semibold">Port Allocation</h2>
@@ -980,8 +980,8 @@ function SettingsContent() {
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <Card className="p-6">
                   <div className="flex items-center gap-3 mb-6">
-                    <div className="p-3 rounded-xl bg-blue-500/10">
-                      <Container className="h-6 w-6 text-blue-500" />
+                    <div className="p-3 rounded-xl bg-brand/10">
+                      <Container className="h-6 w-6 text-brand" />
                     </div>
                     <div>
                       <h2 className="text-xl font-semibold">Docker Network</h2>

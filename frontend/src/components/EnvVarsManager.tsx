@@ -266,9 +266,9 @@ SESSION_SECRET=your-secret-here
                 <div className="flex items-center gap-2 group cursor-pointer" onClick={() => setIsBuildArg(!isBuildArg)}>
                   <div className={cn(
                     "h-4 w-4 rounded border transition-colors flex items-center justify-center",
-                    isBuildArg ? "bg-orange-500 border-orange-500" : "bg-transparent border-muted-foreground/40"
+                    isBuildArg ? "bg-brand border-brand" : "bg-transparent border-muted-foreground/40"
                   )}>
-                    {isBuildArg && <Check className="h-3 w-3 text-white" strokeWidth={4} />}
+                    {isBuildArg && <Check className="h-3 w-3 text-brand-foreground" strokeWidth={4} />}
                   </div>
                   <div className="flex flex-col">
                     <span className="text-xs font-semibold">Build Argument</span>
@@ -279,9 +279,9 @@ SESSION_SECRET=your-secret-here
                 <div className="flex items-center gap-2 group cursor-pointer" onClick={() => setIsRuntime(!isRuntime)}>
                   <div className={cn(
                     "h-4 w-4 rounded border transition-colors flex items-center justify-center",
-                    isRuntime ? "bg-orange-500 border-orange-500" : "bg-transparent border-muted-foreground/40"
+                    isRuntime ? "bg-brand border-brand" : "bg-transparent border-muted-foreground/40"
                   )}>
-                    {isRuntime && <Check className="h-3 w-3 text-white" strokeWidth={4} />}
+                    {isRuntime && <Check className="h-3 w-3 text-brand-foreground" strokeWidth={4} />}
                   </div>
                   <div className="flex flex-col">
                     <span className="text-xs font-semibold">Runtime Variable</span>
@@ -335,7 +335,7 @@ SESSION_SECRET=your-secret-here
                   "h-4 w-4 rounded border transition-colors flex items-center justify-center",
                   isBuildArg ? "bg-brand border-brand" : "bg-transparent border-muted-foreground/40"
                 )}>
-                  {isBuildArg && <Check className="h-3 w-3 text-white" strokeWidth={4} />}
+                  {isBuildArg && <Check className="h-3 w-3 text-brand-foreground" strokeWidth={4} />}
                 </div>
                 <div className="flex flex-col">
                   <span className="text-xs font-semibold">Build Argument</span>
@@ -346,9 +346,9 @@ SESSION_SECRET=your-secret-here
               <div className="flex items-center gap-2 group cursor-pointer" onClick={() => setIsRuntime(!isRuntime)}>
                 <div className={cn(
                   "h-4 w-4 rounded border transition-colors flex items-center justify-center",
-                  isRuntime ? "bg-blue-500 border-blue-500" : "bg-transparent border-muted-foreground/40"
+                  isRuntime ? "bg-brand border-brand" : "bg-transparent border-muted-foreground/40"
                 )}>
-                  {isRuntime && <Check className="h-3 w-3 text-white" strokeWidth={4} />}
+                  {isRuntime && <Check className="h-3 w-3 text-brand-foreground" strokeWidth={4} />}
                 </div>
                 <div className="flex flex-col">
                   <span className="text-xs font-semibold">Runtime Variable</span>
@@ -360,9 +360,9 @@ SESSION_SECRET=your-secret-here
                 <div className="flex items-center gap-2 group cursor-pointer" onClick={() => setIsSecret(!isSecret)}>
                   <div className={cn(
                     "h-4 w-4 rounded border transition-colors flex items-center justify-center",
-                    isSecret ? "bg-rose-500 border-rose-500" : "bg-transparent border-muted-foreground/40"
+                    isSecret ? "bg-danger border-danger" : "bg-transparent border-muted-foreground/40"
                   )}>
-                    {isSecret && <Check className="h-3 w-3 text-white" strokeWidth={4} />}
+                    {isSecret && <Check className="h-3 w-3 text-brand-foreground" strokeWidth={4} />}
                   </div>
                   <div className="flex flex-col">
                     <span className="text-xs font-semibold">BuildKit secret</span>
@@ -386,17 +386,17 @@ SESSION_SECRET=your-secret-here
         </div>
       </Card>
 
-      <div className="bg-amber-500/5 border border-amber-500/10 p-4 rounded-xl flex items-start gap-3">
-        <AlertCircle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
-        <div className="text-xs text-amber-600/80 leading-relaxed font-medium">
-          <span className="font-bold text-amber-600">Redeploy Required:</span> Any changes here will not take effect on currently running containers. You must trigger a fresh deploy from the main project page to inject updated variables.
+      <div className="bg-warning-surface border border-warning-border p-4 rounded-xl flex items-start gap-3">
+        <AlertCircle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
+        <div className="text-xs text-warning leading-relaxed font-medium">
+          <span className="font-bold">Redeploy Required:</span> Any changes here will not take effect on currently running containers. You must trigger a fresh deploy from the main project page to inject updated variables.
         </div>
       </div>
 
-      <div className="bg-blue-500/5 border border-blue-500/10 p-4 rounded-xl flex items-start gap-3">
-        <Info className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
-        <div className="text-xs text-blue-600/80 leading-relaxed font-medium">
-          <span className="font-bold text-blue-600">Docker Build & Runtime:</span> If you are using these variables during build (e.g. Prisma), ensure you add <code className="bg-blue-500/10 px-1 rounded border border-blue-500/20">ARG VARIABLE_NAME</code> in your Dockerfile. For runtime access, consider adding <code className="bg-blue-500/10 px-1 rounded border border-blue-500/20">ENV VARIABLE_NAME=$VARIABLE_NAME</code> if your framework requires it.
+      <div className="bg-brand/5 border border-brand/15 p-4 rounded-xl flex items-start gap-3">
+        <Info className="h-5 w-5 text-brand shrink-0 mt-0.5" />
+        <div className="text-xs text-foreground/80 leading-relaxed font-medium">
+          <span className="font-bold text-brand">Docker Build &amp; Runtime:</span> If you are using these variables during build (e.g. Prisma), ensure you add <code className="bg-brand/10 px-1 rounded border border-brand/20">ARG VARIABLE_NAME</code> in your Dockerfile. For runtime access, consider adding <code className="bg-brand/10 px-1 rounded border border-brand/20">ENV VARIABLE_NAME=$VARIABLE_NAME</code> if your framework requires it.
         </div>
       </div>
 
@@ -456,18 +456,18 @@ SESSION_SECRET=your-secret-here
                 <div className="flex items-center gap-3">
                   <div className={cn(
                     "h-6 px-2.5 rounded-full flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest transition-all",
-                    env.is_build_arg 
-                      ? "bg-orange-100 text-orange-600 border border-orange-300" 
-                      : "bg-gray-100 text-gray-400 border border-gray-200"
+                    env.is_build_arg
+                      ? "bg-brand/10 text-brand border border-brand/20"
+                      : "bg-secondary text-muted-foreground border border-border"
                   )}>
                     <FlaskConical className="h-3 w-3" />
                     Bld
                   </div>
                   <div className={cn(
                     "h-6 px-2.5 rounded-full flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest transition-all",
-                    env.is_runtime 
-                      ? "bg-orange-100 text-orange-600 border border-orange-300" 
-                      : "bg-gray-100 text-gray-400 border border-gray-200"
+                    env.is_runtime
+                      ? "bg-brand/10 text-brand border border-brand/20"
+                      : "bg-secondary text-muted-foreground border border-border"
                   )}>
                     <Globe className="h-3 w-3" />
                     Run
@@ -480,7 +480,7 @@ SESSION_SECRET=your-secret-here
                   variant="ghost"
                   size="sm"
                   onClick={() => handleDelete(env.id, env.key)}
-                  className="h-9 w-9 p-0 rounded-xl text-destructive/40 hover:text-white hover:bg-destructive transition-all"
+                  className="h-9 w-9 p-0 rounded-xl text-muted-foreground hover:bg-danger-surface hover:text-danger transition-colors"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>

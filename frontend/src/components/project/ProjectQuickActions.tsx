@@ -258,8 +258,8 @@ export function ProjectQuickActions({
           onClick={(e) => e.stopPropagation()}
         >
           <DialogHeader>
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
-              <AlertTriangle className="h-6 w-6 text-red-500" />
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-danger-surface">
+              <AlertTriangle className="h-6 w-6 text-danger" />
             </div>
             <DialogTitle className="text-center">Delete Project</DialogTitle>
             <DialogDescription className="text-center">

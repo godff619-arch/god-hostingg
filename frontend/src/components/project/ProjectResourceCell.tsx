@@ -37,9 +37,9 @@ function Meter({
           className={cn(
             "h-full rounded-full transition-[width] duration-300",
             tone === "danger"
-              ? "bg-red-500/70"
+              ? "bg-danger"
               : tone === "muted"
-                ? "bg-zinc-400/50"
+                ? "bg-muted-foreground/40"
                 : "bg-brand",
           )}
           style={{ width: `${width}%` }}

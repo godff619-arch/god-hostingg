@@ -94,7 +94,7 @@ function AnsiLine({ text, highlight }: { text: string; highlight?: string }) {
         segments.forEach((seg, j) => {
           if (seg && seg.toLowerCase() === needle) {
             elements.push(
-              <mark key={`${i}-${j}`} className="bg-yellow-500/30 text-yellow-200 rounded-[2px] px-0.5">{seg}</mark>
+              <mark key={`${i}-${j}`} className="bg-warning-border/40 text-sidebar-foreground rounded-[2px] px-0.5">{seg}</mark>
             );
           } else if (seg) {
             elements.push(
@@ -345,13 +345,13 @@ export function LogViewer({
               className={cn(
                 "h-2 w-2 rounded-full shrink-0",
                 connected
-                  ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]"
+                  ? "bg-success-border"
                   : "bg-sidebar-subtle"
               )}
             />
             <span className="text-[13px] font-semibold text-sidebar-foreground">{title}</span>
             {connected && (
-              <span className="text-[10px] font-medium text-emerald-400/80 tracking-wide">LIVE</span>
+              <span className="text-[10px] font-medium text-success-border tracking-wide">LIVE</span>
             )}
           </div>
           {subtitle && (
@@ -438,7 +438,7 @@ export function LogViewer({
       {/* ─── Log Lines ─── */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto font-mono text-[12.5px] leading-[1.7] custom-scrollbar"
+        className="dark-scroll flex-1 overflow-y-auto font-mono text-[12.5px] leading-[1.7]"
         tabIndex={0}
       >
         {logs.length === 0 ? (

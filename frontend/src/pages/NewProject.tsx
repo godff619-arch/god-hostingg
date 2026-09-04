@@ -690,9 +690,9 @@ function NewProjectContent() {
                         disabled={!githubUrl || isValidGithubUrl(githubUrl) !== true}
                       />
                       {repoAccessError && (
-                        <div className="flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3">
-                          <Lock className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-                          <span className="text-xs text-amber-600 dark:text-amber-400">{repoAccessError}</span>
+                        <div className="flex items-start gap-2 rounded-xl border border-warning-border bg-warning-surface p-3">
+                          <Lock className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                          <span className="text-xs text-warning">{repoAccessError}</span>
                         </div>
                       )}
                     </div>
@@ -744,7 +744,7 @@ function NewProjectContent() {
                       <div className="space-y-3 border-b border-border/60 bg-secondary/30 px-4 py-3">
                         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                           <div className="flex min-w-0 items-center gap-2">
-                            <div className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+                            <div className="h-2 w-2 shrink-0 rounded-full bg-success" />
                             <span className="truncate text-xs font-medium text-muted-foreground">
                               {githubInstallations.length > 0
                                 ? `${githubInstallations.length} GitHub account${githubInstallations.length === 1 ? "" : "s"} connected`
@@ -1169,9 +1169,9 @@ function NewProjectContent() {
                           </div>
 
                           {!newEnvIsBuild && !newEnvIsRuntime && (
-                            <div className="flex gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
-                              <Info className="h-4 w-4 shrink-0 text-amber-500" />
-                              <p className="text-[10px] font-medium text-amber-700 dark:text-amber-400">You must select at least one injection scope for this variable to be active.</p>
+                            <div className="flex gap-2 rounded-xl border border-warning-border bg-warning-surface p-3">
+                              <Info className="h-4 w-4 shrink-0 text-warning" />
+                              <p className="text-[10px] font-medium text-warning">You must select at least one injection scope for this variable to be active.</p>
                             </div>
                           )}
 

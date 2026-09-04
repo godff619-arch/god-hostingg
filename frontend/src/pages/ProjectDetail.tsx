@@ -2164,7 +2164,7 @@ export default function ProjectDetail() {
                       className={cn(
                         "p-4 rounded-xl border text-left transition-all",
                         buildType === value
-                          ? "border-orange-500/40 bg-orange-500/5"
+                          ? "border-brand/40 bg-brand/5"
                           : "border-border/40 hover:bg-secondary/30",
                       )}
                     >
@@ -2270,8 +2270,8 @@ export default function ProjectDetail() {
                       </span>
                       <p className="font-bold capitalize mt-1">{buildDetection.requestedType}</p>
                     </div>
-                    <div className="p-4 rounded-xl bg-orange-500/5 border border-orange-500/20">
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-orange-500">
+                    <div className="p-4 rounded-xl bg-brand/5 border border-brand/20">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-brand">
                         Resolved
                       </span>
                       <p className="font-bold capitalize mt-1">{buildDetection.resolvedType}</p>
@@ -2318,9 +2318,9 @@ export default function ProjectDetail() {
                 </p>
               </div>
 
-              <Card className="p-5 border-blue-500/20 bg-blue-500/5">
+              <Card className="p-5 border-brand/20 bg-brand/5">
                 <div className="flex gap-3">
-                  <Info className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
+                  <Info className="h-5 w-5 text-brand shrink-0 mt-0.5" />
                   <div className="text-xs text-muted-foreground leading-relaxed space-y-1">
                     <p>An external <code>DATABASE_URL</code> points to a separate database and is unaffected by these mounts.</p>
                     <p>SQLite files and user uploads need a mount at the directory where the app writes them. Application migrations may still modify or remove stored data, so keep backups.</p>

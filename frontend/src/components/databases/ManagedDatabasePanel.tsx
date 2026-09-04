@@ -209,7 +209,7 @@ export function ManagedDatabasePanel({
                   "Internal Docker DNS only until you link an app. Do not share IP:port publicly."}
               </p>
               {conn.credentials_init_only === true && (
-                <p className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-[11px] leading-relaxed text-amber-800 dark:text-amber-200/90">
+                <p className="rounded-lg border border-warning-border bg-warning-surface px-3 py-2 text-[11px] leading-relaxed text-warning">
                   Passwords for this engine are applied only on first volume init.
                   Changing env and redeploying will not rotate the server password —
                   recreate the database to rotate.
