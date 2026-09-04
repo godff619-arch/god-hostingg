@@ -14,6 +14,7 @@ import prisma from '../lib/prisma.js';
 import { config } from '../lib/config.js';
 import { AuthenticatedRequest } from '../lib/authMiddleware.js';
 import { writeAudit } from '../lib/audit.js';
+import { looksLikeCardNumber } from '../lib/pan.js';
 import {
   INCLUDED_USAGE,
   currentPeriod,
@@ -370,9 +371,18 @@ router.post('/payment-methods', async (req: AuthenticatedRequest, res: Response)
     if (!Number.isInteger(expYear) || expYear < thisYear || expYear > thisYear + 25) {
       return fail(res, 400, 'INVALID_EXPIRY', 'Expiry year is out of range.');
     }
-    // Defence in depth: refuse anything that looks like a full card number.
-    if (/\d{12,}/.test(JSON.stringify(req.body))) {
-      return fail(res, 400, 'RAW_CARD', 'Card numbers must be tokenized by the payment provider.');
+    // Defence in depth: refuse anything that is actually a card number. Tested by
+    // PAN shape + Luhn rather than "has 12 digits", so all-numeric provider tokens
+    // still work — see lib/pan.ts for the trade-off.
+    if (looksLikeCardNumber(JSON.stringify(req.body))) {
+      return fail(
+        res,
+        400,
+        'RAW_CARD',
+        'That looks like a real card number. Paste the reference your payment ' +
+          'provider returned (e.g. pm_… or tok_…) — Docklift stores only the brand, ' +
+          'last four digits and expiry, never a card number.',
+      );
     }
 
     const existing = await prisma.paymentMethod.count({ where: { workspace_id: workspace.id } });

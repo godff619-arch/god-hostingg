@@ -546,7 +546,8 @@ function AddCardDialog({
           <DialogHeader>
             <DialogTitle>Add a card</DialogTitle>
             <DialogDescription>
-              Paste the token your payment provider returned. Full card numbers are rejected.
+              Paste the reference your payment provider returned for this card — not the
+              card number. Anything that checksums as a real card number is rejected.
             </DialogDescription>
           </DialogHeader>
           <div className="mt-4 space-y-3">
