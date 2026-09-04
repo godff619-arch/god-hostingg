@@ -12,6 +12,7 @@ import { config } from './lib/config.js';
 import { ensureNetwork } from './services/docker.js';
 import { logBootstrapIfNeeded } from './lib/bootstrap.js';
 import { isTrustedOrigin } from './lib/originCheck.js';
+import { resolveStaticSite, isServerRoute, isBuiltAssetPath } from './lib/staticSite.js';
 import { isMaintenanceMode, maintenanceReason } from './lib/maintenance.js';
 import {
   isRestoreCritical,
@@ -287,6 +288,39 @@ app.use('/api/backup', async (req, res, next) => {
   return authMiddleware(req, res, next);
 }, mutating(backupLimiter), backupRouter);
 
+// Single-container mode: serve the built dashboard from this same port when a
+// build is present (see lib/staticSite.ts). Registered after every API router so
+// it can never shadow one, and before the error handler so failures still surface.
+const siteDir = resolveStaticSite(__dirname);
+if (siteDir) {
+  // Hashed assets are safe to cache hard; index.html must never be cached or
+  // browsers keep loading a stale bundle after an upgrade.
+  app.use(
+    express.static(siteDir, {
+      index: false,
+      etag: true,
+      maxAge: '1h',
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith(`${path.sep}index.html`)) res.setHeader('Cache-Control', 'no-store');
+        else if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+      },
+    }),
+  );
+  // Client-side routes (/setup, /project/:id, …) must return the SPA shell, while
+  // an unmatched /api or /ws path has to fall through to the API's own 404 —
+  // answering it with the dashboard would make every typo look like a live page.
+  app.use((req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    if (isServerRoute(req.path) || isBuiltAssetPath(req.path)) return next();
+    res.setHeader('Cache-Control', 'no-store');
+    res.sendFile(path.join(siteDir, 'index.html'), (err) => {
+      if (err) next(err);
+    });
+  });
+}
+
 // Error handler — logs with the correlation id and echoes it to the client so a
 // user-reported failure can be traced to the exact request in the logs. The same
 // failure is grouped into the Error Center; only 5xx is recorded, because a 4xx
@@ -343,7 +377,11 @@ async function main() {
 ║                                                            ║
 ╚════════════════════════════════════════════════════════════╝
       `);
-      
+
+      if (siteDir) {
+        console.log(`🖥️  Dashboard served from ${siteDir} on the same port (single-container mode)\n`);
+      }
+
       // Clean up orphaned Nginx configs on startup
       syncNginxConfigs().catch(console.error);
     });

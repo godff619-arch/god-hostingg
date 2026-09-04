@@ -1,0 +1,43 @@
+# Build context for the repo-root Dockerfile (single-container image).
+# Keep this tight: everything listed here would otherwise be uploaded to the
+# builder on every deploy, and a stale node_modules/dist can poison the build.
+
+.git
+.github
+.agent
+.claude
+
+node_modules
+**/node_modules
+**/dist
+backend/public
+frontend/dist
+
+# Local state — must never be baked into an image
+data
+deployments
+backend/data
+backend/deployments
+**/*.db
+**/*.db-journal
+**/*.sqlite
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Docs, media, site — not needed to build or run
+website
+screenshots
+logo.png
+*.md
+!README.md
+
+# Editor / OS noise
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+*.log

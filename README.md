@@ -385,6 +385,32 @@ cd docklift
 docker compose up -d
 ```
 
+### Single container (Coolify / Render / Railway / plain `docker run`)
+
+The repo-root `Dockerfile` builds the API **and** the dashboard into one image that
+listens on a single port (`3000` by default), so it fits platforms that expose only
+one port per app.
+
+```bash
+docker build -t docklift .
+```
+
+```bash
+docker run -d -p 3000:3000 \
+  -v docklift-data:/app/data \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  --name docklift docklift
+```
+
+On **Coolify**: Build pack `Dockerfile`, Base directory `/`, Port `3000`. Add a
+persistent volume at `/app/data` (SQLite database + generated secrets), and map
+`/var/run/docker.sock:/var/run/docker.sock` so Docklift can build and run the apps
+it deploys. Without the socket the panel still boots and reports Docker as
+unavailable instead of failing silently.
+
+The bootstrap secret is printed to the container logs on first start — see
+[First login needs the bootstrap secret](#first-login-needs-the-bootstrap-secret).
+
 ---
 
 ## 💻 Development Setup
