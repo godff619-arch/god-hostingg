@@ -78,8 +78,8 @@ export function StatChip({
 }) {
   const tones = {
     neutral: "border-border/60 bg-secondary/50 text-foreground",
-    success: "border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-    warning: "border-amber-500/25 bg-amber-500/10 text-amber-600 dark:text-amber-400",
+    success: "border-success-border bg-success-surface text-success",
+    warning: "border-warning-border bg-warning-surface text-warning",
     info: "border-brand/25 bg-brand/10 text-brand",
   } as const;
 

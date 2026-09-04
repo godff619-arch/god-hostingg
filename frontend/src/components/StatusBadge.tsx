@@ -1,4 +1,8 @@
 // StatusBadge component - colored badge showing project status (running, building, etc.)
+//
+// Every status pill draws from the semantic token families (success/warning/danger
+// plus a neutral) so the six states stay distinguishable without reintroducing raw
+// Tailwind palette colours. `ring-*-border` gives the pill its hairline outline.
 import { cn } from "@/lib/utils";
 
 interface StatusBadgeProps {
@@ -9,33 +13,33 @@ interface StatusBadgeProps {
 const statusConfig: Record<string, { label: string; colors: string; dot: string }> = {
   running: {
     label: "Running",
-    colors: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-emerald-500/20",
-    dot: "bg-emerald-500",
+    colors: "bg-success-surface text-success ring-success-border",
+    dot: "bg-success",
   },
   building: {
     label: "Building",
-    colors: "bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-amber-500/20",
-    dot: "bg-amber-500 animate-pulse",
+    colors: "bg-warning-surface text-warning ring-warning-border",
+    dot: "bg-warning animate-pulse",
   },
   stopped: {
     label: "Stopped",
-    colors: "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 ring-zinc-500/20",
-    dot: "bg-zinc-400",
+    colors: "bg-secondary text-muted-foreground ring-border",
+    dot: "bg-muted-foreground/50",
   },
   pending: {
     label: "Pending",
-    colors: "bg-blue-500/10 text-blue-600 dark:text-blue-400 ring-blue-500/20",
-    dot: "bg-blue-500",
+    colors: "bg-brand/10 text-brand ring-brand/20",
+    dot: "bg-brand",
   },
   error: {
     label: "Error",
-    colors: "bg-red-500/10 text-red-600 dark:text-red-400 ring-red-500/20",
-    dot: "bg-red-500",
+    colors: "bg-danger-surface text-danger ring-danger-border",
+    dot: "bg-danger",
   },
   degraded: {
     label: "Degraded",
-    colors: "bg-orange-500/10 text-orange-600 dark:text-orange-400 ring-orange-500/20",
-    dot: "bg-orange-500",
+    colors: "bg-warning-surface text-warning ring-warning-border",
+    dot: "bg-chart-3",
   },
 };
 

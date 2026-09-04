@@ -241,10 +241,10 @@ export default function PortsPage() {
                   className={cn(
                     "h-1.5 w-1.5 shrink-0 rounded-full",
                     p.status === "running"
-                      ? "bg-emerald-500"
+                      ? "bg-success"
                       : p.status === "building" || p.status === "pending"
-                        ? "animate-pulse bg-amber-500"
-                        : "bg-orange-500",
+                        ? "animate-pulse bg-warning"
+                        : "bg-chart-3",
                   )}
                 />
                 <span className="truncate">{p.name}</span>
@@ -276,9 +276,9 @@ export default function PortsPage() {
                   "inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors sm:rounded-xl sm:px-3 sm:py-1.5 sm:text-sm",
                   active
                     ? tab.tone === "success"
-                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                      ? "border-success-border bg-success-surface text-success"
                       : tab.tone === "warning"
-                        ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                        ? "border-warning-border bg-warning-surface text-warning"
                         : "border-brand/30 bg-brand/10 text-brand"
                     : "border-border/60 bg-secondary/40 text-muted-foreground hover:text-foreground",
                 )}
@@ -298,7 +298,7 @@ export default function PortsPage() {
       </div>
 
       {error && (
-        <div className="mb-2 shrink-0 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-600 dark:text-red-400 sm:text-sm">
+        <div className="mb-2 shrink-0 rounded-xl border border-danger-border bg-danger-surface px-3 py-2 text-xs text-danger sm:text-sm">
           {error}
         </div>
       )}
@@ -370,8 +370,8 @@ export default function PortsPage() {
                         className={cn(
                           "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border",
                           allocated
-                            ? "border-amber-500/25 bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                            : "border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+                            ? "border-warning-border bg-warning-surface text-warning"
+                            : "border-success-border bg-success-surface text-success",
                         )}
                       >
                         {allocated ? (
@@ -387,8 +387,8 @@ export default function PortsPage() {
                             className={cn(
                               "ml-2 text-[10px] font-semibold uppercase tracking-wider",
                               allocated
-                                ? "text-amber-700 dark:text-amber-300"
-                                : "text-emerald-700 dark:text-emerald-300",
+                                ? "text-warning"
+                                : "text-success",
                             )}
                           >
                             {allocated ? "In use" : "Free"}
@@ -449,8 +449,8 @@ export default function PortsPage() {
                               className={cn(
                                 "flex h-7 w-7 shrink-0 items-center justify-center rounded-md border",
                                 allocated
-                                  ? "border-amber-500/25 bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                                  : "border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+                                  ? "border-warning-border bg-warning-surface text-warning"
+                                  : "border-success-border bg-success-surface text-success",
                               )}
                             >
                               {allocated ? (
@@ -469,8 +469,8 @@ export default function PortsPage() {
                             className={cn(
                               "inline-flex rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
                               allocated
-                                ? "bg-amber-500/10 text-amber-700 dark:text-amber-300"
-                                : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+                                ? "bg-warning-surface text-warning"
+                                : "bg-success-surface text-success",
                             )}
                           >
                             {allocated ? "Allocated" : "Available"}

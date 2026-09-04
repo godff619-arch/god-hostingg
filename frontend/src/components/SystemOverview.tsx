@@ -127,90 +127,33 @@ function CircularProgress({
   strokeWidth = 10,
   label,
   sublabel,
-  color = "cyan",
+  tone = "brand",
 }: {
   value: number;
   size?: number;
   strokeWidth?: number;
   label: string;
   sublabel?: string;
-  color?: "cyan" | "purple" | "amber" | "emerald" | "rose";
+  tone?: "brand" | "info" | "warning" | "success" | "danger";
 }) {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
   const offset = circumference - (value / 100) * circumference;
 
-  const colorClasses = {
-    cyan: "stroke-cyan-500",
-    purple: "stroke-purple-500",
-    amber: "stroke-amber-500",
-    emerald: "stroke-emerald-500",
-    rose: "stroke-rose-500",
-  };
-
-  const gradientIds = {
-    cyan: "gradient-cyan",
-    purple: "gradient-purple",
-    amber: "gradient-amber",
-    emerald: "gradient-emerald",
-    rose: "gradient-rose",
+  // Flat token strokes — the five two-stop gradients this replaced were the last
+  // of the old cyan/violet palette, and a gradient arc reads as decoration
+  // rather than as a value.
+  const strokes: Record<string, string> = {
+    brand: "hsl(var(--brand))",
+    info: "hsl(var(--chart-2))",
+    warning: "hsl(var(--chart-3))",
+    success: "hsl(var(--success))",
+    danger: "hsl(var(--danger))",
   };
 
   return (
     <div className="relative flex flex-col items-center">
       <svg width={size} height={size} className="transform -rotate-90">
-        <defs>
-          <linearGradient
-            id="gradient-cyan"
-            x1="0%"
-            y1="0%"
-            x2="100%"
-            y2="100%"
-          >
-            <stop offset="0%" stopColor="#06b6d4" />
-            <stop offset="100%" stopColor="#3b82f6" />
-          </linearGradient>
-          <linearGradient
-            id="gradient-purple"
-            x1="0%"
-            y1="0%"
-            x2="100%"
-            y2="100%"
-          >
-            <stop offset="0%" stopColor="#a855f7" />
-            <stop offset="100%" stopColor="#6366f1" />
-          </linearGradient>
-          <linearGradient
-            id="gradient-amber"
-            x1="0%"
-            y1="0%"
-            x2="100%"
-            y2="100%"
-          >
-            <stop offset="0%" stopColor="#f59e0b" />
-            <stop offset="100%" stopColor="#ef4444" />
-          </linearGradient>
-          <linearGradient
-            id="gradient-emerald"
-            x1="0%"
-            y1="0%"
-            x2="100%"
-            y2="100%"
-          >
-            <stop offset="0%" stopColor="#10b981" />
-            <stop offset="100%" stopColor="#14b8a6" />
-          </linearGradient>
-          <linearGradient
-            id="gradient-rose"
-            x1="0%"
-            y1="0%"
-            x2="100%"
-            y2="100%"
-          >
-            <stop offset="0%" stopColor="#f43f5e" />
-            <stop offset="100%" stopColor="#ec4899" />
-          </linearGradient>
-        </defs>
         {/* Background circle */}
         <circle
           cx={size / 2}
@@ -227,7 +170,7 @@ function CircularProgress({
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke={`url(#${gradientIds[color]})`}
+          stroke={strokes[tone]}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeDasharray={circumference}
@@ -263,7 +206,7 @@ function StatCard({
   label,
   value,
   sublabel,
-  iconColor = "text-cyan-500",
+  iconColor = "text-brand",
 }: {
   icon: React.ElementType;
   label: string;
@@ -452,8 +395,8 @@ export function SystemOverview() {
             className={cn(
               "inline-flex h-9 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-bold transition-all active:scale-95 sm:h-10 sm:gap-2 sm:px-3.5",
               purging
-                ? "cursor-not-allowed border-rose-500/20 bg-rose-500/10 text-rose-500/30"
-                : "border-rose-500/20 bg-background text-rose-500 hover:border-rose-500/40 hover:bg-rose-500/5"
+                ? "cursor-not-allowed border-danger-border bg-danger-surface text-danger/40"
+                : "border-danger-border bg-background text-danger hover:bg-danger-surface"
             )}
           >
             {purging ? (
@@ -480,8 +423,8 @@ export function SystemOverview() {
         {/* CPU Card */}
         <div className="rounded-xl border border-border/50 bg-card p-3 shadow-sm sm:rounded-2xl sm:p-5">
           <div className="mb-2.5 flex items-center gap-2 sm:mb-3">
-            <div className="rounded-lg bg-cyan-500/10 p-1.5 sm:p-2">
-              <Cpu className="h-3.5 w-3.5 text-cyan-500 sm:h-4 sm:w-4" />
+            <div className="rounded-lg bg-brand/10 p-1.5 sm:p-2">
+              <Cpu className="h-3.5 w-3.5 text-brand sm:h-4 sm:w-4" />
             </div>
             <h3 className="text-sm font-semibold sm:text-base">CPU</h3>
           </div>
@@ -490,7 +433,7 @@ export function SystemOverview() {
               value={stats.cpu.usage}
               label="Usage"
               sublabel={`${stats.cpu.cores} cores`}
-              color="cyan"
+              tone="brand"
               size={108}
             />
           </div>
@@ -517,8 +460,8 @@ export function SystemOverview() {
         {/* Memory Card */}
         <div className="rounded-xl border border-border/50 bg-card p-3 shadow-sm sm:rounded-2xl sm:p-5">
           <div className="mb-2.5 flex items-center gap-2 sm:mb-3">
-            <div className="rounded-lg bg-purple-500/10 p-1.5 sm:p-2">
-              <CircuitBoard className="h-3.5 w-3.5 text-purple-500 sm:h-4 sm:w-4" />
+            <div className="rounded-lg bg-chart-2/10 p-1.5 sm:p-2">
+              <CircuitBoard className="h-3.5 w-3.5 text-chart-2 sm:h-4 sm:w-4" />
             </div>
             <h3 className="text-sm font-semibold sm:text-base">Memory</h3>
           </div>
@@ -529,7 +472,7 @@ export function SystemOverview() {
               sublabel={`${formatBytes(stats.memory.used)} / ${formatBytes(
                 stats.memory.total
               )}`}
-              color="purple"
+              tone="info"
               size={108}
             />
           </div>
@@ -542,7 +485,7 @@ export function SystemOverview() {
             </div>
             <div className="flex justify-between text-[10px] sm:text-xs">
               <span className="text-muted-foreground">Free</span>
-              <span className="font-medium text-emerald-500">
+              <span className="font-medium text-success">
                 {formatBytes(stats.memory.free)}
               </span>
             </div>
@@ -552,8 +495,8 @@ export function SystemOverview() {
         {/* Primary Disk Card */}
         <div className="rounded-xl border border-border/50 bg-card p-3 shadow-sm sm:rounded-2xl sm:p-5">
           <div className="mb-2.5 flex items-center gap-2 sm:mb-3">
-            <div className="rounded-lg bg-amber-500/10 p-1.5 sm:p-2">
-              <HardDrive className="h-3.5 w-3.5 text-amber-500 sm:h-4 sm:w-4" />
+            <div className="rounded-lg bg-warning-surface p-1.5 sm:p-2">
+              <HardDrive className="h-3.5 w-3.5 text-warning sm:h-4 sm:w-4" />
             </div>
             <h3 className="text-sm font-semibold sm:text-base">Storage</h3>
           </div>
@@ -566,7 +509,7 @@ export function SystemOverview() {
                   sublabel={`${formatBytes(stats.disk[0].used)} / ${formatBytes(
                     stats.disk[0].total
                   )}`}
-                  color="amber"
+                  tone="warning"
                   size={108}
                 />
               </div>
@@ -590,20 +533,20 @@ export function SystemOverview() {
         {/* Network Card */}
         <div className="rounded-xl border border-border/50 bg-card p-3 shadow-sm sm:rounded-2xl sm:p-5">
           <div className="mb-2.5 flex items-center gap-2 sm:mb-3">
-            <div className="rounded-lg bg-emerald-500/10 p-1.5 sm:p-2">
-              <Wifi className="h-3.5 w-3.5 text-emerald-500 sm:h-4 sm:w-4" />
+            <div className="rounded-lg bg-success-surface p-1.5 sm:p-2">
+              <Wifi className="h-3.5 w-3.5 text-success sm:h-4 sm:w-4" />
             </div>
             <h3 className="text-sm font-semibold sm:text-base">Network</h3>
           </div>
           <div className="flex justify-center">
             <div className="flex h-[108px] w-[108px] items-center justify-center rounded-full border-4 border-secondary bg-secondary/50">
-              <Activity className="h-8 w-8 animate-pulse text-emerald-500 sm:h-9 sm:w-9" />
+              <Activity className="h-8 w-8 animate-pulse text-success sm:h-9 sm:w-9" />
             </div>
           </div>
           <div className="mt-3 space-y-1.5 border-t border-border/50 pt-3 sm:mt-4 sm:space-y-2 sm:pt-4">
             <div className="flex items-center justify-between text-[10px] sm:text-xs">
               <div className="flex items-center gap-1.5 text-muted-foreground">
-                <ArrowDownToLine className="h-3 w-3 text-emerald-500" />
+                <ArrowDownToLine className="h-3 w-3 text-success" />
                 Down
               </div>
               <span className="font-medium tabular-nums">
@@ -612,7 +555,7 @@ export function SystemOverview() {
             </div>
             <div className="flex items-center justify-between text-[10px] sm:text-xs">
               <div className="flex items-center gap-1.5 text-muted-foreground">
-                <ArrowUpFromLine className="h-3 w-3 text-cyan-500" />
+                <ArrowUpFromLine className="h-3 w-3 text-brand" />
                 Up
               </div>
               <span className="font-medium tabular-nums">
@@ -627,14 +570,14 @@ export function SystemOverview() {
       <div className="rounded-xl border border-border/50 bg-card p-3 shadow-sm sm:rounded-2xl sm:p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2 sm:mb-4">
           <div className="flex items-center gap-2">
-            <div className="rounded-lg bg-rose-500/10 p-1.5 sm:p-2">
-              <Server className="h-3.5 w-3.5 text-rose-500 sm:h-4 sm:w-4" />
+            <div className="rounded-lg bg-brand/10 p-1.5 sm:p-2">
+              <Server className="h-3.5 w-3.5 text-brand sm:h-4 sm:w-4" />
             </div>
             <h3 className="text-sm font-semibold sm:text-base">Server Details</h3>
           </div>
-          <div className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/20 bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 px-2.5 py-1 sm:rounded-full sm:px-3 sm:py-1.5">
-            <Clock className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 sm:text-xs">
+          <div className="inline-flex items-center gap-1.5 rounded-lg border border-success-border bg-success-surface px-2.5 py-1 sm:rounded-full sm:px-3 sm:py-1.5">
+            <Clock className="h-3.5 w-3.5 text-success" />
+            <span className="text-[11px] font-semibold text-success sm:text-xs">
               {stats.server.uptimeFormatted}
             </span>
           </div>
@@ -708,17 +651,11 @@ export function SystemOverview() {
                 <Activity className="h-3.5 w-3.5" /> Load
               </span>
               <span className="font-medium tabular-nums">
-                <span className="text-cyan-500">
-                  {stats.server.loadAvg?.load1 || 0}
-                </span>
+                {stats.server.loadAvg?.load1 || 0}
                 <span className="mx-1 text-muted-foreground">|</span>
-                <span className="text-amber-500">
-                  {stats.server.loadAvg?.load5 || 0}
-                </span>
+                {stats.server.loadAvg?.load5 || 0}
                 <span className="mx-1 text-muted-foreground">|</span>
-                <span className="text-emerald-500">
-                  {stats.server.loadAvg?.load15 || 0}
-                </span>
+                {stats.server.loadAvg?.load15 || 0}
               </span>
             </div>
             {stats.gpu.available && (
@@ -772,7 +709,7 @@ export function SystemOverview() {
           <div className="mt-3 border-t border-border/50 pt-3 sm:mt-4 sm:pt-4">
             <div className="mb-2.5 flex items-center justify-between gap-2 sm:mb-3">
               <div className="flex items-center gap-2">
-                <Activity className="h-3.5 w-3.5 text-blue-500 sm:h-4 sm:w-4" />
+                <Activity className="h-3.5 w-3.5 text-brand sm:h-4 sm:w-4" />
                 <span className="text-sm font-medium">Top Processes</span>
               </div>
               <div className="flex items-center gap-0.5 rounded-lg bg-secondary/50 p-0.5">
@@ -781,7 +718,7 @@ export function SystemOverview() {
                   className={cn(
                     "rounded-md px-2 py-1 text-[11px] font-medium transition-all sm:text-xs",
                     processSortBy === "cpu"
-                      ? "bg-cyan-500/20 text-cyan-500"
+                      ? "bg-card text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
@@ -792,7 +729,7 @@ export function SystemOverview() {
                   className={cn(
                     "rounded-md px-2 py-1 text-[11px] font-medium transition-all sm:text-xs",
                     processSortBy === "mem"
-                      ? "bg-purple-500/20 text-purple-500"
+                      ? "bg-card text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
@@ -834,10 +771,10 @@ export function SystemOverview() {
                         <td className="px-2.5 py-2 text-muted-foreground sm:px-3">
                           {proc.user}
                         </td>
-                        <td className="px-2.5 py-2 text-right font-medium tabular-nums text-cyan-500 sm:px-3">
+                        <td className="px-2.5 py-2 text-right font-medium tabular-nums sm:px-3">
                           {proc.cpu.toFixed(1)}%
                         </td>
-                        <td className="px-2.5 py-2 text-right tabular-nums text-purple-500 sm:px-3">
+                        <td className="px-2.5 py-2 text-right tabular-nums text-muted-foreground sm:px-3">
                           {proc.mem.toFixed(1)}%
                         </td>
                       </tr>
@@ -853,8 +790,8 @@ export function SystemOverview() {
       <Dialog open={showPurgeDialog} onOpenChange={setShowPurgeDialog}>
         <DialogContent className="sm:max-w-md bg-background border-border shadow-2xl">
           <DialogHeader className="space-y-3">
-            <div className="mx-auto w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center mb-2">
-              <Trash2 className="h-6 w-6 text-rose-500" />
+            <div className="mx-auto w-12 h-12 rounded-2xl bg-danger-surface flex items-center justify-center mb-2">
+              <Trash2 className="h-6 w-6 text-danger" />
             </div>
             <DialogTitle className="text-center text-xl font-bold tracking-tight">
               Purge unused God Hosting images
@@ -866,7 +803,7 @@ export function SystemOverview() {
 
           <div className="space-y-2.5 my-4">
             <div className="p-3 rounded-xl bg-secondary/30 border border-border flex items-center gap-3">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              <CheckCircle2 className="h-4 w-4 text-success" />
               <p className="text-xs font-semibold">
                 Unused God Hosting images + full BuildKit wipe
               </p>
@@ -891,7 +828,7 @@ export function SystemOverview() {
               type="password"
               value={purgePassword}
               onChange={(e) => setPurgePassword(e.target.value)}
-              placeholder="Your DockLift password"
+              placeholder="Your God Hosting password"
               autoComplete="current-password"
               className="rounded-xl"
             />
@@ -911,7 +848,8 @@ export function SystemOverview() {
             <Button
               onClick={handlePurge}
               disabled={!purgePassword.trim()}
-              className="flex-1 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold shadow-lg shadow-rose-500/20"
+              variant="destructive"
+              className="flex-1 rounded-xl font-semibold"
             >
               Start Purge
             </Button>

@@ -48,22 +48,22 @@ const STATUS_META: Record<
 > = {
   active: {
     label: "HTTPS active",
-    className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30",
+    className: "bg-success-surface text-success border-success-border",
     icon: Lock,
   },
   expiring: {
     label: "Renews soon",
-    className: "bg-amber-500/10 text-amber-600 border-amber-500/30",
+    className: "bg-warning-surface text-warning border-warning-border",
     icon: Lock,
   },
   expired: {
     label: "Certificate expired",
-    className: "bg-red-500/10 text-red-600 border-red-500/30",
+    className: "bg-danger-surface text-danger border-danger-border",
     icon: ShieldAlert,
   },
   failed: {
     label: "HTTPS setup failed",
-    className: "bg-red-500/10 text-red-600 border-red-500/30",
+    className: "bg-danger-surface text-danger border-danger-border",
     icon: ShieldAlert,
   },
   pending: {
@@ -80,15 +80,15 @@ const STATUS_META: Record<
 
 const LEVEL_STYLES: Record<SslEvent["level"], string> = {
   info: "text-foreground/80",
-  success: "text-emerald-600",
-  warn: "text-amber-600",
-  error: "text-red-500",
+  success: "text-success",
+  warn: "text-warning",
+  error: "text-danger",
 };
 
 const DNS_STYLES: Record<DomainDnsCheck["status"], string> = {
-  ok: "text-emerald-600",
-  mismatch: "text-amber-600",
-  missing: "text-red-500",
+  ok: "text-success",
+  mismatch: "text-warning",
+  missing: "text-danger",
   unknown: "text-muted-foreground",
 };
 
@@ -135,7 +135,7 @@ function CopyableCommand({ command }: { command: string }) {
         aria-label="Copy command"
       >
         {copied ? (
-          <Check className="h-3.5 w-3.5 text-emerald-500" />
+          <Check className="h-3.5 w-3.5 text-success" />
         ) : (
           <Copy className="h-3.5 w-3.5" />
         )}
@@ -566,17 +566,17 @@ export function PanelDomainCard({
           </div>
 
           {parsed.error ? (
-            <p className="flex items-start gap-1.5 text-xs text-red-500">
+            <p className="flex items-start gap-1.5 text-xs text-danger">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               {parsed.error}
             </p>
           ) : portError && (parsed.value || portInput.trim() !== String(DEFAULT_PANEL_PORT)) ? (
-            <p className="flex items-start gap-1.5 text-xs text-red-500">
+            <p className="flex items-start gap-1.5 text-xs text-danger">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               {portError}
             </p>
           ) : isDuplicate ? (
-            <p className="flex items-start gap-1.5 text-xs text-amber-600">
+            <p className="flex items-start gap-1.5 text-xs text-warning">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               {parsed.value} is already mapped to the panel.
             </p>
@@ -700,7 +700,7 @@ export function PanelDomainCard({
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:bg-red-500/10 hover:text-red-500"
+                          className="h-8 w-8 text-muted-foreground hover:bg-danger-surface hover:text-danger"
                           onClick={() => setConfirmRemove(domain)}
                           aria-label={`Remove ${domain}`}
                         >
@@ -717,8 +717,8 @@ export function PanelDomainCard({
                   )}
 
                   {fix && (
-                    <div className="space-y-2 rounded-lg border border-red-500/30 bg-red-500/5 p-3">
-                      <p className="flex items-start gap-1.5 text-xs font-semibold text-red-500">
+                    <div className="space-y-2 rounded-lg border border-danger-border bg-danger-surface p-3">
+                      <p className="flex items-start gap-1.5 text-xs font-semibold text-danger">
                         <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                         {fix.title}
                       </p>
@@ -728,7 +728,7 @@ export function PanelDomainCard({
                       <ol className="space-y-1">
                         {fix.steps.map((step, i) => (
                           <li key={i} className="flex gap-2 text-[11px] text-foreground/80">
-                            <span className="font-bold text-red-500/70">{i + 1}.</span>
+                            <span className="font-bold text-danger/70">{i + 1}.</span>
                             <span className="min-w-0">{step}</span>
                           </li>
                         ))}

@@ -410,7 +410,7 @@ function GeneralSection({
               className="h-10 w-10 rounded-full object-cover"
             />
           ) : (
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#E8B838] text-[15px] font-semibold text-[#1A1A1A]">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand text-[15px] font-semibold text-brand-foreground">
               {data.workspace.initial}
             </span>
           )}

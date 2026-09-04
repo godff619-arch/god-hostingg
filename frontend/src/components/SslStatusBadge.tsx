@@ -9,11 +9,11 @@ export type SslInfo = {
 };
 
 const STYLES: Record<SslInfo["status"], string> = {
-  active: "bg-emerald-500/15 text-emerald-600 border-emerald-500/30",
-  expiring: "bg-amber-500/15 text-amber-600 border-amber-500/30",
-  expired: "bg-red-500/15 text-red-600 border-red-500/30",
-  failed: "bg-red-500/15 text-red-600 border-red-500/30",
-  pending: "bg-cyan-500/15 text-cyan-600 border-cyan-500/30",
+  active: "bg-success-surface text-success border-success-border",
+  expiring: "bg-warning-surface text-warning border-warning-border",
+  expired: "bg-danger-surface text-danger border-danger-border",
+  failed: "bg-danger-surface text-danger border-danger-border",
+  pending: "bg-brand/10 text-brand border-brand/25",
   missing: "bg-secondary text-muted-foreground border-border/50",
 };
 
@@ -74,7 +74,7 @@ export function SslStatusBadge({
       </div>
       {status === "failed" && ssl?.error && (
         <div className="space-y-1.5">
-          <p className="text-xs text-red-500/90 break-words">{ssl.error}</p>
+          <p className="text-xs text-danger break-words">{ssl.error}</p>
           {ssl.diagnosticCommand && (
             <div className="space-y-1">
               <p className="text-[11px] text-muted-foreground">Full error on server:</p>

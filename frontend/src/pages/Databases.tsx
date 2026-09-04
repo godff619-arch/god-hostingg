@@ -267,11 +267,11 @@ export default function DatabasesPage() {
                 "inline-flex shrink-0 items-center gap-2 rounded-xl border px-3 py-1.5 text-sm font-medium transition-colors",
                 active
                   ? tab.tone === "success"
-                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                    ? "border-success-border bg-success-surface text-success"
                     : tab.tone === "warning"
-                      ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                      ? "border-warning-border bg-warning-surface text-warning"
                       : tab.tone === "danger"
-                        ? "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300"
+                        ? "border-danger-border bg-danger-surface text-danger"
                         : "border-brand/30 bg-brand/10 text-brand"
                   : "border-border/60 bg-secondary/40 text-muted-foreground hover:text-foreground",
               )}
@@ -286,7 +286,7 @@ export default function DatabasesPage() {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-400">
+        <div className="mb-4 rounded-xl border border-danger-border bg-danger-surface px-4 py-3 text-sm text-danger">
           {error}
         </div>
       )}
@@ -360,14 +360,14 @@ export default function DatabasesPage() {
                         className={cn(
                           "mt-1.5 h-2 w-2 shrink-0 rounded-full",
                           project.status === "running"
-                            ? "bg-emerald-500"
+                            ? "bg-success"
                             : project.status === "building"
-                              ? "animate-pulse bg-amber-500"
+                              ? "animate-pulse bg-warning"
                               : project.status === "error"
-                                ? "bg-red-500"
+                                ? "bg-danger"
                                 : project.status === "degraded"
-                                  ? "bg-orange-500"
-                                  : "bg-zinc-400",
+                                  ? "bg-chart-3"
+                                  : "bg-muted-foreground/40",
                         )}
                       />
                       <div className="min-w-0">
@@ -467,14 +467,14 @@ export default function DatabasesPage() {
                               className={cn(
                                 "h-2 w-2 shrink-0 rounded-full",
                                 project.status === "running"
-                                  ? "bg-emerald-500 shadow-sm shadow-emerald-500/50"
+                                  ? "bg-success"
                                   : project.status === "building"
-                                    ? "animate-pulse bg-amber-500"
+                                    ? "animate-pulse bg-warning"
                                     : project.status === "error"
-                                      ? "bg-red-500"
+                                      ? "bg-danger"
                                       : project.status === "degraded"
-                                        ? "bg-orange-500"
-                                        : "bg-zinc-400",
+                                        ? "bg-chart-3"
+                                        : "bg-muted-foreground/40",
                               )}
                             />
                             <div className="min-w-0">

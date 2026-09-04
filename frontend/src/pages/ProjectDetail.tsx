@@ -297,10 +297,10 @@ function ContainerLogsPanel({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-bold flex items-center gap-2">
-          <ScrollText className="h-5 w-5 text-emerald-500" />
+          <ScrollText className="h-5 w-5 text-success" />
           Container Logs
         </h3>
-        <div className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 uppercase tracking-widest">
+        <div className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-success-surface text-success border border-success-border uppercase tracking-widest">
           Real-time
         </div>
       </div>
@@ -315,7 +315,7 @@ function ContainerLogsPanel({
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 border",
                 activeContainer === svc.container_name
-                  ? "bg-emerald-500/15 text-emerald-500 border-emerald-500/30 shadow-sm"
+                  ? "bg-success-surface text-success border-success-border shadow-sm"
                   : "bg-secondary/50 text-muted-foreground border-border/50 hover:bg-secondary hover:text-foreground"
               )}
             >
@@ -325,7 +325,7 @@ function ContainerLogsPanel({
                 className={cn(
                   "h-2 w-2 rounded-full",
                   connected[svc.container_name!]
-                    ? "bg-emerald-500 animate-pulse"
+                    ? "bg-success animate-pulse"
                     : "bg-muted-foreground/30"
                 )}
               />
@@ -1726,8 +1726,8 @@ export default function ProjectDetail() {
             <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
               <Card className="p-4 sm:p-6 border-border/40 hover:border-border transition-colors">
                 <div className="flex items-center justify-between mb-2 sm:mb-4">
-                  <div className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-orange-500/10">
-                    <Activity className="h-4 w-4 sm:h-5 sm:w-5 text-orange-500" />
+                  <div className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-chart-3/10">
+                    <Activity className="h-4 w-4 sm:h-5 sm:w-5 text-chart-3" />
                   </div>
                   <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                     Health
@@ -1745,8 +1745,8 @@ export default function ProjectDetail() {
 
               <Card className="p-4 sm:p-6 border-border/40 hover:border-border transition-colors">
                 <div className="flex items-center justify-between mb-2 sm:mb-4">
-                  <div className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-purple-500/10">
-                    <History className="h-4 w-4 sm:h-5 sm:w-5 text-purple-500" />
+                  <div className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-chart-1/10">
+                    <History className="h-4 w-4 sm:h-5 sm:w-5 text-chart-1" />
                   </div>
                   <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                     Activity
@@ -1764,8 +1764,8 @@ export default function ProjectDetail() {
 
               <Card className="p-4 sm:p-6 border-border/40 hover:border-border transition-colors">
                 <div className="flex items-center justify-between mb-2 sm:mb-4">
-                  <div className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-blue-500/10">
-                    <Cpu className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
+                  <div className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-chart-2/10">
+                    <Cpu className="h-4 w-4 sm:h-5 sm:w-5 text-chart-2" />
                   </div>
                   <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                     Resource
@@ -1783,8 +1783,8 @@ export default function ProjectDetail() {
 
               <Card className="p-4 sm:p-6 border-border/40 hover:border-border transition-colors">
                 <div className="flex items-center justify-between mb-2 sm:mb-4">
-                  <div className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-cyan-500/10">
-                    <Shield className="h-4 w-4 sm:h-5 sm:w-5 text-cyan-500" />
+                  <div className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-chart-5/10">
+                    <Shield className="h-4 w-4 sm:h-5 sm:w-5 text-chart-5" />
                   </div>
                   <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                     Network
@@ -1836,7 +1836,7 @@ export default function ProjectDetail() {
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                         Selected Branch
                       </span>
-                      <div className="flex items-center gap-2 px-3 py-1.5 bg-cyan-500/10 text-cyan-500 rounded-lg border border-cyan-500/20 font-mono text-xs font-bold">
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-brand/10 text-brand rounded-lg border border-brand/20 font-mono text-xs font-bold">
                         <GitBranch className="h-3.5 w-3.5" />
                         {project.github_branch}
                       </div>
@@ -1848,8 +1848,8 @@ export default function ProjectDetail() {
                 <div className="border-t border-border/40 p-4 sm:p-6">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="p-2 rounded-lg bg-emerald-500/10 shrink-0">
-                        <Rocket className="h-4 w-4 text-emerald-500" />
+                      <div className="p-2 rounded-lg bg-success-surface shrink-0">
+                        <Rocket className="h-4 w-4 text-success" />
                       </div>
                       <div className="min-w-0">
                         <span className="font-semibold text-sm sm:text-base">
@@ -1866,13 +1866,13 @@ export default function ProjectDetail() {
                       onClick={() => handleAutoDeployToggle(!autoDeploy)}
                       disabled={autoDeployLoading}
                       className={cn(
-                        "relative h-6 w-11 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 shrink-0 self-end sm:self-auto",
-                        autoDeploy ? "bg-emerald-500" : "bg-secondary",
+                        "relative h-6 w-11 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-ring shrink-0 self-end sm:self-auto",
+                        autoDeploy ? "bg-brand" : "bg-secondary",
                       )}
                     >
                       <span
                         className={cn(
-                          "absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200",
+                          "absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-card shadow-sm transition-transform duration-200",
                           autoDeploy ? "translate-x-5" : "translate-x-0",
                         )}
                       />
@@ -1982,12 +1982,12 @@ export default function ProjectDetail() {
                                   className={cn(
                                     "text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider",
                                     deployment.status === "success"
-                                      ? "bg-emerald-500/10 text-emerald-500"
+                                      ? "bg-success-surface text-success"
                                       : deployment.status === "failed"
-                                        ? "bg-red-500/10 text-red-500"
+                                        ? "bg-danger-surface text-danger"
                                         : deployment.status === "cancelled"
-                                          ? "bg-slate-500/10 text-slate-500"
-                                        : "bg-amber-500/10 text-amber-500",
+                                          ? "bg-secondary text-muted-foreground"
+                                        : "bg-warning-surface text-warning",
                                   )}
                                 >
                                   {deployment.status}
@@ -2069,7 +2069,7 @@ export default function ProjectDetail() {
                           e.stopPropagation();
                           goHistoryPage(historyPage - 1);
                         }}
-                        className="text-xs font-bold gap-1.5 hover:bg-cyan-500/10 hover:text-cyan-500 transition-all"
+                        className="text-xs font-bold gap-1.5 transition-colors"
                         aria-label="Previous history page"
                       >
                         <ChevronLeft className="h-3.5 w-3.5" />
@@ -2088,7 +2088,7 @@ export default function ProjectDetail() {
                           e.stopPropagation();
                           goHistoryPage(historyPage + 1);
                         }}
-                        className="text-xs font-bold gap-1.5 hover:bg-cyan-500/10 hover:text-cyan-500 transition-all ml-auto sm:ml-0"
+                        className="text-xs font-bold gap-1.5 transition-colors ml-auto sm:ml-0"
                         aria-label="Next history page"
                       >
                         Next
@@ -2648,7 +2648,7 @@ export default function ProjectDetail() {
             <Button
               onClick={() => void handleRollback()}
               disabled={!rollbackPassword.trim() || rollbackLoading}
-              className="bg-amber-600 hover:bg-amber-700 text-white"
+              variant="warning"
             >
               {rollbackLoading && (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -2679,7 +2679,7 @@ export default function ProjectDetail() {
             <Button
               onClick={handleDeleteStorage}
               disabled={storageSaving}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              variant="destructive"
             >
               {storageSaving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Delete Storage and Data
