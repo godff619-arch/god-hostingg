@@ -10,6 +10,7 @@ import { getInstallationToken, getSetting, getInstallationIdForRepo } from './gi
 import { cleanupServiceDomain } from '../services/nginx.js';
 import { safeExtractZip } from '../lib/safeUnzip.js';
 import { archiveUpload } from '../lib/uploadArchive.js';
+import { featureDisabledBody, isFeatureEnabled } from '../lib/featureFlags.js';
 import crypto from 'crypto';
 import {
   normalizeBuildType,
@@ -267,6 +268,14 @@ router.post('/', (req: Request, res: Response, next: NextFunction) => {
       }
     } else if (!req.file) {
       return res.status(400).json({ error: 'ZIP upload is required for upload projects' });
+    }
+
+    // Each source type is a feature flag (Admin → Feature Flags). Checked here,
+    // once the source is known and before anything is created, cloned or kept.
+    const sourceFlag = resolvedSource === 'github' ? 'git_deploy' : 'zip_upload';
+    if (!(await isFeatureEnabled(sourceFlag))) {
+      unlinkUploadedFile(req);
+      return res.status(403).json(featureDisabledBody(sourceFlag));
     }
 
     // Validate domain format to prevent Nginx config injection
@@ -626,7 +635,7 @@ router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
     if (project) {
       const { disconnectProxyFromProjectNetwork, connectProxyToProjectNetwork, teardownProjectNetwork } =
         await import('../services/docker.js');
-      const { isComposeTeardownOk } = await import('../lib/composeTeardown.js');
+      const { isComposeTeardownOk, composeTeardownCwd } = await import('../lib/composeTeardown.js');
       const { composeProjectAliases } = await import('../lib/naming.js');
       const {
         disconnectLinkedDatabasesFromApp,
@@ -652,6 +661,10 @@ router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
 
       const aliases = composeProjectAliases(project.name, projectId);
       const primary = composeProjectName(project.name, projectId);
+      // The project directory is gone whenever the deployments volume was replaced
+      // (a panel redeploy, say) while the user's containers kept running. Teardown
+      // does not need it, so spawn from the deployments root instead of failing.
+      const teardownCwd = composeTeardownCwd(projectPath, config.deploymentsPath);
       for (const alias of aliases) {
         const composeArgs =
           alias === primary && fs.existsSync(runtimeCompose)
@@ -661,7 +674,7 @@ router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
           dockerBin(),
           [...composeArgs, 'down', '--remove-orphans', '--rmi', 'all'],
           {
-            cwd: projectPath,
+            cwd: teardownCwd,
             timeout: 60000,
             shell: false,
             encoding: 'utf8',
@@ -748,7 +761,12 @@ router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
   } catch (error) {
     if (sendAccessError(res, error)) return;
     console.error(`Failed to delete project ${req.params.id}:`, error);
-    res.status(500).json({ error: 'Failed to delete project' });
+    // The real reason travels to the operator: a bare "Failed to delete project"
+    // leaves nothing to act on, and this panel's users own the host.
+    const detail = error instanceof Error ? error.message : '';
+    res.status(500).json({
+      error: detail ? `Failed to delete project: ${detail}` : 'Failed to delete project',
+    });
   }
 });
 

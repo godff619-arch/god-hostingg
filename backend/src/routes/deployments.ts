@@ -45,6 +45,7 @@ import {
 import { requireStepUpPassword } from '../lib/stepUpAuth.js';
 import { cleanupServiceDomain, updateServiceDomain } from '../services/nginx.js';
 import { ensureProjectSubdomains } from '../lib/platformDomain.js';
+import { assertDeploymentsEnabled } from '../lib/platformSwitches.js';
 import {
   appendSslEvent,
   clearSslEvents,
@@ -779,6 +780,11 @@ async function deployProject(req: AuthenticatedRequest, res: Response) {
   const { projectId } = req.params;
   let deploymentId: string | null = null;
   const logs: string[] = [];
+
+  // Platform switch (Admin → Settings). Checked before anything else so a paused
+  // platform costs one cached read, and so the GitHub auto-deploy trampoline —
+  // which POSTs to this same endpoint — is paused with it.
+  if (!(await assertDeploymentsEnabled(res))) return;
 
   try {
     const project = await prisma.project.findUnique({
@@ -1917,7 +1923,11 @@ router.post('/:projectId/stop', async (req: AuthenticatedRequest, res: Response)
     }
     const project = await prisma.project.findUnique({ where: { id: projectId } });
     if (!project) return res.status(404).json({ error: 'Project not found' });
-    composeFileArgs(projectId);
+    // Stopping must never depend on the runtime compose file: `down -p <name>`
+    // addresses containers by label, so a project whose deployments directory was
+    // wiped (a panel redeploy, say) while its containers kept running can still be
+    // stopped. Refusing here with "deploy the project first" would strand it.
+    const hasRuntimeCompose = fs.existsSync(runtimeComposePath(projectId));
     const composeProject = composeProjectName(project.name, projectId);
     const projectPath = path.join(config.deploymentsPath, projectId);
     
@@ -1979,19 +1989,22 @@ router.post('/:projectId/stop', async (req: AuthenticatedRequest, res: Response)
     writeLog(`🔌 Disconnecting edge proxy from project network...\n`);
     await dockerService.disconnectProxyFromProjectNetwork(projectId);
 
-    const { isComposeTeardownOk } = await import('../lib/composeTeardown.js');
+    const { isComposeTeardownOk, composeTeardownCwd } = await import('../lib/composeTeardown.js');
     const aliases = composeProjectAliases(project.name, projectId);
     let success = true;
+    // Same reason as delete: `down` needs the project name, not the checkout, so a
+    // missing directory must not make a running container look torn down.
+    const teardownCwd = composeTeardownCwd(projectPath, config.deploymentsPath);
 
     // Tear down every alias (current + legacy UUID-era) and verify exact-label postconditions
     for (const alias of aliases) {
       const args =
-        alias === composeProject
+        alias === composeProject && hasRuntimeCompose
           ? ['compose', ...composeFileArgs(projectId), '-p', alias, 'down']
           : ['compose', '-p', alias, 'down'];
       writeLog(`🛑 compose down -p ${alias}\n`);
       let down = spawnSync('docker', args, {
-        cwd: projectPath,
+        cwd: teardownCwd,
         encoding: 'utf8',
         shell: false,
         timeout: 60000,
@@ -2002,7 +2015,7 @@ router.post('/:projectId/stop', async (req: AuthenticatedRequest, res: Response)
       if (!isComposeTeardownOk(down, alias)) {
         await dockerService.disconnectProxyFromProjectNetwork(projectId);
         down = spawnSync('docker', args, {
-          cwd: projectPath,
+          cwd: teardownCwd,
           encoding: 'utf8',
           shell: false,
           timeout: 60000,
@@ -2283,6 +2296,8 @@ router.post('/:projectId/rollback', async (req: AuthenticatedRequest, res: Respo
   try {
     await assertProjectAccess(req, projectId);
     if (!(await requireStepUpPassword(req, res))) return;
+    // A rollback re-deploys an old image, so the same platform switch applies.
+    if (!(await assertDeploymentsEnabled(res))) return;
 
     const targetId =
       typeof req.body?.deploymentId === 'string' ? req.body.deploymentId.trim() : '';

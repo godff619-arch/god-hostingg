@@ -1,5 +1,25 @@
 import { spawnSync, type SpawnSyncReturns } from 'child_process';
+import fs from 'fs';
 import { dockerBin, isDockerMissing } from './dockerBin.js';
+
+/**
+ * A directory `docker compose down` can actually be spawned in.
+ *
+ * Teardown addresses containers by `-p <project>` (plus an absolute `-f` when a
+ * runtime compose file exists), so it never needs the repo checkout. But spawning
+ * with a `cwd` that no longer exists fails with ENOENT *before* Docker runs, and
+ * `isDockerMissing` cannot tell that apart from "docker is not installed" — so a
+ * project whose files are gone while its containers still run becomes impossible
+ * to delete. The deployments root always exists, so fall back to it.
+ */
+export function composeTeardownCwd(preferred: string, fallback: string): string {
+  try {
+    if (fs.existsSync(preferred)) return preferred;
+  } catch {
+    /* unreadable path — treat as missing */
+  }
+  return fallback;
+}
 
 export type ComposeResourceProbe = (projectName: string) => {
   containerIds: string[];
