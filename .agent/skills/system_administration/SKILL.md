@@ -212,6 +212,7 @@ application data separately if it matters.
 |--------|---------|
 | `install.sh` | Production install into `/opt/docklift` (default **latest** release). Pin with `bash -s -- v=2.0.2` or `DOCKLIFT_VERSION=2.0.2`. Resolves/validates the tag **before** `compose down`; fails closed if latest API/tag missing (no master fallback). |
 | `install-dev.sh` | Same, but from `master` (unreleased code) |
+| `install-single.sh` | Single-container install into `/opt/god-hosting` from a **branch** (`BRANCH=main`), for a host that already runs Docker and may already own `:80`/`:443`. Builds the repo-root `Dockerfile` on the host (arch resolved by BuildKit), runs it with the socket + named volumes, never binds 80/443. Re-running is the upgrade path: pull → rebuild → recreate, volumes untouched. Knobs: `PANEL_PORT`, `PORT_RANGE_START/END`, `INSTALL_DIR`, `REQUIRE_BOOTSTRAP_SECRET`. |
 | `upgrade.sh` | Stop backend → SQLite snapshot (`.backup` / copy) → tag `*:pre-upgrade` images → rebuild; rollback uses tagged images + DB restore with backend stopped; health-checks `/api/health` |
 | `install.sh` | Prints `Dashboard: http://SERVER_IP:8080` and tells the operator to claim the first account now; prints the **Setup code** from `.bootstrap-secret` only when `REQUIRE_BOOTSTRAP_SECRET` is on |
 | `uninstall.sh` | Remove DockLift containers, images, volumes, network, build cache and `/opt/docklift` |

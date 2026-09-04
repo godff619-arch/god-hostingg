@@ -415,6 +415,30 @@ docker run -d -p 3000:3000 \
   --name docklift docklift
 ```
 
+#### One command, on a host that already runs Docker
+
+`install-single.sh` does all of the above on the server itself — clone, build for
+whatever architecture the host is (amd64 or arm64), run with the socket and the
+named volumes mounted, then print the URL. It never touches `:80`/`:443`, so it is
+safe on a VPS where Coolify's Traefik, Dokploy or your own nginx already owns them:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/godff619-arch/god-hostingg/main/install-single.sh | sudo bash
+```
+
+Re-run it to upgrade — the repo is pulled, the image rebuilt and the container
+recreated, while the named volumes (accounts, projects, deployments) are left
+alone. Knobs: `PANEL_PORT`, `PORT_RANGE_START/END`, `BRANCH`, `INSTALL_DIR`,
+`REQUIRE_BOOTSTRAP_SECRET`.
+
+> The mounted socket gives the container full control of the host engine — that is
+> what lets it deploy your apps. Treat panel access as root access on that box, and
+> put HTTPS in front of it before exposing it to the internet.
+
+On a host where 80/443 **are** free, prefer [`install.sh`](#production-recommended)
+instead: that stack adds the nginx edge proxy, which is what serves custom domains
+and Let's Encrypt certificates.
+
 #### On Coolify (with Docker)
 
 Use the checked-in compose file — it already wires the socket, the volumes and the
@@ -435,6 +459,11 @@ Prefer the `Dockerfile` build pack? Set Port `3000` and add these mounts yoursel
 generated compose files), and `/var/run/docker.sock:/var/run/docker.sock` so
 Docklift can build and run the apps it deploys. Without the socket the panel still
 boots and reports Docker as unavailable instead of failing silently.
+
+Already deployed, and the panel says **Docker engine is not reachable** (or a deploy
+falls back to `DOCKER-FREE MODE`)? That resource has no socket. Either point it at
+`/docker-compose.coolify.yml` as above and redeploy, or skip the build pack entirely
+and run `install-single.sh` from Coolify's own **Terminal** on that server.
 
 **Reaching the apps you deploy there.** Coolify's own Traefik owns `:80`/`:443` on
 that VPS, so Docklift cannot run its own nginx edge proxy alongside it. Docklift
