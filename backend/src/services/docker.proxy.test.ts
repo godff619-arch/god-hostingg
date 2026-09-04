@@ -50,3 +50,13 @@ test('connectProxyToProjectNetwork surfaces non-duplicate failures', async () =>
     (err: unknown) => err instanceof Error || typeof err === 'object'
   );
 });
+
+test('edgeProxyExists answers a boolean instead of throwing when Docker is absent', async () => {
+  const mod = await import('./docker.js');
+  const first = await mod.edgeProxyExists();
+  assert.equal(typeof first, 'boolean');
+  // Memoized within the TTL, so a deploy pays one inspect at most
+  assert.equal(await mod.edgeProxyExists(), first);
+  mod.invalidateEdgeProxyProbe();
+  assert.equal(typeof (await mod.edgeProxyExists()), 'boolean');
+});

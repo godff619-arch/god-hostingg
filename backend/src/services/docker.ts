@@ -96,6 +96,39 @@ export async function getDockerEngineInfo(): Promise<DockerEngineInfo> {
 }
 
 /**
+ * Whether the nginx edge proxy container exists on this host (running or not).
+ *
+ * Cached briefly: this is consulted on every deploy to decide whether services can
+ * be reached through a domain at all, and a per-deploy inspect on a cold socket is
+ * pure latency. A short TTL still notices an operator starting the proxy.
+ *
+ * Answers false when Docker itself is unreachable — no engine means no proxy, and
+ * the caller's fallback (publish a host port) is the safe read either way.
+ */
+let edgeProxyProbe: { at: number; exists: boolean } | null = null;
+const EDGE_PROXY_PROBE_TTL_MS = 30_000;
+
+export async function edgeProxyExists(): Promise<boolean> {
+  if (edgeProxyProbe && Date.now() - edgeProxyProbe.at < EDGE_PROXY_PROBE_TTL_MS) {
+    return edgeProxyProbe.exists;
+  }
+  let exists = false;
+  try {
+    await docker.getContainer(EDGE_PROXY_CONTAINER).inspect();
+    exists = true;
+  } catch {
+    exists = false;
+  }
+  edgeProxyProbe = { at: Date.now(), exists };
+  return exists;
+}
+
+/** Drop the cached edge-proxy probe (after the operator installs/removes the proxy). */
+export function invalidateEdgeProxyProbe(): void {
+  edgeProxyProbe = null;
+}
+
+/**
  * Attach edge proxy to a project network so it can resolve container_name DNS.
  * Throws on failure (callers must mark deploy degraded/failed — never pretend success).
  */

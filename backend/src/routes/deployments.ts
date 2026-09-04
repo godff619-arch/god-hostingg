@@ -961,7 +961,7 @@ async function deployProject(req: AuthenticatedRequest, res: Response) {
       throw new Error(`Unknown managed database engine: ${project.db_engine}`);
     }
 
-    const publishHostPort = (project as { publish_host_port?: boolean }).publish_host_port === true;
+    const optedInHostPort = (project as { publish_host_port?: boolean }).publish_host_port === true;
     // Own rows plus anything inherited from environment groups linked to this
     // resource's environment. The project's own values take precedence.
     const envVars = await resolvedEnvForProject(projectId);
@@ -1002,6 +1002,18 @@ async function deployProject(req: AuthenticatedRequest, res: Response) {
 
     const statePath = path.join(config.deploymentsPath, '.docklift', projectId);
     const composePath = path.join(statePath, 'compose.yml');
+
+    // Reachability, decided per host. Domain routing needs the nginx edge proxy
+    // container; where it does not exist (native install, or a VPS whose 80/443 are
+    // already owned by another proxy such as Coolify's Traefik) an app that
+    // publishes nothing would come up healthy and still be unreachable. So publish
+    // a host port for apps automatically in that case. A managed database is never
+    // auto-exposed — that would put Postgres/MySQL/Redis on a public IP — it stays
+    // strictly opt-in via publish_host_port.
+    const edgeProxyUp = await dockerService.edgeProxyExists();
+    const autoPublishHostPort = !optedInHostPort && !isManagedDb && !edgeProxyUp;
+    const publishHostPort = optedInHostPort || autoPublishHostPort;
+
     const runtimeServices: Array<{
       name: string;
       image: string;
@@ -1201,7 +1213,11 @@ async function deployProject(req: AuthenticatedRequest, res: Response) {
       }
 
       if (publishHostPort) {
-        writeLog(`  🔓 Host port publish enabled for this project\n`);
+        writeLog(
+          autoPublishHostPort
+            ? `  🔓 Edge proxy not installed — publishing a host port so this app stays reachable\n`
+            : `  🔓 Host port publish enabled for this project\n`,
+        );
       } else {
         writeLog(`  🔒 Host ports off — reach services via domain / nginx-proxy (opt-in publish_host_port)\n`);
       }
@@ -1577,12 +1593,18 @@ async function deployProject(req: AuthenticatedRequest, res: Response) {
             }
             if (domained.length) {
               success = false;
+              const published = servicesData.filter((svc) => svc.port);
               writeLog(
                 `\n❌ Edge proxy container "${dockerService.EDGE_PROXY_CONTAINER}" is not running, ` +
                   `so the configured domain(s) cannot be routed:\n` +
                   domained.map((svc) => `   • ${svc.name} → ${svc.domain}\n`).join('') +
                   `   Start the edge proxy (docker compose up -d nginx-proxy) and redeploy, ` +
-                  `or clear the domain to run without it.\n`,
+                  `or clear the domain to run without it.\n` +
+                  (published.length
+                    ? `   The containers are up on published host port(s) ` +
+                      `${published.map((svc) => svc.port).join(', ')} — point your own proxy there ` +
+                      `if this host's 80/443 belong to something else.\n`
+                    : ''),
               );
             } else {
               writeLog(
@@ -2384,8 +2406,13 @@ router.post('/:projectId/rollback', async (req: AuthenticatedRequest, res: Respo
       const statePath = path.join(config.deploymentsPath, '.docklift', projectId);
       const composePath = path.join(statePath, 'compose.yml');
       fs.mkdirSync(statePath, { recursive: true });
+      // Rollback has to reproduce the reachability of the deploy it returns to: if
+      // those services already hold host ports, republish them even when the flag is
+      // off, or an auto-published app would come back running but unreachable.
+      // (Managed databases can't reach here — rollback rejects them above.)
       const publishHostPort =
-        (project as { publish_host_port?: boolean }).publish_host_port === true;
+        (project as { publish_host_port?: boolean }).publish_host_port === true ||
+        runtimeServices.some((svc) => svc.port != null);
       const deployLimits = await getDeployLimits(project.user_id);
 
       writeLog(`📝 Rewriting runtime compose with previous images...\n`);
