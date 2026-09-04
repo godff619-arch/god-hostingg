@@ -7,8 +7,68 @@ import prisma from './prisma.js';
 
 const BOOTSTRAP_FILE = path.join(config.dataPath, '.bootstrap-secret');
 
+/** Exclusive lock guarding the open (no-secret) first-account claim. */
+const FIRST_ACCOUNT_LOCK = path.join(config.dataPath, '.first-account.lock');
+
+/** A registration that crashed mid-flight must not brick setup forever. */
+const LOCK_STALE_MS = 60_000;
+
 export function getBootstrapSecretPath(): string {
   return BOOTSTRAP_FILE;
+}
+
+/**
+ * Whether the first (owner) account has to present the server-printed bootstrap
+ * secret.
+ *
+ * Off by default. On a one-click host — Coolify, Render, Railway, a plain
+ * `docker run` — the operator often has no console to copy a secret from, and the
+ * install is dead in the water: the panel cannot be claimed at all. Instead the
+ * *first* signup wins and becomes OWNER, after which the window closes for good
+ * (`/register` refuses once any user exists).
+ *
+ * Set `REQUIRE_BOOTSTRAP_SECRET=true` to restore the strict flow. Do that when the
+ * URL is reachable by others before you have claimed it — otherwise whoever loads
+ * /setup first owns the panel.
+ */
+export function isBootstrapRequired(): boolean {
+  const raw = process.env.REQUIRE_BOOTSTRAP_SECRET?.trim().toLowerCase();
+  return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
+}
+
+/**
+ * Atomically claim the open first-account window (exclusive create). Returns the
+ * lock path, or null when another registration already holds it — the same
+ * one-winner guarantee `tryClaimBootstrapSecret` gives the secret flow.
+ */
+export function tryLockFirstAccount(): string | null {
+  try {
+    if (!fs.existsSync(config.dataPath)) {
+      fs.mkdirSync(config.dataPath, { recursive: true });
+    }
+    try {
+      fs.closeSync(fs.openSync(FIRST_ACCOUNT_LOCK, 'wx', 0o600));
+      return FIRST_ACCOUNT_LOCK;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException)?.code !== 'EEXIST') return null;
+    }
+    // Held: only steal it once it is clearly abandoned.
+    if (Date.now() - fs.statSync(FIRST_ACCOUNT_LOCK).mtimeMs < LOCK_STALE_MS) return null;
+    fs.unlinkSync(FIRST_ACCOUNT_LOCK);
+    fs.closeSync(fs.openSync(FIRST_ACCOUNT_LOCK, 'wx', 0o600));
+    return FIRST_ACCOUNT_LOCK;
+  } catch {
+    return null;
+  }
+}
+
+/** Release the open first-account lock (both on success and on failure). */
+export function releaseFirstAccountLock(lockPath: string): void {
+  try {
+    if (fs.existsSync(lockPath)) fs.unlinkSync(lockPath);
+  } catch {
+    // ignore
+  }
 }
 
 /** Ensure a bootstrap secret exists when setup is incomplete. Returns the secret (for logging). */
@@ -165,6 +225,24 @@ export async function logBootstrapIfNeeded(): Promise<void> {
   }
 
   recoverStaleBootstrapClaims();
+
+  // Open claim (default): no secret to copy, so say plainly what to do next and
+  // that the window shuts after the first account.
+  if (!isBootstrapRequired()) {
+    console.log(`
+╔══════════════════════════════════════════════════════════════════╗
+║  Fresh install — no account exists yet                           ║
+║                                                                  ║
+║  Open  /setup  and create the first account.                     ║
+║  It becomes the platform OWNER, and registration then closes.    ║
+║                                                                  ║
+║  Claim it now: until you do, anyone who can reach this URL can.  ║
+║  Set REQUIRE_BOOTSTRAP_SECRET=true to demand a printed secret.   ║
+╚══════════════════════════════════════════════════════════════════╝
+`);
+    return;
+  }
+
   const secret = ensureBootstrapSecret();
   console.log(`
 ╔══════════════════════════════════════════════════════════════════╗

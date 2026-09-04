@@ -37,6 +37,10 @@ services:
       - PORT_RANGE_END=${PORT_RANGE_END:-5600}
       - JWT_SECRET=${JWT_SECRET:-}
       - INTERNAL_API_SECRET=${INTERNAL_API_SECRET:-}
+      # First account is open by default: whoever opens /setup first becomes OWNER
+      # and registration then closes. Set true to demand the secret printed to the
+      # backend logs instead — worth it when others can reach this URL before you do.
+      - REQUIRE_BOOTSTRAP_SECRET=${REQUIRE_BOOTSTRAP_SECRET:-false}
       # Comma-separated browser origins if dashboard is not same-host as API
       - CORS_ORIGIN=${CORS_ORIGIN:-}
       - DOCKLIFT_FRONTEND_URL=${DOCKLIFT_FRONTEND_URL:-http://localhost:8080}
@@ -66,7 +70,8 @@ services:
     container_name: docklift-nginx
     restart: unless-stopped
     # Dashboard on :8080 — public by default so install can open http://SERVER_IP:8080.
-    # First account still requires the server-printed bootstrap secret.
+    # The first account claims the panel (no code needed), so create it right away;
+    # set REQUIRE_BOOTSTRAP_SECRET=true to demand the server-printed secret instead.
     # Harden later: Settings → Domain (HTTPS), firewall, or DASHBOARD_BIND=127.0.0.1.
     ports:
       - "${DASHBOARD_BIND:-0.0.0.0}:8080:80"

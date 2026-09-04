@@ -16,12 +16,23 @@ print_access_info() {
     PUB4=$(curl -4 -s --connect-timeout 2 https://api.ipify.org 2>/dev/null || echo "")
     PUB6=$(curl -6 -s --connect-timeout 2 https://api64.ipify.org 2>/dev/null || echo "")
     PRV=$(hostname -I 2>/dev/null | tr ' ' '\n' | grep -v "${PUB4:-NOT_SET}" | grep -E '^(10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.168\.)' | head -1 || echo "")
-    # Wait briefly for backend to write the bootstrap secret on first boot
-    for _ in 1 2 3 4 5 6 7 8 9 10; do
-        [ -s "$INSTALL_DIR/data/.bootstrap-secret" ] && break
-        sleep 1
-    done
-    SETUP_CODE=$(tr -d '\n\r' < "$INSTALL_DIR/data/.bootstrap-secret" 2>/dev/null || echo "")
+    # A bootstrap secret only exists when the operator asked for one. By default the
+    # first account claims the panel with no code, so don't wait 10s for a file that
+    # is never written.
+    REQUIRE_SECRET=no
+    case "$(printf '%s' "${REQUIRE_BOOTSTRAP_SECRET:-}" | tr '[:upper:]' '[:lower:]')" in
+        1|true|yes|on) REQUIRE_SECRET=yes ;;
+    esac
+    grep -qiE '^[[:space:]]*REQUIRE_BOOTSTRAP_SECRET[[:space:]]*=[[:space:]]*(1|true|yes|on)' \
+        "$INSTALL_DIR/.env" 2>/dev/null && REQUIRE_SECRET=yes
+    SETUP_CODE=""
+    if [ "$REQUIRE_SECRET" = "yes" ]; then
+        for _ in 1 2 3 4 5 6 7 8 9 10; do
+            [ -s "$INSTALL_DIR/data/.bootstrap-secret" ] && break
+            sleep 1
+        done
+        SETUP_CODE=$(tr -d '\n\r' < "$INSTALL_DIR/data/.bootstrap-secret" 2>/dev/null || echo "")
+    fi
 
     echo -e "  ${GREEN}${BOLD}Docklift is ready${NC}\n"
     if [ -n "$PUB4" ]; then
@@ -34,12 +45,17 @@ print_access_info() {
     [ -n "$PUB6" ] && echo -e "  ${DIM}IPv6:${NC}      http://[${PUB6}]:8080"
     [ -n "$PUB4" ] && [ -n "$PRV" ] && echo -e "  ${DIM}Private:${NC}   http://${PRV}:8080"
 
-    if [ -n "$SETUP_CODE" ]; then
+    if [ "$REQUIRE_SECRET" = "no" ]; then
+        echo -e "\n  ${BOLD}First account:${NC} open the dashboard and create it — no setup code needed."
+        echo -e "  ${DIM}It becomes the platform OWNER, and registration then closes.${NC}"
+        echo -e "  ${YELLOW}Claim it now${NC}${DIM} — until you do, anyone who can reach this URL can.${NC}"
+        echo -e "  ${DIM}Prefer a printed code? Add REQUIRE_BOOTSTRAP_SECRET=true to $INSTALL_DIR/.env and restart.${NC}"
+    elif [ -n "$SETUP_CODE" ]; then
         echo -e "\n  ${BOLD}Setup code:${NC} ${CYAN}${SETUP_CODE}${NC}"
         echo -e "  ${DIM}Open the dashboard, paste this code, and create your admin account.${NC}"
     else
         echo -e "\n  ${YELLOW}Setup code:${NC} not ready yet — run:"
-        echo -e "  ${DIM}  docker logs docklift-backend | grep -A8 \"Fresh install\"${NC}"
+        echo -e "  ${DIM}  docker logs docklift-backend | grep -A8 \"bootstrap secret\"${NC}"
         echo -e "  ${DIM}  # or: cat $INSTALL_DIR/data/.bootstrap-secret${NC}"
     fi
     echo -e "\n  ${DIM}HTTP on a public IP is convenient for first setup — not encrypted.${NC}"

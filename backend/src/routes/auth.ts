@@ -18,20 +18,24 @@ import {
   verifyBootstrapSecretAtPath,
   finalizeBootstrapClaim,
   abortBootstrapClaim,
+  isBootstrapRequired,
+  tryLockFirstAccount,
+  releaseFirstAccountLock,
 } from '../lib/bootstrap.js';
 
 const router = express.Router();
 
 const JWT_EXPIRES_IN = '7d';
 
+const BOOTSTRAP_HINT =
+  'Bootstrap secret required. Copy it from the backend logs (or data/.bootstrap-secret on the host).';
+
 function requireBootstrap(req: Request, res: Response): boolean {
   const header = (req.headers['x-bootstrap-secret'] as string | undefined)?.trim();
   const bodySecret = typeof req.body?.bootstrapSecret === 'string' ? req.body.bootstrapSecret.trim() : undefined;
   const provided = header || bodySecret;
   if (!verifyBootstrapSecret(provided)) {
-    res.status(403).json({
-      error: 'Bootstrap secret required. Copy it from the backend logs (or data/.bootstrap-secret on the host).',
-    });
+    res.status(403).json({ error: BOOTSTRAP_HINT });
     return false;
   }
   return true;
@@ -55,33 +59,37 @@ function signSessionToken(user: {
 router.get('/status', async (req: Request, res: Response) => {
   try {
     const userCount = await prisma.user.count();
+    const bootstrapRequired = userCount === 0 && isBootstrapRequired();
     // Ensure secret exists for fresh installs (does not expose it)
-    if (userCount === 0) {
+    if (bootstrapRequired) {
       ensureBootstrapSecret();
     }
     const registrationEnabled = await getBoolSetting('registration_enabled', true);
     res.json({
       setupComplete: userCount > 0,
       userCount,
-      bootstrapRequired: userCount === 0,
+      bootstrapRequired,
       registrationEnabled,
     });
   } catch (error: any) {
     // If database doesn't exist or table missing, setup is not complete
     if (error.message?.includes('does not exist') || error.code === 'P2021') {
-      ensureBootstrapSecret();
+      const bootstrapRequired = isBootstrapRequired();
+      if (bootstrapRequired) ensureBootstrapSecret();
       return res.json({
         setupComplete: false,
         userCount: 0,
         needsRestore: true,
-        bootstrapRequired: true,
+        bootstrapRequired,
       });
     }
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Register first user (only if no users exist) — requires bootstrap secret
+// Register first user (only if no users exist). The bootstrap secret is demanded
+// only when REQUIRE_BOOTSTRAP_SECRET is set; by default the first signup wins and
+// becomes OWNER (see lib/bootstrap.ts for why one-click hosts need that).
 router.post('/register', async (req: Request, res: Response) => {
   try {
     const { name, email, password } = req.body;
@@ -99,29 +107,31 @@ router.post('/register', async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Setup already complete. Use login instead.' });
     }
 
-    if (!requireBootstrap(req, res)) return;
+    const secretRequired = isBootstrapRequired();
+    if (secretRequired && !requireBootstrap(req, res)) return;
 
     const header = (req.headers['x-bootstrap-secret'] as string | undefined)?.trim();
     const bodySecret =
       typeof req.body?.bootstrapSecret === 'string' ? req.body.bootstrapSecret.trim() : undefined;
     const providedBootstrap = header || bodySecret;
 
-    const claimPath = tryClaimBootstrapSecret();
+    // One winner only: an exclusive filesystem claim in both modes.
+    const claimPath = secretRequired ? tryClaimBootstrapSecret() : tryLockFirstAccount();
     if (!claimPath) {
       return res.status(403).json({ error: 'Registration unavailable. Setup may already be in progress or complete.' });
     }
+    const releaseClaim = () =>
+      secretRequired ? abortBootstrapClaim(claimPath) : releaseFirstAccountLock(claimPath);
 
     try {
-      if (!verifyBootstrapSecretAtPath(claimPath, providedBootstrap)) {
-        abortBootstrapClaim(claimPath);
-        return res.status(403).json({
-          error: 'Bootstrap secret required. Copy it from the backend logs (or data/.bootstrap-secret on the host).',
-        });
+      if (secretRequired && !verifyBootstrapSecretAtPath(claimPath, providedBootstrap)) {
+        releaseClaim();
+        return res.status(403).json({ error: BOOTSTRAP_HINT });
       }
 
       const userCountAfterClaim = await prisma.user.count();
       if (userCountAfterClaim > 0) {
-        abortBootstrapClaim(claimPath);
+        releaseClaim();
         return res.status(403).json({ error: 'Setup already complete. Use login instead.' });
       }
 
@@ -140,7 +150,9 @@ router.post('/register', async (req: Request, res: Response) => {
         },
       });
 
-      finalizeBootstrapClaim(claimPath);
+      if (secretRequired) finalizeBootstrapClaim(claimPath);
+      else releaseFirstAccountLock(claimPath);
+      // Always drop the secret: the claim window is closed now either way.
       consumeBootstrapSecret();
 
       const token = signSessionToken(user);
@@ -156,7 +168,7 @@ router.post('/register', async (req: Request, res: Response) => {
         },
       });
     } catch (innerError: any) {
-      abortBootstrapClaim(claimPath);
+      releaseClaim();
       throw innerError;
     }
   } catch (error: any) {
@@ -392,7 +404,9 @@ router.post('/change-password', authMiddleware, async (req: Request, res: Respon
 // Setup Token (for restore-upload on fresh install)
 // ========================================
 
-// GET /api/auth/setup-token — requires bootstrap secret (not a public dump)
+// GET /api/auth/setup-token — pre-first-user only. Gated by the bootstrap secret
+// when one is required; otherwise open for the same reason /register is (a fresh
+// install with no console must still be restorable).
 router.get('/setup-token', async (req: Request, res: Response) => {
   try {
     const userCount = await prisma.user.count();
@@ -400,7 +414,7 @@ router.get('/setup-token', async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Setup already complete. Setup tokens are only available before first user registration.' });
     }
 
-    if (!requireBootstrap(req, res)) return;
+    if (isBootstrapRequired() && !requireBootstrap(req, res)) return;
 
     const tokenPath = path.join(config.dataPath, '.setup-token');
 

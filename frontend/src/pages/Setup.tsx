@@ -1,6 +1,6 @@
 // Setup page - first-time registration for root admin
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/components/AuthProvider";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,26 @@ export default function SetupPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Only asked for when the operator set REQUIRE_BOOTSTRAP_SECRET. A one-click
+  // host (Coolify / Render / plain `docker run`) usually has no console to copy a
+  // secret from, so by default the first account here just wins and becomes OWNER.
+  const [bootstrapRequired, setBootstrapRequired] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${API_URL}/api/auth/status`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data) setBootstrapRequired(data.bootstrapRequired === true);
+      })
+      .catch(() => {
+        // Leave the field hidden — the API still answers with the reason if it
+        // does demand a secret, and that error is surfaced below.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Restore state
   const [restoreProgress, setRestoreProgress] = useState<string[]>([]);
@@ -53,24 +73,25 @@ export default function SetupPage() {
       return;
     }
 
-    if (!formData.bootstrapSecret.trim()) {
+    if (bootstrapRequired && !formData.bootstrapSecret.trim()) {
       setError("Bootstrap secret is required (from backend logs or data/.bootstrap-secret)");
       return;
     }
 
     setLoading(true);
     try {
+      const secret = formData.bootstrapSecret.trim();
       const res = await fetch(`${API_URL}/api/auth/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-bootstrap-secret": formData.bootstrapSecret.trim(),
+          ...(secret ? { "x-bootstrap-secret": secret } : {}),
         },
         body: JSON.stringify({
           name: formData.name,
           email: formData.email,
           password: formData.password,
-          bootstrapSecret: formData.bootstrapSecret.trim(),
+          ...(secret ? { bootstrapSecret: secret } : {}),
         }),
       });
 
@@ -103,7 +124,8 @@ export default function SetupPage() {
     setRestoreProgress([]);
 
     try {
-      if (!formData.bootstrapSecret.trim()) {
+      const secret = formData.bootstrapSecret.trim();
+      if (bootstrapRequired && !secret) {
         setError("Bootstrap secret is required for restore (from backend logs or data/.bootstrap-secret)");
         setRestoring(false);
         return;
@@ -112,13 +134,12 @@ export default function SetupPage() {
       const upload = new FormData();
       upload.append('backup', file);
 
-      // Setup token requires bootstrap secret — never publicly retrievable
-      let headers: HeadersInit = {
-        'x-bootstrap-secret': formData.bootstrapSecret.trim(),
-      };
+      // The setup token is only handed out pre-first-user, and is gated by the
+      // bootstrap secret when one is required.
+      let headers: HeadersInit = secret ? { 'x-bootstrap-secret': secret } : {};
       try {
         const tokenRes = await fetch(`${API_URL}/api/auth/setup-token`, {
-          headers: { 'x-bootstrap-secret': formData.bootstrapSecret.trim() },
+          headers: secret ? { 'x-bootstrap-secret': secret } : {},
         });
         if (tokenRes.ok) {
           const tokenData = await tokenRes.json();
@@ -127,7 +148,7 @@ export default function SetupPage() {
           }
         } else {
           const errData = await tokenRes.json().catch(() => ({}));
-          throw new Error(errData.error || 'Invalid bootstrap secret');
+          throw new Error(errData.error || 'Failed to authorize restore');
         }
       } catch (e: any) {
         setError(e.message || 'Failed to authorize restore');
@@ -351,27 +372,36 @@ export default function SetupPage() {
                 )}
               </div>
 
-              <div>
-                <label className="text-sm font-medium mb-1.5 block">
-                  Bootstrap secret <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  type="password"
-                  value={formData.bootstrapSecret}
-                  onChange={(e) => setFormData({ ...formData, bootstrapSecret: e.target.value })}
-                  placeholder="From docker logs / data/.bootstrap-secret"
-                  required
-                  autoComplete="off"
-                  className="h-11 font-mono text-sm"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Shown once in backend logs on first start. Prevents remote claim of a fresh install.
-                </p>
-              </div>
+              {bootstrapRequired && (
+                <div>
+                  <label className="text-sm font-medium mb-1.5 block">
+                    Bootstrap secret <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    type="password"
+                    value={formData.bootstrapSecret}
+                    onChange={(e) => setFormData({ ...formData, bootstrapSecret: e.target.value })}
+                    placeholder="From docker logs / data/.bootstrap-secret"
+                    required
+                    autoComplete="off"
+                    className="h-11 font-mono text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Shown once in backend logs on first start. Prevents remote claim of a fresh install.
+                  </p>
+                </div>
+              )}
 
               <Button
                 type="submit"
-                disabled={loading || !isPasswordValid || !passwordsMatch || !formData.name || !formData.email || !formData.bootstrapSecret.trim()}
+                disabled={
+                  loading ||
+                  !isPasswordValid ||
+                  !passwordsMatch ||
+                  !formData.name ||
+                  !formData.email ||
+                  (bootstrapRequired && !formData.bootstrapSecret.trim())
+                }
                 className="w-full h-11 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
@@ -429,19 +459,21 @@ export default function SetupPage() {
               </div>
             )}
 
-            <div className="mb-4">
-              <label className="text-sm font-medium mb-1.5 block">
-                Bootstrap secret <span className="text-red-500">*</span>
-              </label>
-              <Input
-                type="password"
-                value={formData.bootstrapSecret}
-                onChange={(e) => setFormData({ ...formData, bootstrapSecret: e.target.value })}
-                placeholder="From docker logs / data/.bootstrap-secret"
-                autoComplete="off"
-                className="h-11 font-mono text-sm"
-              />
-            </div>
+            {bootstrapRequired && (
+              <div className="mb-4">
+                <label className="text-sm font-medium mb-1.5 block">
+                  Bootstrap secret <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  type="password"
+                  value={formData.bootstrapSecret}
+                  onChange={(e) => setFormData({ ...formData, bootstrapSecret: e.target.value })}
+                  placeholder="From docker logs / data/.bootstrap-secret"
+                  autoComplete="off"
+                  className="h-11 font-mono text-sm"
+                />
+              </div>
+            )}
 
             <div
               className={`p-6 rounded-lg border-2 border-dashed transition-all ${
