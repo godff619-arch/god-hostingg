@@ -46,6 +46,7 @@ services:
       # up and restored with everything else.
       - god-hosting-nginx-conf:/nginx-conf
       # Host facts for the metrics view (never written to).
+      - /etc/hostname:/host/hostname:ro
       - /etc/os-release:/host/os-release:ro
       - /proc:/host/proc:ro
     environment:
