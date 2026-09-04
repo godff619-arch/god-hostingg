@@ -1815,7 +1815,7 @@ export default function ProjectDetail() {
                     href={project.github_url || "#"}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs font-bold text-cyan-500 hover:text-cyan-400 flex items-center gap-1.5 transition-colors"
+                    className="text-xs font-bold text-brand hover:underline flex items-center gap-1.5 transition-colors"
                   >
                     VIEW REPO <ExternalLink className="h-3 w-3" />
                   </a>
@@ -1889,11 +1889,11 @@ export default function ProjectDetail() {
               <div className="min-w-0 space-y-4 sm:space-y-6 xl:col-span-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="text-lg font-bold flex items-center gap-2 sm:text-xl">
-                    <TerminalIcon className="h-5 w-5 text-amber-500" />
+                    <TerminalIcon className="h-5 w-5 text-warning" />
                     Live Terminal Output
                   </h3>
                   {project.status === "building" && (
-                    <div className="flex items-center gap-2 text-xs font-bold text-amber-500 animate-pulse">
+                    <div className="flex items-center gap-2 text-xs font-bold text-warning animate-pulse">
                       <Loader2 className="h-3 w-3 animate-spin" />
                       BUILDING IN PROGRESS
                     </div>
@@ -2048,7 +2048,7 @@ export default function ProjectDetail() {
 
                           {deployment.commit_message && (
                             <div className="mt-1 sm:mt-2 flex items-center gap-2 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-secondary/30 rounded-lg border border-border/20 min-w-0">
-                              <GitBranch className="h-3 w-3 shrink-0 text-cyan-500" />
+                              <GitBranch className="h-3 w-3 shrink-0 text-brand" />
                               <span className="text-[10px] font-medium text-foreground/80 line-clamp-1 min-w-0">
                                 {deployment.commit_message}
                               </span>
@@ -2142,7 +2142,7 @@ export default function ProjectDetail() {
           <TabsContent value="build" className={PROJECT_TAB_PANEL}>
               <div>
                 <h3 className="text-xl font-bold flex items-center gap-2">
-                  <Box className="h-5 w-5 text-orange-500" />
+                  <Box className="h-5 w-5 text-chart-3" />
                   Build Settings
                 </h3>
                 <p className="text-sm text-muted-foreground mt-1">
@@ -2601,7 +2601,7 @@ export default function ProjectDetail() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Undo2 className="h-5 w-5 text-amber-600" />
+              <Undo2 className="h-5 w-5 text-warning" />
               Restore previous deployment
             </DialogTitle>
             <DialogDescription className="pt-2">
@@ -2665,7 +2665,7 @@ export default function ProjectDetail() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Trash2 className="h-6 w-6 text-red-600" />
+              <Trash2 className="h-6 w-6 text-danger" />
               Delete Persistent Storage
             </DialogTitle>
             <DialogDescription className="pt-2">

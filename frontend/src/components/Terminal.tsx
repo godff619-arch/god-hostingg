@@ -39,6 +39,10 @@ export function Terminal({ logs, isBuilding, className }: TerminalProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Build-log line tinting. These stay on raw 400-weight palette colours on
+  // purpose: this pane is the navy plane, and the light-plane semantic tokens
+  // (text-success, text-danger, …) are mixed for a white background and go
+  // muddy here. Same rationale as LogViewer's ANSI_COLORS map.
   const formatLogs = (text: string) => {
     return text.split("\n").map((line, i) => {
       let lineClass = "text-sidebar-foreground/80";

@@ -249,7 +249,7 @@ export function ManagedDatabasePanel({
                   onClick={() => copy("url", conn.connection_url)}
                 >
                   {copied === "url" ? (
-                    <Check className="h-3.5 w-3.5 text-emerald-500" />
+                    <Check className="h-3.5 w-3.5 text-success" />
                   ) : (
                     <Copy className="h-3.5 w-3.5" />
                   )}
@@ -398,7 +398,7 @@ function SecretRow({
             "inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground",
           )}
         >
-          {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+          {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
           Copy
         </button>
       </div>

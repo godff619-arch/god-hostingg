@@ -34,18 +34,18 @@ const getFileIcon = (name: string) => {
     case "ts":
     case "tsx":
     case "jsx":
-      return <FileCode className="h-4 w-4 text-violet-500" />;
+      return <FileCode className="h-4 w-4 text-chart-1" />;
     case "json":
-      return <FileJson className="h-4 w-4 text-amber-500" />;
+      return <FileJson className="h-4 w-4 text-chart-3" />;
     case "md":
     case "txt":
-      return <FileText className="h-4 w-4 text-blue-500" />;
+      return <FileText className="h-4 w-4 text-chart-5" />;
     case "yml":
     case "yaml":
-      return <FileCode className="h-4 w-4 text-pink-500" />;
+      return <FileCode className="h-4 w-4 text-chart-4" />;
     default:
       if (name === "Dockerfile") {
-        return <FileCode className="h-4 w-4 text-cyan-500" />;
+        return <FileCode className="h-4 w-4 text-chart-2" />;
       }
       return <File className="h-4 w-4 text-muted-foreground" />;
   }
@@ -78,9 +78,9 @@ function TreeItem({ item, level, onFileEdit }: TreeItemProps) {
             <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
           )}
           {isOpen ? (
-            <FolderOpen className="h-4 w-4 text-amber-500 shrink-0" />
+            <FolderOpen className="h-4 w-4 text-chart-3 shrink-0" />
           ) : (
-            <Folder className="h-4 w-4 text-amber-500 shrink-0" />
+            <Folder className="h-4 w-4 text-chart-3 shrink-0" />
           )}
           <span className="font-medium truncate">{item.name}</span>
           <span className="text-xs text-muted-foreground ml-auto">

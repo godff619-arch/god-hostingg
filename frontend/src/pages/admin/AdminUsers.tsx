@@ -230,7 +230,7 @@ export default function AdminUsers() {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-600 dark:text-red-400">
+        <div className="mb-4 rounded-2xl border border-danger-border bg-danger-surface px-4 py-3 text-sm text-danger">
           {error}
         </div>
       )}
@@ -290,7 +290,7 @@ export default function AdminUsers() {
                     )}
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => setDeleteUser(user)}>
-                    <Trash2 className="h-3.5 w-3.5 text-red-500" /> Delete
+                    <Trash2 className="h-3.5 w-3.5 text-danger" /> Delete
                   </Button>
                 </div>
               </article>
@@ -352,9 +352,9 @@ export default function AdminUsers() {
                             onClick={() => handleSuspendToggle(user)}
                           >
                             {user.status === "suspended" ? (
-                              <CircleCheck className="h-4 w-4 text-emerald-500" />
+                              <CircleCheck className="h-4 w-4 text-success" />
                             ) : (
-                              <Ban className="h-4 w-4 text-amber-500" />
+                              <Ban className="h-4 w-4 text-warning" />
                             )}
                           </Button>
                           <Button
@@ -364,7 +364,7 @@ export default function AdminUsers() {
                             title="Delete"
                             onClick={() => setDeleteUser(user)}
                           >
-                            <Trash2 className="h-4 w-4 text-red-500" />
+                            <Trash2 className="h-4 w-4 text-danger" />
                           </Button>
                         </div>
                       </td>
@@ -431,8 +431,8 @@ export default function AdminUsers() {
       <Dialog open={deleteUser !== null} onOpenChange={(o) => !o && setDeleteUser(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500/10">
-              <AlertTriangle className="h-6 w-6 text-red-500" />
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-danger-surface">
+              <AlertTriangle className="h-6 w-6 text-danger" />
             </div>
             <DialogTitle className="text-center">Delete user</DialogTitle>
             <DialogDescription className="text-center">

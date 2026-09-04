@@ -113,7 +113,7 @@ export default function AdminUploads() {
       />
 
       {error && (
-        <div className="mb-4 rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-600 dark:text-red-400">
+        <div className="mb-4 rounded-2xl border border-danger-border bg-danger-surface px-4 py-3 text-sm text-danger">
           {error}
         </div>
       )}
@@ -172,7 +172,7 @@ export default function AdminUploads() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="gap-1.5 border-border/60 text-red-600 hover:bg-red-500/10 dark:text-red-400"
+                    className="gap-1.5 border-border/60 text-danger hover:bg-danger-surface"
                     disabled={busy === u.id}
                     onClick={() => handleDelete(u)}
                   >
@@ -240,7 +240,7 @@ export default function AdminUploads() {
                           <Button
                             variant="outline"
                             size="icon"
-                            className="h-8 w-8 border-border/60 text-red-600 hover:bg-red-500/10 dark:text-red-400"
+                            className="h-8 w-8 border-border/60 text-danger hover:bg-danger-surface"
                             title="Delete"
                             disabled={busy === u.id}
                             onClick={() => handleDelete(u)}

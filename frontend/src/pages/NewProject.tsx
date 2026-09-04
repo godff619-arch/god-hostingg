@@ -661,17 +661,17 @@ function NewProjectContent() {
                         onChange={(e) => setGithubUrl(e.target.value)}
                         className={cn(
                           "h-11 bg-secondary/30",
-                          githubUrl && isValidGithubUrl(githubUrl) === false && "border-red-500 focus-visible:ring-red-500",
-                          githubUrl && isValidGithubUrl(githubUrl) === true && "border-emerald-500 focus-visible:ring-emerald-500"
+                          githubUrl && isValidGithubUrl(githubUrl) === false && "border-danger focus-visible:ring-danger",
+                          githubUrl && isValidGithubUrl(githubUrl) === true && "border-success focus-visible:ring-success"
                         )}
                       />
                       {githubUrl && isValidGithubUrl(githubUrl) === false && (
-                        <p className="flex items-center gap-1 text-xs text-red-500">
+                        <p className="flex items-center gap-1 text-xs text-danger">
                           <X className="h-3 w-3" /> Invalid URL format
                         </p>
                       )}
                       {githubUrl && isValidGithubUrl(githubUrl) === true && (
-                        <p className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
+                        <p className="flex items-center gap-1 text-xs text-success">
                           <Check className="h-3 w-3" /> Valid URL
                         </p>
                       )}
@@ -818,7 +818,7 @@ function NewProjectContent() {
                           </div>
                         )}
                         {reposWarning && (
-                          <p className="text-[11px] leading-snug text-amber-600 dark:text-amber-400">
+                          <p className="text-[11px] leading-snug text-warning">
                             {reposWarning}
                           </p>
                         )}

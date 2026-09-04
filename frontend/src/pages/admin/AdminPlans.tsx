@@ -137,7 +137,7 @@ export default function AdminPlans() {
       />
 
       {error && (
-        <div className="mb-4 rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-600 dark:text-red-400">
+        <div className="mb-4 rounded-2xl border border-danger-border bg-danger-surface px-4 py-3 text-sm text-danger">
           {error}
         </div>
       )}
@@ -167,7 +167,7 @@ export default function AdminPlans() {
                     <p className="text-xs text-muted-foreground">{plan.key}</p>
                   </div>
                   {plan.is_public ? (
-                    <span className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-emerald-600 dark:text-emerald-400">
+                    <span className="rounded-lg border border-success-border bg-success-surface px-2 py-0.5 text-[10px] font-semibold uppercase text-success">
                       Public
                     </span>
                   ) : (
@@ -220,7 +220,7 @@ export default function AdminPlans() {
                     disabled={isAdmin || busyId === plan.id}
                     onClick={() => setDeletePlan(plan)}
                   >
-                    <Trash2 className="h-4 w-4 text-red-500" />
+                    <Trash2 className="h-4 w-4 text-danger" />
                   </Button>
                 </div>
               </div>
@@ -239,8 +239,8 @@ export default function AdminPlans() {
       <Dialog open={deletePlan !== null} onOpenChange={(o) => !o && setDeletePlan(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500/10">
-              <Trash2 className="h-6 w-6 text-red-500" />
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-danger-surface">
+              <Trash2 className="h-6 w-6 text-danger" />
             </div>
             <DialogTitle className="text-center">Delete plan</DialogTitle>
             <DialogDescription className="text-center">

@@ -40,9 +40,9 @@ function formatSpeed(bytesPerSec: number): string {
 }
 
 function meterTone(pct: number): string {
-  if (pct >= 90) return "bg-red-500";
-  if (pct >= 70) return "bg-amber-500";
-  return "bg-emerald-500";
+  if (pct >= 90) return "bg-danger";
+  if (pct >= 70) return "bg-warning";
+  return "bg-success";
 }
 
 // Deployment status → StatusBadge vocabulary (its map has no success/failed).
@@ -113,11 +113,11 @@ function HealthRow({
       </span>
       <span className="flex items-center gap-2 text-sm">
         {ok ? (
-          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+          <CheckCircle2 className="h-4 w-4 text-success" />
         ) : (
-          <XCircle className="h-4 w-4 text-red-500" />
+          <XCircle className="h-4 w-4 text-danger" />
         )}
-        <span className={cn("font-semibold", ok ? "text-emerald-500" : "text-red-500")}>
+        <span className={cn("font-semibold", ok ? "text-success" : "text-danger")}>
           {ok ? okText : downText}
         </span>
         {detail && <span className="text-xs text-muted-foreground">· {detail}</span>}
@@ -187,13 +187,13 @@ export default function AdminOperations() {
       />
 
       {error && (
-        <div className="mb-4 rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-600 dark:text-red-400">
+        <div className="mb-4 rounded-2xl border border-danger-border bg-danger-surface px-4 py-3 text-sm text-danger">
           {error}
         </div>
       )}
 
       {data?.maintenance.enabled && (
-        <div className="mb-4 flex items-center gap-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
+        <div className="mb-4 flex items-center gap-2 rounded-2xl border border-warning-border bg-warning-surface px-4 py-3 text-sm text-warning">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <span>
             <strong>Maintenance mode is on.</strong> {data.maintenance.reason}
@@ -202,7 +202,7 @@ export default function AdminOperations() {
       )}
 
       {data && !data.docker.daemonReachable && (
-        <div className="mb-4 flex items-start gap-2 rounded-2xl border border-orange-500/30 bg-orange-500/10 px-4 py-3 text-sm text-orange-700 dark:text-orange-300">
+        <div className="mb-4 flex items-start gap-2 rounded-2xl border border-danger-border bg-danger-surface px-4 py-3 text-sm text-danger">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
             {data.docker.message ||
@@ -265,9 +265,9 @@ export default function AdminOperations() {
             <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
               <h2 className="mb-4 flex items-center gap-2 text-base font-semibold">
                 {data.health === "ok" ? (
-                  <ShieldCheck className="h-5 w-5 text-emerald-500" />
+                  <ShieldCheck className="h-5 w-5 text-success" />
                 ) : (
-                  <ShieldAlert className="h-5 w-5 text-amber-500" />
+                  <ShieldAlert className="h-5 w-5 text-warning" />
                 )}
                 Dependencies
               </h2>
@@ -343,7 +343,7 @@ export default function AdminOperations() {
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <div className="flex items-center justify-between rounded-xl border border-border/50 bg-secondary/30 px-4 py-3">
                     <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <ArrowDownToLine className="h-4 w-4 text-emerald-500" />
+                      <ArrowDownToLine className="h-4 w-4 text-chart-2" />
                       Download
                     </span>
                     <span className="text-sm font-semibold tabular-nums">
@@ -352,7 +352,7 @@ export default function AdminOperations() {
                   </div>
                   <div className="flex items-center justify-between rounded-xl border border-border/50 bg-secondary/30 px-4 py-3">
                     <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <ArrowUpFromLine className="h-4 w-4 text-cyan-500" />
+                      <ArrowUpFromLine className="h-4 w-4 text-chart-1" />
                       Upload
                     </span>
                     <span className="text-sm font-semibold tabular-nums">

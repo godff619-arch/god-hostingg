@@ -79,8 +79,8 @@ export default function AdminUserDetail() {
 
   if (error || !detail) {
     return (
-      <div className="rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-16 text-center">
-        <p className="text-sm text-red-600 dark:text-red-400">{error || "User not found"}</p>
+      <div className="rounded-2xl border border-danger-border bg-danger-surface px-4 py-16 text-center">
+        <p className="text-sm text-danger">{error || "User not found"}</p>
         <Button asChild variant="outline" className="mt-4">
           <Link to="/admin/users">
             <ArrowLeft className="h-4 w-4" /> Back to users
@@ -266,7 +266,7 @@ function TabState({
   }
   if (error) {
     return (
-      <div className="rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-8 text-center text-sm text-red-600 dark:text-red-400">
+      <div className="rounded-2xl border border-danger-border bg-danger-surface px-4 py-8 text-center text-sm text-danger">
         {error}
       </div>
     );
@@ -473,7 +473,7 @@ function UsageTab({ effective, counts }: { effective: EffectiveQuota; counts: Us
                 <div
                   className={cn(
                     "h-full rounded-full transition-all",
-                    pct >= 90 ? "bg-red-500" : pct >= 70 ? "bg-amber-500" : "bg-emerald-500",
+                    pct >= 90 ? "bg-danger" : pct >= 70 ? "bg-warning" : "bg-success",
                   )}
                   style={{ width: unlimited ? "0%" : `${pct}%` }}
                 />

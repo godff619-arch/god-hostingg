@@ -160,7 +160,7 @@ export default function AdminApps() {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-600 dark:text-red-400">
+        <div className="mb-4 rounded-2xl border border-danger-border bg-danger-surface px-4 py-3 text-sm text-danger">
           {error}
         </div>
       )}
@@ -299,8 +299,8 @@ export default function AdminApps() {
       <Dialog open={deleteApp !== null} onOpenChange={(o) => !o && setDeleteApp(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500/10">
-              <Trash2 className="h-6 w-6 text-red-500" />
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-danger-surface">
+              <Trash2 className="h-6 w-6 text-danger" />
             </div>
             <DialogTitle className="text-center">Delete application</DialogTitle>
             <DialogDescription className="text-center">
@@ -352,7 +352,7 @@ function AppActions({
         disabled={busy}
         onClick={() => onAction(app, "stop")}
       >
-        <Square className="h-4 w-4 text-amber-500" />
+        <Square className="h-4 w-4 text-warning" />
       </Button>
       <Button
         size="icon"
@@ -362,7 +362,7 @@ function AppActions({
         disabled={busy}
         onClick={() => onAction(app, "restart")}
       >
-        <RotateCw className="h-4 w-4 text-blue-500" />
+        <RotateCw className="h-4 w-4 text-brand" />
       </Button>
       <Button
         size="icon"
@@ -372,7 +372,7 @@ function AppActions({
         disabled={busy}
         onClick={() => onAction(app, "redeploy")}
       >
-        <Rocket className="h-4 w-4 text-emerald-500" />
+        <Rocket className="h-4 w-4 text-success" />
       </Button>
       <Button size="icon" variant="ghost" className="h-8 w-8" title="Manage" asChild>
         <Link to={`/projects/${app.id}`}>
@@ -387,7 +387,7 @@ function AppActions({
         disabled={busy}
         onClick={onDelete}
       >
-        <Trash2 className="h-4 w-4 text-red-500" />
+        <Trash2 className="h-4 w-4 text-danger" />
       </Button>
     </div>
   );

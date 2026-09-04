@@ -1065,10 +1065,10 @@ function SettingsContent() {
             {/* Backup Tab */}
             {activeTab === 'backup' && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <Card className="p-4 sm:p-6 border-emerald-500/20">
+                <Card className="p-4 sm:p-6 border-success-border">
                   <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2 sm:p-3 rounded-xl bg-emerald-500/10 shrink-0">
-                      <Archive className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-500" />
+                    <div className="p-2 sm:p-3 rounded-xl bg-success-surface shrink-0">
+                      <Archive className="h-5 w-5 sm:h-6 sm:w-6 text-success" />
                     </div>
                     <div className="min-w-0">
                       <h2 className="text-lg sm:text-xl font-semibold">Create Backup</h2>
@@ -1083,17 +1083,18 @@ function SettingsContent() {
                         placeholder="Backup name (optional) - e.g., before-migration, v1.0"
                         value={backupName}
                         onChange={(e) => setBackupName(e.target.value)}
-                        className="bg-secondary/30 h-11 border border-emerald-500/30 focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/20 transition-all"
+                        className="bg-secondary/30 h-11 border border-success-border focus:border-success focus:ring-1 focus:ring-success/20 transition-all"
                         disabled={creatingBackup}
                       />
                       <p className="text-xs text-muted-foreground mt-1.5 ml-1">
-                        Output: <span className="font-mono text-emerald-500">{backupName.trim() ? `${backupName.trim().replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 50)}` : 'docklift'}-backup-[timestamp].zip</span>
+                        Output: <span className="font-mono text-success">{backupName.trim() ? `${backupName.trim().replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 50)}` : 'docklift'}-backup-[timestamp].zip</span>
                       </p>
                     </div>
                     <Button
                       onClick={handleCreateBackup}
                       disabled={creatingBackup}
-                      className="bg-emerald-600 hover:bg-emerald-700 h-11 px-6 shrink-0"
+                      variant="success"
+                      className="h-11 px-6 shrink-0"
                     >
                       {creatingBackup ? (
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -1115,8 +1116,8 @@ function SettingsContent() {
                     </ul>
                   </div>
 
-                  <div className="mt-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-sm">
-                    <p className="font-medium text-amber-500 mb-1">Migration Tip</p>
+                  <div className="mt-4 p-3 rounded-lg bg-warning-surface border border-warning-border text-sm">
+                    <p className="font-medium text-warning mb-1">Migration Tip</p>
                     <p className="text-muted-foreground text-xs">
                       If you use a <span className="text-foreground font-medium">domain name</span> (e.g., docklift.yourdomain.com)
                       instead of IP address for your GitHub App webhook URL, migrating to a new server becomes seamless -
@@ -1126,15 +1127,15 @@ function SettingsContent() {
                 </Card>
 
                 {/* Server Backups List */}
-                <Card className="p-4 sm:p-6 border-emerald-500/10">
+                <Card className="p-4 sm:p-6 border-success-border/60">
                   <div className="flex items-center gap-3 mb-4">
-                    <HardDrive className="h-5 w-5 text-emerald-500" />
+                    <HardDrive className="h-5 w-5 text-success" />
                     <h3 className="font-semibold">Server Backups</h3>
                   </div>
 
                   {loadingBackups ? (
                     <div className="flex justify-center p-8">
-                      <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+                      <Loader2 className="h-8 w-8 animate-spin text-success" />
                     </div>
                   ) : backups.length > 0 ? (
                     <div className="rounded-xl border border-border/50 overflow-hidden">
@@ -1168,7 +1169,7 @@ function SettingsContent() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10"
+                                  className="text-success hover:text-success hover:bg-success-surface"
                                   onClick={() => handleDownloadBackup(backup.filename)}
                                   title="Download"
                                 >
@@ -1177,7 +1178,7 @@ function SettingsContent() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                                  className="text-danger hover:text-danger hover:bg-danger-surface"
                                   onClick={() => {
                                     setBackupToDelete(backup.filename);
                                     setShowDeleteBackupConfirm(true);
@@ -1208,21 +1209,21 @@ function SettingsContent() {
             {activeTab === 'restore' && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {/* Warning Banner */}
-                <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20">
+                <div className="p-4 rounded-xl bg-danger-surface border border-danger-border">
                   <div className="flex items-start gap-3">
-                    <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
+                    <AlertTriangle className="h-5 w-5 text-danger mt-0.5 shrink-0" />
                     <div>
-                      <p className="font-semibold text-red-500">Warning: Restore replaces all data</p>
+                      <p className="font-semibold text-danger">Warning: Restore replaces all data</p>
                       <p className="text-sm text-muted-foreground mt-1">Restoring from a backup will replace all current projects, deployments, settings, users, and environment variables.</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Upload and Restore */}
-                <Card className="p-4 sm:p-6 border-amber-500/20">
+                <Card className="p-4 sm:p-6 border-warning-border">
                   <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2 sm:p-3 rounded-xl bg-amber-500/10 shrink-0">
-                      <Upload className="h-5 w-5 sm:h-6 sm:w-6 text-amber-500" />
+                    <div className="p-2 sm:p-3 rounded-xl bg-warning-surface shrink-0">
+                      <Upload className="h-5 w-5 sm:h-6 sm:w-6 text-warning" />
                     </div>
                     <div className="min-w-0">
                       <h2 className="text-lg sm:text-xl font-semibold">Restore from File</h2>
@@ -1233,16 +1234,16 @@ function SettingsContent() {
                   <div
                     className={`p-6 rounded-lg border-2 border-dashed transition-all ${
                       isDragging
-                        ? 'border-amber-500 bg-amber-500/10 scale-[1.02]'
-                        : 'border-amber-500/30 bg-amber-500/5'
+                        ? 'border-warning bg-warning-surface'
+                        : 'border-warning-border bg-warning-surface/50'
                     }`}
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
                   >
                     <div className="flex flex-col items-center gap-4 text-center">
-                      <div className={`p-4 rounded-full transition-all ${isDragging ? 'bg-amber-500/20 scale-110' : 'bg-amber-500/10'}`}>
-                        <FileUp className={`h-8 w-8 text-amber-500 ${isDragging ? 'animate-bounce' : ''}`} />
+                      <div className={`p-4 rounded-full transition-all ${isDragging ? 'bg-warning-border scale-110' : 'bg-warning-surface'}`}>
+                        <FileUp className={`h-8 w-8 text-warning ${isDragging ? 'animate-bounce' : ''}`} />
                       </div>
                       <div>
                         <p className="font-medium">
@@ -1262,7 +1263,7 @@ function SettingsContent() {
                         />
                         <Button
                           type="button"
-                          className="bg-amber-600 hover:bg-amber-700"
+                          variant="warning"
                           disabled={uploadingBackup || restoringBackup}
                           asChild
                         >
@@ -1291,15 +1292,15 @@ function SettingsContent() {
                 </Card>
 
                 {/* Uploaded Files List */}
-                <Card className="p-4 sm:p-6 border-amber-500/10">
+                <Card className="p-4 sm:p-6 border-warning-border/60">
                   <div className="flex items-center gap-3 mb-4">
-                    <FileUp className="h-5 w-5 text-amber-500" />
+                    <FileUp className="h-5 w-5 text-warning" />
                     <h3 className="font-semibold">Uploaded Restore Files</h3>
                   </div>
 
                   {loadingUploads ? (
                     <div className="flex justify-center p-8">
-                      <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
+                      <Loader2 className="h-8 w-8 animate-spin text-warning" />
                     </div>
                   ) : uploadedFiles.length > 0 ? (
                     <div className="rounded-xl border border-border/50 overflow-hidden">
@@ -1323,7 +1324,7 @@ function SettingsContent() {
                                     {file.filename}
                                   </span>
                                   {isRestored && (
-                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 whitespace-nowrap">
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-success-surface text-success border border-success-border whitespace-nowrap">
                                       Restored
                                     </span>
                                   )}
@@ -1342,7 +1343,7 @@ function SettingsContent() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="text-amber-500 hover:text-amber-600 hover:bg-amber-500/10"
+                                  className="text-warning hover:text-warning hover:bg-warning-surface"
                                   onClick={() => {
                                     setUploadToRestore(file.filename);
                                     setShowRestoreUploadConfirm(true);
@@ -1355,7 +1356,7 @@ function SettingsContent() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                                  className="text-danger hover:text-danger hover:bg-danger-surface"
                                   onClick={() => {
                                     setUploadToDelete(file.filename);
                                     setShowDeleteUploadConfirm(true);
@@ -1391,7 +1392,7 @@ function SettingsContent() {
       <Dialog open={showDeleteBackupConfirm} onOpenChange={setShowDeleteBackupConfirm}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-red-500">
+            <DialogTitle className="flex items-center gap-2 text-danger">
               <AlertTriangle className="h-5 w-5" />
               Delete Backup
             </DialogTitle>
@@ -1424,12 +1425,12 @@ function SettingsContent() {
       <Dialog open={showUploadRestoreConfirm} onOpenChange={setShowUploadRestoreConfirm}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-amber-500">
+            <DialogTitle className="flex items-center gap-2 text-warning">
               <AlertTriangle className="h-5 w-5" />
               Restore from Uploaded Backup
             </DialogTitle>
             <DialogDescription className="pt-2">
-              <span className="font-bold text-red-500 block mb-2">Warning: This will replace all current data!</span>
+              <span className="font-bold text-danger block mb-2">Warning: This will replace all current data!</span>
               Are you sure you want to restore from <span className="font-mono font-bold text-foreground">{selectedUploadFile?.name}</span>?
               All current projects, deployments, and configurations will be replaced.
             </DialogDescription>
@@ -1455,7 +1456,7 @@ function SettingsContent() {
             <Button
               onClick={handleUploadRestore}
               disabled={uploadingBackup || !restorePassword.trim()}
-              className="bg-amber-600 hover:bg-amber-700"
+              variant="warning"
             >
               {uploadingBackup ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -1472,7 +1473,7 @@ function SettingsContent() {
       <Dialog open={showDeleteUploadConfirm} onOpenChange={setShowDeleteUploadConfirm}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-red-500">
+            <DialogTitle className="flex items-center gap-2 text-danger">
               <AlertTriangle className="h-5 w-5" />
               Delete Uploaded File
             </DialogTitle>
@@ -1505,12 +1506,12 @@ function SettingsContent() {
       <Dialog open={showRestoreUploadConfirm} onOpenChange={setShowRestoreUploadConfirm}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-amber-500">
+            <DialogTitle className="flex items-center gap-2 text-warning">
               <AlertTriangle className="h-5 w-5" />
               Restore from Uploaded File
             </DialogTitle>
             <DialogDescription className="pt-2">
-              <span className="font-bold text-red-500 block mb-2">Warning: This will replace all current data!</span>
+              <span className="font-bold text-danger block mb-2">Warning: This will replace all current data!</span>
               Are you sure you want to restore from <span className="font-mono font-bold text-foreground">{uploadToRestore}</span>?
               All current projects, deployments, and configurations will be replaced.
             </DialogDescription>
@@ -1536,7 +1537,7 @@ function SettingsContent() {
             <Button
               onClick={handleRestoreFromUpload}
               disabled={restoringBackup || !restorePassword.trim()}
-              className="bg-amber-600 hover:bg-amber-700"
+              variant="warning"
             >
               {restoringBackup ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -1555,9 +1556,9 @@ function SettingsContent() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {creatingBackup ? (
-                <Loader2 className="h-5 w-5 animate-spin text-emerald-500" />
+                <Loader2 className="h-5 w-5 animate-spin text-success" />
               ) : (
-                <Check className="h-5 w-5 text-emerald-500" />
+                <Check className="h-5 w-5 text-success" />
               )}
               {creatingBackup ? 'Creating Backup...' : 'Backup Complete'}
             </DialogTitle>
@@ -1581,9 +1582,9 @@ function SettingsContent() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {(restoringBackup || uploadingBackup) ? (
-                <Loader2 className="h-5 w-5 animate-spin text-amber-500" />
+                <Loader2 className="h-5 w-5 animate-spin text-warning" />
               ) : (
-                <Check className="h-5 w-5 text-emerald-500" />
+                <Check className="h-5 w-5 text-success" />
               )}
               {(restoringBackup || uploadingBackup) ? 'Restoring Backup...' : 'Restore Complete'}
             </DialogTitle>

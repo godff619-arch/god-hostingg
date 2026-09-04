@@ -36,9 +36,9 @@ function formatSpeed(bytesPerSec: number): string {
 }
 
 function meterTone(pct: number): string {
-  if (pct >= 90) return "bg-red-500";
-  if (pct >= 70) return "bg-amber-500";
-  return "bg-emerald-500";
+  if (pct >= 90) return "bg-danger";
+  if (pct >= 70) return "bg-warning";
+  return "bg-success";
 }
 
 // CSS meter — matches the SystemOverview bar style.
@@ -178,7 +178,7 @@ export default function AdminOverview() {
       />
 
       {error && (
-        <div className="mb-4 rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-600 dark:text-red-400">
+        <div className="mb-4 rounded-2xl border border-danger-border bg-danger-surface px-4 py-3 text-sm text-danger">
           {error}
         </div>
       )}
@@ -201,49 +201,49 @@ export default function AdminOverview() {
               icon={Users}
               accent="bg-brand/10 text-brand"
               breakdown={[
-                { label: "Active", value: data.users.active, tone: "text-emerald-500" },
-                { label: "Suspended", value: data.users.suspended, tone: "text-red-500" },
-                { label: "Pending", value: data.users.pending, tone: "text-blue-500" },
+                { label: "Active", value: data.users.active, tone: "text-success" },
+                { label: "Suspended", value: data.users.suspended, tone: "text-danger" },
+                { label: "Pending", value: data.users.pending, tone: "text-brand" },
               ]}
             />
             <StatTile
               label="Applications"
               value={data.apps.total}
               icon={Boxes}
-              accent="bg-cyan-500/10 text-cyan-500"
+              accent="bg-chart-2/10 text-chart-2"
               breakdown={[
-                { label: "Running", value: data.apps.running, tone: "text-emerald-500" },
+                { label: "Running", value: data.apps.running, tone: "text-success" },
                 { label: "Stopped", value: data.apps.stopped },
-                { label: "Failed", value: data.apps.failed, tone: "text-red-500" },
+                { label: "Failed", value: data.apps.failed, tone: "text-danger" },
               ]}
             />
             <StatTile
               label="Deployments today"
               value={data.deployments.today}
               icon={Rocket}
-              accent="bg-purple-500/10 text-purple-500"
+              accent="bg-chart-3/10 text-chart-3"
               breakdown={[
-                { label: "Running", value: data.deployments.running, tone: "text-amber-500" },
-                { label: "Failed", value: data.deployments.failedToday, tone: "text-red-500" },
+                { label: "Running", value: data.deployments.running, tone: "text-warning" },
+                { label: "Failed", value: data.deployments.failedToday, tone: "text-danger" },
               ]}
             />
             <StatTile
               label="Databases"
               value={data.databases.total}
               icon={Database}
-              accent="bg-amber-500/10 text-amber-500"
+              accent="bg-chart-1/10 text-chart-1"
             />
             <StatTile
               label="Plans"
               value={data.plans.total}
               icon={Layers}
-              accent="bg-rose-500/10 text-rose-500"
+              accent="bg-chart-5/10 text-chart-5"
             />
             <StatTile
               label="Containers running"
               value={data.containers.running}
               icon={Container}
-              accent="bg-emerald-500/10 text-emerald-500"
+              accent="bg-success-surface text-success"
             />
           </div>
 
@@ -251,9 +251,9 @@ export default function AdminOverview() {
             <div className="mb-4 flex items-center justify-between gap-3">
               <h2 className="flex items-center gap-2 text-base font-semibold">
                 {data.health === "ok" ? (
-                  <ShieldCheck className="h-5 w-5 text-emerald-500" />
+                  <ShieldCheck className="h-5 w-5 text-success" />
                 ) : (
-                  <ShieldAlert className="h-5 w-5 text-amber-500" />
+                  <ShieldAlert className="h-5 w-5 text-warning" />
                 )}
                 System health
               </h2>
@@ -282,7 +282,7 @@ export default function AdminOverview() {
             <div className="mt-4 grid grid-cols-2 gap-3">
               <div className="flex items-center justify-between rounded-xl border border-border/50 bg-secondary/30 px-4 py-3">
                 <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <ArrowDownToLine className="h-4 w-4 text-emerald-500" />
+                  <ArrowDownToLine className="h-4 w-4 text-chart-2" />
                   Download
                 </span>
                 <span className="text-sm font-semibold tabular-nums">
@@ -291,7 +291,7 @@ export default function AdminOverview() {
               </div>
               <div className="flex items-center justify-between rounded-xl border border-border/50 bg-secondary/30 px-4 py-3">
                 <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <ArrowUpFromLine className="h-4 w-4 text-cyan-500" />
+                  <ArrowUpFromLine className="h-4 w-4 text-chart-1" />
                   Upload
                 </span>
                 <span className="text-sm font-semibold tabular-nums">

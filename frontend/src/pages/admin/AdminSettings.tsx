@@ -97,8 +97,8 @@ export default function AdminSettings() {
 
   if (error || !settings) {
     return (
-      <div className="rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-16 text-center">
-        <p className="text-sm text-red-600 dark:text-red-400">{error || "Settings unavailable"}</p>
+      <div className="rounded-2xl border border-danger-border bg-danger-surface px-4 py-16 text-center">
+        <p className="text-sm text-danger">{error || "Settings unavailable"}</p>
         <Button variant="outline" className="mt-4" onClick={fetchSettings}>
           Retry
         </Button>
@@ -325,7 +325,7 @@ function Toggle({
       <div className="flex min-w-0 items-start gap-2">
         {icon ??
           (tone === "warning" ? (
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
           ) : null)}
         <div className="min-w-0">
           <p className="text-sm font-medium">{label}</p>
@@ -340,12 +340,12 @@ function Toggle({
         onClick={() => onChange(!checked)}
         className={cn(
           "relative h-6 w-11 shrink-0 rounded-full transition-colors",
-          checked ? (tone === "warning" ? "bg-amber-500" : "bg-brand") : "bg-secondary",
+          checked ? (tone === "warning" ? "bg-warning" : "bg-brand") : "bg-secondary",
         )}
       >
         <span
           className={cn(
-            "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform",
+            "absolute top-0.5 h-5 w-5 rounded-full bg-card shadow-sm transition-transform",
             checked ? "translate-x-[22px]" : "translate-x-0.5",
           )}
         />

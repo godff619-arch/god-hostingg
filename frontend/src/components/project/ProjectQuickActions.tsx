@@ -267,7 +267,7 @@ export function ProjectQuickActions({
               <span className="font-semibold text-foreground">{project.name}</span>
               ?
               <br />
-              <span className="text-red-500">
+              <span className="text-danger">
                 This will also remove all containers and cannot be undone.
               </span>
             </DialogDescription>

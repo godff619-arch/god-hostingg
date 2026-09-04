@@ -407,7 +407,7 @@ export function LogViewer({
             variant="ghost" size="icon"
             className={cn(
               "h-7 w-7 text-sidebar-muted hover:text-sidebar-foreground hover:bg-white/10",
-              copied && "text-emerald-400 hover:text-emerald-400",
+              copied && "text-success-border hover:text-success-border",
             )}
             onClick={handleCopy}
             title={copyAriaLabel}

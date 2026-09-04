@@ -35,17 +35,21 @@ const PAGE_SIZE = 20;
 const STATUS_FILTERS = ["open", "resolved", "all"] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
 
-/** Source → chip colour. Unknown sources fall back to neutral rather than break. */
+/**
+ * Source → chip colour. Unknown sources fall back to neutral rather than break.
+ * The theme ships five categorical tokens for nine sources, so a couple of hues
+ * repeat; the chip always carries its label, so colour is a hint, not the data.
+ */
 const SOURCE_TONE: Record<string, string> = {
   api: "border-brand/30 bg-brand/10 text-brand",
-  deploy: "border-violet-500/25 bg-violet-500/10 text-violet-600 dark:text-violet-400",
-  docker: "border-sky-500/25 bg-sky-500/10 text-sky-600 dark:text-sky-400",
-  git: "border-amber-500/25 bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  nginx: "border-teal-500/25 bg-teal-500/10 text-teal-600 dark:text-teal-400",
-  cert: "border-lime-500/25 bg-lime-500/10 text-lime-600 dark:text-lime-400",
-  webhook: "border-pink-500/25 bg-pink-500/10 text-pink-600 dark:text-pink-400",
-  backup: "border-indigo-500/25 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
-  internal: "border-red-500/25 bg-red-500/10 text-red-600 dark:text-red-400",
+  deploy: "border-chart-5/25 bg-chart-5/10 text-chart-5",
+  docker: "border-chart-1/25 bg-chart-1/10 text-chart-1",
+  git: "border-chart-3/25 bg-chart-3/10 text-chart-3",
+  nginx: "border-chart-2/25 bg-chart-2/10 text-chart-2",
+  cert: "border-success-border bg-success-surface text-success",
+  webhook: "border-chart-4/25 bg-chart-4/10 text-chart-4",
+  backup: "border-chart-5/25 bg-chart-5/10 text-chart-5",
+  internal: "border-danger-border bg-danger-surface text-danger",
 };
 
 function sourceTone(source: string): string {
@@ -307,7 +311,7 @@ export default function AdminErrors() {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-600 dark:text-red-400">
+        <div className="mb-4 rounded-2xl border border-danger-border bg-danger-surface px-4 py-3 text-sm text-danger">
           {error}
         </div>
       )}
@@ -323,7 +327,7 @@ export default function AdminErrors() {
         </div>
       ) : rows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border/60 px-4 py-16 text-center">
-          <Check className="mx-auto h-8 w-8 text-emerald-500" />
+          <Check className="mx-auto h-8 w-8 text-success" />
           <p className="mt-3 text-sm font-medium text-foreground">
             {status === "open" ? "No open errors." : "Nothing to show."}
           </p>
@@ -442,8 +446,8 @@ function ErrorCard({
           className={cn(
             "mt-0.5 hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl border sm:flex",
             group.level === "warn"
-              ? "border-amber-500/25 bg-amber-500/10 text-amber-600 dark:text-amber-400"
-              : "border-red-500/25 bg-red-500/10 text-red-600 dark:text-red-400",
+              ? "border-warning-border bg-warning-surface text-warning"
+              : "border-danger-border bg-danger-surface text-danger",
           )}
         >
           <AlertTriangle className="h-4 w-4" />
@@ -465,7 +469,7 @@ function ErrorCard({
               </span>
             ) : null}
             {resolved ? (
-              <span className="rounded-md border border-emerald-500/25 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-emerald-600 dark:text-emerald-400">
+              <span className="rounded-md border border-success-border bg-success-surface px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-success">
                 Resolved
               </span>
             ) : null}
@@ -517,7 +521,7 @@ function ErrorCard({
           <Button
             variant="outline"
             size="icon"
-            className="h-8 w-8 border-border/60 text-red-600 hover:bg-red-500/10 dark:text-red-400"
+            className="h-8 w-8 border-border/60 text-danger hover:bg-danger-surface"
             disabled={busy}
             onClick={onDelete}
             aria-label="Delete group"
