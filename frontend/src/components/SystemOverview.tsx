@@ -300,11 +300,35 @@ export function SystemOverview() {
   const fetchStats = useCallback(async () => {
     try {
       const res = await authFetch(`${API_URL}/api/system/stats`);
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
+      // A 401/403/500 body is `{ error }`, not a stats payload. Storing it anyway
+      // sailed past the error guard below and then crashed on `stats.cpu.usage`,
+      // white-screening the whole page instead of showing the retry panel.
+      const ok =
+        res.ok &&
+        data?.cpu &&
+        data?.memory &&
+        data?.gpu &&
+        Array.isArray(data?.disk) &&
+        data?.network &&
+        data?.server;
+      if (!ok) {
+        throw new Error(
+          data?.error ||
+            (res.status === 401 || res.status === 403
+              ? "Not authorised to read system stats"
+              : res.ok
+                ? "System stats response was incomplete"
+                : `System stats unavailable (HTTP ${res.status})`),
+        );
+      }
       setStats(data);
+      setError(null);
       setLastUpdate(new Date());
     } catch (err) {
-      setError("Failed to fetch system statistics");
+      setError(
+        err instanceof Error ? err.message : "Failed to fetch system statistics",
+      );
       console.error(err);
     } finally {
       setLoading(false);
@@ -378,7 +402,10 @@ export function SystemOverview() {
     );
   }
 
-  if (error || !stats) {
+  // Only when there is nothing to show. A failed 3s poll on top of good stats
+  // leaves the dashboard up — "Updated <time>" already says the data is stale —
+  // rather than replacing a working page with an error panel.
+  if (!stats) {
     return (
       <div className="flex flex-col items-center justify-center py-12 sm:py-16">
         <div className="mb-4 rounded-2xl border border-destructive/20 bg-destructive/10 p-4">
@@ -720,26 +747,20 @@ export function SystemOverview() {
               <span className="flex shrink-0 items-center gap-2 text-muted-foreground">
                 <Globe className="h-3.5 w-3.5" /> IP
               </span>
-              <span className="font-medium text-cyan-500 tabular-nums">
+              <span className="font-medium text-brand tabular-nums">
                 {stats.server.ipAddress}
               </span>
             </div>
-            {stats.server.location && stats.server.location !== "N/A" ? (
+            {/* Location only when we actually resolved one. The old `else` branch
+                repeated the IP row above it, so a host without geo data showed
+                its IP twice in the same panel. */}
+            {stats.server.location && stats.server.location !== "N/A" && (
               <div className="flex items-center justify-between gap-3 py-2">
                 <span className="flex shrink-0 items-center gap-2 text-muted-foreground">
                   <MapPin className="h-3.5 w-3.5" /> Location
                 </span>
                 <span className="min-w-0 truncate text-right font-medium">
                   {stats.server.location}
-                </span>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between gap-3 py-2">
-                <span className="flex shrink-0 items-center gap-2 text-muted-foreground">
-                  <Globe className="h-3.5 w-3.5" /> IP
-                </span>
-                <span className="font-medium text-cyan-500 tabular-nums">
-                  {stats.server.ipAddress}
                 </span>
               </div>
             )}
