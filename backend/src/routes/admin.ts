@@ -1236,6 +1236,9 @@ router.get('/audit-logs', async (req: AuthenticatedRequest, res: Response) => {
         resource: l.resource,
         ip: l.ip,
         created_at: l.created_at,
+        // The actor id, so the page can filter to one account and link to it.
+        // Null after the account is deleted (onDelete: SetNull) or for internal work.
+        user_id: l.user_id,
         user: l.user ? { name: l.user.name, email: l.user.email } : null,
         metadata: l.metadata,
       })),
@@ -1271,6 +1274,7 @@ router.get('/audit-logs/export', async (req: AuthenticatedRequest, res: Response
       created_at: l.created_at.toISOString(),
       action: l.action,
       resource: l.resource ?? '',
+      user_id: l.user_id ?? '',
       user_email: l.user?.email ?? '',
       user_name: l.user?.name ?? '',
       ip: l.ip ?? '',
@@ -1281,7 +1285,7 @@ router.get('/audit-logs/export', async (req: AuthenticatedRequest, res: Response
     if (format === 'json') {
       sendDownload(res, 'audit-logs', 'json', JSON.stringify(records, null, 2));
     } else {
-      const cols = ['id', 'created_at', 'action', 'resource', 'user_email', 'user_name', 'ip', 'metadata'];
+      const cols = ['id', 'created_at', 'action', 'resource', 'user_id', 'user_email', 'user_name', 'ip', 'metadata'];
       sendDownload(res, 'audit-logs', 'csv', toCsv(cols, records));
     }
   } catch (error) {

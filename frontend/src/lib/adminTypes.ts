@@ -274,6 +274,8 @@ export interface AuditRow {
   resource: string | null;
   ip: string | null;
   created_at: string;
+  /** Actor id — null once the account is deleted, or for internal work. */
+  user_id: string | null;
   user: { name: string; email: string } | null;
   metadata: unknown;
 }
@@ -281,6 +283,8 @@ export interface AuditRow {
 export interface AuditLogsResponse {
   logs: AuditRow[];
   total: number;
+  page: number;
+  pageSize: number;
 }
 
 // ── Error Center ─────────────────────────────────────────────────────────────

@@ -315,6 +315,13 @@ export const router = createBrowserRouter([
                 },
               },
               {
+                path: "audit-logs",
+                lazy: async () => {
+                  const m = await import("@/pages/admin/AdminAuditLogs");
+                  return { Component: m.default };
+                },
+              },
+              {
                 path: "errors",
                 lazy: async () => {
                   const m = await import("@/pages/admin/AdminErrors");

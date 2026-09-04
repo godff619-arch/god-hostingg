@@ -267,6 +267,13 @@ export const navGroups: NavGroup[] = [
         section: ["/admin/uploads"],
       },
       {
+        label: "Audit Logs",
+        href: "/admin/audit-logs",
+        icon: ScrollText,
+        description: "Who did what, and from where",
+        section: ["/admin/audit-logs"],
+      },
+      {
         label: "Errors",
         href: "/admin/errors",
         icon: TriangleAlert,
@@ -389,6 +396,7 @@ const segmentLabels: Record<string, string> = {
   uploads: "Uploads",
   errors: "Errors",
   domains: "Domains",
+  "audit-logs": "Audit Logs",
 };
 
 export interface Crumb {
