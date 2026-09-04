@@ -208,10 +208,16 @@ export const router = createBrowserRouter([
           },
           {
             path: "terminal",
-            lazy: async () => {
-              const m = await import("@/pages/Terminal");
-              return { Component: m.default };
-            },
+            element: <AdminGuard write />,
+            children: [
+              {
+                index: true,
+                lazy: async () => {
+                  const m = await import("@/pages/Terminal");
+                  return { Component: m.default };
+                },
+              },
+            ],
           },
           {
             path: "system",

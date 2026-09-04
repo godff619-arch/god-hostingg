@@ -23,7 +23,7 @@ import type { Project } from "@/lib/types";
 import { apiGet, scoped } from "@/lib/workspaceApi";
 import type { ProjectCard } from "@/lib/workspaceTypes";
 import { SETTINGS_SECTIONS, settingsHref } from "@/lib/settingsNav";
-import { hasAdminAccess } from "@/lib/roles";
+import { hasAdminAccess, isFullAdmin } from "@/lib/roles";
 import { visibleNavItems, type IconComponent } from "./navigation";
 import { useShell } from "./ShellContext";
 
@@ -91,7 +91,7 @@ export function CommandPalette() {
     };
 
     const pages: Command[] = [
-      ...visibleNavItems(hasAdminAccess(user?.role)).map((item) => ({
+      ...visibleNavItems(hasAdminAccess(user?.role), isFullAdmin(user?.role)).map((item) => ({
         id: `nav:${item.href}`,
         label: item.label,
         hint: item.description,

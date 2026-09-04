@@ -62,6 +62,12 @@ export interface NavItem {
   external?: boolean;
   /** Collapsible tree children. */
   children?: NavChild[];
+  /**
+   * Hidden from the read-only `viewer` tier. For destinations a viewer is refused
+   * outright rather than shown read-only — currently the server terminal, whose
+   * shell is root in the panel container.
+   */
+  fullAdminOnly?: boolean;
 }
 
 export interface NavGroup {
@@ -203,6 +209,7 @@ export const navGroups: NavGroup[] = [
         icon: SquareTerminal,
         description: "Interactive shell on the server",
         section: ["/terminal"],
+        fullAdminOnly: true,
       },
       {
         label: "Docs",
@@ -287,14 +294,24 @@ export const navGroups: NavGroup[] = [
 export const navItems: NavItem[] = navGroups.flatMap((group) => group.items);
 
 /** Nav groups visible to the current role. Admin groups are hidden from non-admins
- *  (cosmetic only — the server's requireAdmin is the real gate). */
-export function visibleNavGroups(isAdmin: boolean): NavGroup[] {
-  return navGroups.filter((group) => !group.adminOnly || isAdmin);
+ *  (cosmetic only — the server's requireAdmin is the real gate).
+ *
+ *  `fullAdmin` defaults to `isAdmin`, so the two only diverge for the read-only
+ *  `viewer` tier — the one role that reaches the admin area but must not see
+ *  `fullAdminOnly` destinations. */
+export function visibleNavGroups(isAdmin: boolean, fullAdmin = isAdmin): NavGroup[] {
+  return navGroups
+    .filter((group) => !group.adminOnly || isAdmin)
+    .map((group) =>
+      group.items.some((item) => item.fullAdminOnly) && !fullAdmin
+        ? { ...group, items: group.items.filter((item) => !item.fullAdminOnly) }
+        : group,
+    );
 }
 
 /** Nav items visible to the current role (flattened). Used by the search modal. */
-export function visibleNavItems(isAdmin: boolean): NavItem[] {
-  return visibleNavGroups(isAdmin).flatMap((group) => group.items);
+export function visibleNavItems(isAdmin: boolean, fullAdmin = isAdmin): NavItem[] {
+  return visibleNavGroups(isAdmin, fullAdmin).flatMap((group) => group.items);
 }
 
 /** True when `pathname` is exactly `prefix` or nested under it. */

@@ -15,6 +15,7 @@ import { resolveProjectBuild } from '../services/buildResolver.js';
 import { buildServiceImage } from '../services/buildRunner.js';
 import {
   detectNativeRuntime,
+  describeDockerOnlyProject,
   installDeps,
   startNativeService,
   stopNativeService,
@@ -294,15 +295,24 @@ async function runNativeDeploy(args: {
 
   const runtime: NativeRuntime | null = detectNativeRuntime(baseDir);
   if (!runtime) {
-    const where = project.base_directory
-      ? `base directory "${project.base_directory}"`
-      : 'the repository root';
+    // `.` and `/` are how "no subfolder" is often stored — reporting them back as
+    // a base directory sends the operator hunting for a path problem they don't have.
+    const sub = (project.base_directory || '').trim().replace(/^\.?\/*|\/+$/g, '');
+    const where = sub ? `base directory "${sub}"` : 'the repository root';
+    const found = describeDockerOnlyProject(baseDir);
     throw new Error(
-      `Docker-free mode found nothing it can run in ${where}: no package.json (Node), ` +
-        'no Python entry (requirements.txt / pyproject.toml / main.py / app.py / bot.py), ' +
-        'and no index.html (static). This project needs Docker — mount ' +
-        '/var/run/docker.sock into the panel container, then redeploy. ' +
-        'If the app does live in a subfolder, set the project base directory to it.',
+      (found.length
+        ? `This project needs Docker to build. In ${where} I found ${found.join(', ')} — ` +
+          'Docker-free mode can only run Node (package.json), Python or a static ' +
+          'index.html, so none of that can be built without the engine. '
+        : `Docker-free mode found nothing it can run in ${where}: no package.json (Node), ` +
+          'no Python entry (requirements.txt / pyproject.toml / main.py / app.py / bot.py), ' +
+          'and no index.html (static). ') +
+        'Mount /var/run/docker.sock into the panel container and redeploy — the ' +
+        "repository's own Dockerfile/Compose file will then be used. " +
+        (found.length
+          ? 'See docker-compose.coolify.yml, or run install-single.sh on the host.'
+          : 'If the app does live in a subfolder, set the project base directory to it.'),
     );
   }
   writeLog(`🔎 Detected runtime: ${runtime}\n`);

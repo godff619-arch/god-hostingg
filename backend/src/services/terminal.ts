@@ -5,6 +5,7 @@ import { spawn, ChildProcess } from 'child_process';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import { JWT_SECRET, assertPasswordStillValid, type JwtPayload } from '../lib/authMiddleware.js';
+import { isFullAdmin } from '../lib/platformRoles.js';
 import { PrismaClient } from '@prisma/client';
 import { config } from '../lib/config.js';
 import { isTrustedOrigin } from '../lib/originCheck.js';
@@ -75,6 +76,15 @@ function isAllowedOrigin(request: IncomingMessage): boolean {
   return isTrustedOrigin(origin, request.headers, { allow: [config.frontendUrl] });
 }
 
+/**
+ * Verify a `/ws/terminal` upgrade token.
+ *
+ * Two checks the mint endpoint cannot do for us:
+ *  - the role is re-read from the database, so a token minted 4 minutes before a
+ *    demotion is dead now rather than at expiry;
+ *  - `viewer` is refused. It is an admin tier for *reading* the ops center; a root
+ *    shell is the most complete write there is.
+ */
 async function verifyTerminalToken(token: string): Promise<{ userId: string; email: string } | null> {
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
@@ -83,6 +93,12 @@ async function verifyTerminalToken(token: string): Promise<{ userId: string; ema
     }
     const pwdErr = await assertPasswordStillValid(decoded);
     if (pwdErr) return null;
+    if (!isFullAdmin(decoded.role)) return null;
+    const dbUser = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { role: true },
+    });
+    if (!isFullAdmin(dbUser?.role)) return null;
     return { userId: decoded.userId, email: decoded.email };
   } catch {
     return null;

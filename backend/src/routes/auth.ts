@@ -6,7 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import prisma from '../lib/prisma.js';
-import { JWT_SECRET, authMiddleware } from '../lib/authMiddleware.js';
+import { JWT_SECRET, authMiddleware, requireAdmin } from '../lib/authMiddleware.js';
 import { config } from '../lib/config.js';
 import { getSetting, getBoolSetting } from '../lib/settings.js';
 import { writeAudit } from '../lib/audit.js';
@@ -463,7 +463,13 @@ router.post('/sse-token', authMiddleware, async (req: Request, res: Response) =>
 });
 
 // POST /api/auth/terminal-token — short-lived WS upgrade token (not the 7d session JWT)
-router.post('/terminal-token', authMiddleware, async (req: Request, res: Response) => {
+//
+// Full admins only. The shell this token buys is root inside the panel container,
+// which mounts the host Docker socket — so a plain customer holding one could run
+// `docker` against the host engine and reach every other tenant's data. The
+// interactive password step in services/terminal.ts is NOT a second factor here:
+// the user knows their own password. This is the gate.
+router.post('/terminal-token', authMiddleware, requireAdmin, async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     const dbUser = await prisma.user.findUnique({

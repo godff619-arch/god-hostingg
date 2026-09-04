@@ -422,7 +422,13 @@ export function TerminalView({ className }: { className?: string }) {
         return;
       }
       if (!tokenRes.ok) {
-        throw new Error("Failed to issue terminal token");
+        // The shell is root inside the panel container, so the API restricts it to
+        // full admins. Say that, rather than looking like a transient failure.
+        throw new Error(
+          tokenRes.status === 403
+            ? "The server terminal is restricted to administrators."
+            : "Failed to issue terminal token",
+        );
       }
       const tokenData = await tokenRes.json();
       token = tokenData.token;

@@ -24,7 +24,7 @@ import { useShell } from "@/components/shell/ShellContext";
 import { isNavActive, visibleNavGroups, type NavItem } from "@/components/shell/navigation";
 import { isProjectGroupId, useProjectNav } from "@/lib/hierarchy";
 import { API_URL, cn } from "@/lib/utils";
-import { hasAdminAccess } from "@/lib/roles";
+import { hasAdminAccess, isFullAdmin } from "@/lib/roles";
 
 const PROMO_KEY = "docklift_promo_workflows_dismissed";
 
@@ -32,7 +32,7 @@ export function Sidebar({ variant = "desktop" }: { variant?: "desktop" | "mobile
   const { pathname } = useLocation();
   const { user } = useAuth();
   const { setMobileOpen, breadcrumbLeaf } = useShell();
-  const groups = visibleNavGroups(hasAdminAccess(user?.role));
+  const groups = visibleNavGroups(hasAdminAccess(user?.role), isFullAdmin(user?.role));
   const isMobile = variant === "mobile";
   // Inside a project group the rail becomes project-scoped (spec Part B §5–§8).
   //

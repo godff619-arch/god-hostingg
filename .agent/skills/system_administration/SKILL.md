@@ -79,6 +79,12 @@ A full-featured xterm.js-based interactive terminal providing direct root access
 - **Resizing**: Bi-directional resize sync between frontend/backend. Resize inputs are validated (cols: 1–500, rows: 1–200) to prevent injection.
 - **Persistence**: Auto-reconnect on network drops.
 - **Security**:
+  - **Full admins only** (`owner`/`super_admin`/`admin`). `POST /api/auth/terminal-token`
+    carries `requireAdmin`, and `verifyTerminalToken` re-reads the role from the database
+    so a token minted before a demotion dies immediately. A read-only `viewer` is refused:
+    this shell is root inside the panel container, which mounts the host Docker socket, so
+    a non-admin session would mean host-level access and cross-tenant reach. The interactive
+    password step is **not** the gate — the user knows their own password.
   - **Double Authentication**: JWT (connect) + Password (interactive).
   - **Rate Limiting**: Max 5 logins/minute.
   - **Session Limits**: Max 3 concurrent connections per user.

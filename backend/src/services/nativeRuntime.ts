@@ -132,6 +132,42 @@ export function detectNativeRuntime(cwd: string): NativeRuntime | null {
   return null;
 }
 
+/**
+ * What a directory shows that only Docker can build — used to explain a refusal.
+ *
+ * "No package.json, no Python entry, no index.html" is true but reads like the repo
+ * is empty, and an operator looking at a repo that clearly has a Dockerfile
+ * reasonably concludes the clone failed. Naming the manifests that ARE here moves
+ * the message from "nothing found" to "found this; it needs the engine".
+ */
+export function describeDockerOnlyProject(cwd: string): string[] {
+  const found: string[] = [];
+  // Label per manifest. The filename is spelled out only where it isn't already in
+  // the label — "a Dockerfile (Dockerfile)" reads like a stutter.
+  const note = (file: string, label: string) => {
+    if (fileExists(path.join(cwd, file))) found.push(label);
+  };
+  note('Dockerfile', 'a Dockerfile');
+  note('docker-compose.yml', 'a Compose file');
+  note('docker-compose.yaml', 'a Compose file');
+  note('go.mod', 'a Go module (go.mod)');
+  note('Cargo.toml', 'a Rust crate (Cargo.toml)');
+  note('pom.xml', 'a Maven project (pom.xml)');
+  note('build.gradle', 'a Gradle project (build.gradle)');
+  note('build.gradle.kts', 'a Gradle project (build.gradle.kts)');
+  note('composer.json', 'a PHP project (composer.json)');
+  note('Gemfile', 'a Ruby project (Gemfile)');
+  note('mix.exs', 'an Elixir project (mix.exs)');
+  // .NET names its manifest after the project, so it has to be matched by suffix.
+  try {
+    const dotnet = fs.readdirSync(cwd).find((f) => /\.(csproj|fsproj|sln)$/i.test(f));
+    if (dotnet) found.push(`a .NET project (${dotnet})`);
+  } catch {
+    /* unreadable dir — the caller's message just loses this hint */
+  }
+  return found;
+}
+
 /** First existing file from a candidate list, or null. */
 function firstEntry(cwd: string, candidates: string[]): string | null {
   for (const c of candidates) {
