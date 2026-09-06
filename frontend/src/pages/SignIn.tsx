@@ -64,7 +64,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
-        <div className="flex flex-col items-center mb-8">
+        <div className="flex flex-col items-center mb-8 animate-in fade-in slide-in-from-bottom-3 duration-500">
           <div className="relative mb-4">
             <div className="absolute inset-0 rounded-2xl bg-brand/20 blur-xl" />
             <BrandLogo className="relative h-16 w-16 rounded-2xl shadow-[0_4px_14px_0_rgba(15,23,42,0.10)]" />
@@ -74,7 +74,7 @@ export default function LoginPage() {
           </h1>
         </div>
 
-        <Card className="p-8 border-border bg-card shadow-[0_2px_10px_0_rgba(15,23,42,0.06)]">
+        <Card className="p-8 border-border bg-card shadow-[0_2px_10px_0_rgba(15,23,42,0.06)] animate-in fade-in slide-in-from-bottom-4 duration-500 delay-150">
           <div className="mb-6">
             <h2 className="text-2xl font-bold tracking-tight">Welcome back</h2>
             <p className="text-sm text-muted-foreground mt-1">
