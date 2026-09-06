@@ -180,6 +180,8 @@ export function ServiceDomainCard({
   const [checking, setChecking] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [pollExpired, setPollExpired] = useState(false);
+  /** Server's word on how the last saved hostname gets published (read after await). */
+  const activationRef = useRef<string | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
 
   const parsed = normalizeDomainInput(input);
@@ -256,6 +258,10 @@ export function ServiceDomainCard({
         }
         if (data.ssl) setSslMap(data.ssl);
         if (data.events) setEvents(data.events);
+        // What happens next depends on which proxy owns this host's 80/443, so the
+        // server says it rather than the UI guessing "requesting HTTPS".
+        activationRef.current =
+          typeof data.activation === "string" ? data.activation : null;
         onUpdate();
         return true;
       } catch (err: any) {
@@ -287,7 +293,12 @@ export function ServiceDomainCard({
     setInput("");
     const ok = await persist([...domains, hostname], "add");
     if (ok) {
-      toast.success(`${hostname} added — requesting HTTPS`);
+      const note = activationRef.current;
+      if (note) {
+        toast.success(`${hostname} added`, { description: note });
+      } else {
+        toast.success(`${hostname} added — requesting HTTPS`);
+      }
     } else {
       // Give the value back rather than making them retype it
       setInput((current) => current || hostname);

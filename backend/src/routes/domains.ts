@@ -21,6 +21,7 @@ import {
   buildPanelProxyLocation,
 } from '../services/nginxSsl.js';
 import { assertHostnamesAvailable } from '../lib/domainOwnership.js';
+import { detectEdgeRouter } from '../lib/edgeRouter.js';
 import { type AuthenticatedRequest, isAdmin } from '../lib/authMiddleware.js';
 
 const router: Router = express.Router();
@@ -92,6 +93,28 @@ async function provisionPanelSsl(domain: string, port: number, opts?: { force?: 
     await reloadNginx();
   }
   return status;
+}
+
+/**
+ * A panel hostname is served by a vhost of ours, so it needs our own edge proxy on
+ * 80/443. Where another proxy owns those ports the panel's hostname is that proxy's
+ * to map — writing a vhost here would only fail its own reload and report a 500.
+ * Answered as 409 with the fix, not as a server error.
+ */
+async function rejectWhenNotOurEdge(res: Response, domain: string): Promise<boolean> {
+  const edge = await detectEdgeRouter();
+  if (edge.mode === 'nginx') return false;
+  res.status(409).json({
+    error:
+      edge.mode === 'traefik'
+        ? `${edge.container} owns this host's 80/443, so God Hosting cannot serve ${domain} itself. ` +
+          `Point ${domain} at this server in that proxy's own domain settings — it will route to this ` +
+          `container and issue the certificate. App domains still work: they are published through ${edge.container} on deploy.`
+        : `This host has no edge proxy on 80/443, so ${domain} cannot be served for the panel yet. ` +
+          `Run the docker-compose control plane (which ships the nginx edge) or put your own proxy in front.`,
+    edge: edge.mode,
+  });
+  return true;
 }
 
 // GET /api/domains/ssl/email — ACME account email
@@ -173,6 +196,8 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
     return res.status(409).json({ error: conflict.message || 'Domain already in use' });
   }
 
+  if (await rejectWhenNotOurEdge(res, normalized)) return;
+
   try {
     const ssl = await provisionPanelSsl(normalized, portNum);
     res.json({
@@ -240,6 +265,7 @@ router.post('/:domain/ssl/retry', async (req: AuthenticatedRequest, res: Respons
   try {
     const content = await fs.readFile(panelConfPath(domain), 'utf-8');
     const port = parsePanelPort(content) ?? 8080;
+    if (await rejectWhenNotOurEdge(res, domain)) return;
     await clearSslMeta(domain);
     const ssl = await provisionPanelSsl(domain, port, { force: true });
     res.json({
@@ -271,7 +297,12 @@ router.delete('/:domain', async (req: AuthenticatedRequest, res: Response) => {
     await fs.unlink(panelConfPath(domain));
     await clearSslMeta(domain);
     console.log(`Deleted Nginx config for ${domain}`);
-    await reloadNginx();
+    // The vhost file *is* the mapping; the reload only makes its removal take effect
+    // on a running nginx. Where nginx is not the edge there is nothing to reload, and
+    // failing the delete over it would leave a mapping the user cannot get rid of.
+    if ((await detectEdgeRouter()).mode === 'nginx') {
+      await reloadNginx();
+    }
     res.json({ success: true });
   } catch (error: any) {
     if (error.code === 'ENOENT') {

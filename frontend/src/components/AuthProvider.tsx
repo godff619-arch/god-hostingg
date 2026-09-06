@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 import { useNavigate, useLocation } from "react-router-dom";
 import { API_URL } from "@/lib/utils";
 import { registerAuthUnauthorizedHandler } from "@/lib/auth";
+import { invalidateAdminMe } from "@/hooks/useAdminMe";
 import { Loader2 } from "lucide-react";
 
 interface User {
@@ -33,8 +34,20 @@ export function useAuth() {
   return context;
 }
 
-// Routes that don't require authentication
-const publicRoutes = ["/sign-in", "/sign-up", "/setup"];
+// Routes that render without a session.
+//
+// `/` (the public homepage) is deliberately NOT in this list: the check below is
+// a `startsWith`, and `"/"` is a prefix of every path in the app — adding it here
+// would make the entire product public. It is matched exactly instead.
+const authRoutes = ["/sign-in", "/sign-up", "/setup"];
+
+/**
+ * Public, but a signed-in visitor is allowed to stay — unlike `authRoutes`, which
+ * bounce a live session to the dashboard. `/admin/login` belongs here because it
+ * decides for itself where an operator lands (the panel) and what to tell an
+ * account with no admin role; being kicked to `/projects` would hide both.
+ */
+const standalonePublicRoutes = ["/admin/login"];
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -44,7 +57,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
-  const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
+  const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));
+  // Needs no session. The homepage belongs here, but unlike the auth pages a
+  // signed-in visitor is allowed to stay on it, so the two are kept apart.
+  const isPublicRoute =
+    isAuthRoute || pathname === "/" || standalonePublicRoutes.includes(pathname);
 
   // Initialize auth state from localStorage
   useEffect(() => {
@@ -94,14 +111,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!initialCheckDone) return;
 
     const handleRedirects = async () => {
-      // If authenticated and on public route, redirect to dashboard
-      if (token && isPublicRoute) {
-        navigate("/", { replace: true });
+      // Signed in and sitting on a sign-in / sign-up / setup form → the
+      // dashboard. `/projects`, not `/`: `/` is the marketing homepage now, and
+      // bouncing a session onto it would hide the app behind its own front door.
+      if (token && isAuthRoute) {
+        navigate("/projects", { replace: true });
         return;
       }
 
       // If not authenticated and not on public route, check setup status
       if (!token && !isPublicRoute) {
+        // The admin panel has its own front door. Sending an operator whose
+        // session expired to `/sign-in` would sign them back in and drop them on
+        // `/projects`, with no sign of where the panel went.
+        const signIn = pathname.startsWith("/admin") ? "/admin/login" : "/sign-in";
         try {
           const res = await fetch(`${API_URL}/api/auth/status`);
           const data = await res.json();
@@ -109,16 +132,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (!data.setupComplete) {
             navigate("/setup", { replace: true });
           } else {
-            navigate("/sign-in", { replace: true });
+            navigate(signIn, { replace: true });
           }
         } catch (error) {
-          navigate("/sign-in", { replace: true });
+          navigate(signIn, { replace: true });
         }
       }
     };
 
     handleRedirects();
-  }, [initialCheckDone, token, isPublicRoute, pathname, navigate]);
+  }, [initialCheckDone, token, isAuthRoute, isPublicRoute, pathname, navigate]);
 
   const login = (newToken: string, newUser: User) => {
     localStorage.setItem("docklift_token", newToken);
@@ -137,7 +160,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("docklift_user");
     setToken(null);
     setUser(null);
-    navigate("/sign-in");
+    // Drop the cached admin profile: without this, the next operator to sign in
+    // in this tab inherits the previous one's permission list until a reload.
+    invalidateAdminMe();
+    // Read the path at call time rather than closing over it, so this callback
+    // keeps a stable identity for registerAuthUnauthorizedHandler.
+    const onAdmin = window.location.pathname.startsWith("/admin");
+    navigate(onAdmin ? "/admin/login" : "/sign-in");
   }, [navigate]);
 
   useEffect(() => {

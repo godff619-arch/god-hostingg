@@ -16,6 +16,8 @@ import { PageHeader } from "@/components/shell/PageHeader";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { UserBillingTab } from "@/components/admin/UserBillingTab";
+import { useAdminMe } from "@/hooks/useAdminMe";
 import { adminGet } from "@/lib/adminApi";
 import type {
   AdminUserDetail as UserDetailData,
@@ -46,6 +48,7 @@ const QUOTA_LABELS: { key: keyof EffectiveQuota; label: string; countKey?: keyof
 
 export default function AdminUserDetail() {
   const { id } = useParams<{ id: string }>();
+  const { can } = useAdminMe();
   const [detail, setDetail] = useState<UserDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -130,6 +133,11 @@ export default function AdminUserDetail() {
           <TabsTrigger value="deployments" className="px-4">Deployments</TabsTrigger>
           <TabsTrigger value="domains" className="px-4">Domains</TabsTrigger>
           <TabsTrigger value="databases" className="px-4">Databases</TabsTrigger>
+          {/* Cosmetic gate only — `/users/:id/billing` refuses without the
+              permission anyway; this stops the tab being a guaranteed 403. */}
+          {can("billing.view") && (
+            <TabsTrigger value="billing" className="px-4">Billing</TabsTrigger>
+          )}
           <TabsTrigger value="usage" className="px-4">Usage</TabsTrigger>
           <TabsTrigger value="activity" className="px-4">Activity</TabsTrigger>
         </TabsList>
@@ -163,6 +171,11 @@ export default function AdminUserDetail() {
         <TabsContent value="databases">
           <DatabasesTab userId={user.id} />
         </TabsContent>
+        {can("billing.view") && (
+          <TabsContent value="billing">
+            <UserBillingTab userId={user.id} />
+          </TabsContent>
+        )}
         <TabsContent value="usage">
           <UsageTab effective={effective} counts={counts} />
         </TabsContent>

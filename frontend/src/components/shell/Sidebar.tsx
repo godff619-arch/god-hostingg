@@ -60,7 +60,7 @@ export function Sidebar({ variant = "desktop" }: { variant?: "desktop" | "mobile
     <div className="flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
       {isMobile ? (
         <div className="flex h-12 shrink-0 items-center justify-between border-b border-sidebar-border px-3">
-          <Link to="/" onClick={close} className="flex items-center gap-2">
+          <Link to="/projects" onClick={close} className="flex items-center gap-2">
             <img src="/logo.png" alt="" className="h-5 w-5 rounded" />
             <span className="text-[13px] font-medium">God Hosting</span>
           </Link>
@@ -85,7 +85,9 @@ export function Sidebar({ variant = "desktop" }: { variant?: "desktop" | "mobile
       ) : (
         <nav className="shell-scroll flex-1 overflow-y-auto px-2 py-3">
           {groups.map((group, index) => (
-            <div key={group.label || `group-${index}`} className={index === 0 ? "" : "mt-5"}>
+            // Keyed by position, not label: labels are display text and two groups
+            // may legitimately share one, which React refuses as a duplicate key.
+            <div key={`${index}-${group.label}`} className={index === 0 ? "" : "mt-5"}>
               {group.label ? (
                 <div className="px-2 pb-1.5 text-[10px] font-medium uppercase tracking-[0.09em] text-sidebar-subtle">
                   {group.label}
@@ -368,7 +370,9 @@ function StatusFooterLink() {
 
   return (
     <Link
-      to="/system"
+      // `/status` (uptime, downtime history) — not `/system`, which is host
+      // metrics and admin-only, so every member here would be bounced.
+      to="/status"
       className="flex items-center gap-2 rounded-md px-2 py-[6px] text-[12px] text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
     >
       <span
@@ -378,7 +382,7 @@ function StatusFooterLink() {
           ok === null ? "bg-sidebar-subtle" : ok ? "bg-success" : "bg-danger",
         )}
       />
-      Status
+      Platform status
     </Link>
   );
 }

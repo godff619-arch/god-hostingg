@@ -7,6 +7,7 @@ import path from 'path';
 import { config } from './config.js';
 import prisma from './prisma.js';
 import { isFullAdmin, hasAdminAccess, isSuperAdmin } from './platformRoles.js';
+import { assertSessionLive, authenticateApiKey, touchSession } from './security.js';
 
 // Generate secure random secret
 const generateSecureSecret = () => crypto.randomBytes(64).toString('hex');
@@ -71,6 +72,16 @@ export interface AuthenticatedRequest extends Request {
     role: string;
     purpose?: string;
   };
+  /**
+   * Set when the caller authenticated with a machine API key (spec §31) instead of
+   * a session JWT. Its `permissions` are the caller's whole grant — see
+   * `requestPermissions` in adminPermissions.ts, which is what stops a key from
+   * inheriting the `admin` role it authenticates as.
+   *
+   * Typed structurally rather than importing `ApiKeyIdentity` from security.ts,
+   * which imports this module.
+   */
+  adminKey?: { id: string; name: string; permissions: string[] };
 }
 
 // Export for use in auth.ts and github.ts
@@ -126,6 +137,13 @@ export async function assertPasswordStillValid(decoded: JwtPayload): Promise<str
  */
 export const authMiddleware = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
+    // A machine API key already authenticated this request (adminApiKeyAuth runs
+    // ahead of this on the admin mounts). It carries no JWT, so the header checks
+    // below would refuse it.
+    if (req.adminKey) {
+      return next();
+    }
+
     // Allow internal API calls with shared secret (for webhook auto-deploy)
     const internalSecret = req.headers['x-internal-secret'];
     if (internalSecret && internalSecret === INTERNAL_API_SECRET) {
@@ -155,6 +173,17 @@ export const authMiddleware = async (req: AuthenticatedRequest, res: Response, n
       return res.status(401).json({ error: pwdErr });
     }
 
+    // Operator sessions can be revoked from Admin → Security (§30). Only operator
+    // tokens are checked: those are the only ones the sessions table records, so for
+    // a customer this would be a guaranteed-miss query on every request.
+    if (hasAdminAccess(decoded.role)) {
+      const sessionErr = await assertSessionLive(token);
+      if (sessionErr) {
+        return res.status(401).json({ error: sessionErr });
+      }
+      touchSession(token);
+    }
+
     req.user = {
       userId: decoded.userId,
       email: decoded.email,
@@ -164,6 +193,75 @@ export const authMiddleware = async (req: AuthenticatedRequest, res: Response, n
   } catch (error: any) {
     return authError(res, error);
   }
+};
+
+/**
+ * Authenticate `x-admin-api-key` (spec §31). Mount on the admin API *before*
+ * `authMiddleware`; a request without the header passes straight through to normal
+ * JWT auth, so this is additive.
+ *
+ * The identity it attaches claims `role: 'admin'` purely to clear the entry gate.
+ * Authorization comes from the key's own permission list — `requestPermissions`
+ * ignores the role whenever `req.adminKey` is set.
+ */
+export const adminApiKeyAuth = async (
+  req: AuthenticatedRequest,
+  _res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const identity = await authenticateApiKey(req);
+    if (identity) {
+      req.adminKey = identity;
+      req.user = {
+        userId: `apikey:${identity.id}`,
+        email: `key:${identity.name}`,
+        role: 'admin',
+      };
+    }
+  } catch {
+    // Fall through to JWT auth; a broken key lookup is a 401, not a 500.
+  }
+  next();
+};
+
+/**
+ * Replace the JWT's copy of the role with the live one from the database.
+ *
+ * The token carries the role it was minted with and lives for seven days, so
+ * demoting an operator — or the moment they lose admin access entirely — would
+ * otherwise take effect a week late. The permission gate below reads
+ * `req.user.role`, so refreshing it here is what makes "the backend is the source
+ * of truth" (§61) true for authorization and not just for data.
+ *
+ * One indexed lookup per admin request. Admin traffic is a rounding error next to
+ * the tenant API, and the alternative — trusting a week-old claim — is not a
+ * trade-off worth making.
+ */
+export const attachLiveRole = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  // API keys have no User row, and `internal` is the webhook secret, not an account.
+  if (req.adminKey || !req.user || req.user.userId === 'internal') return next();
+  try {
+    const live = await prisma.user.findUnique({
+      where: { id: req.user.userId },
+      select: { role: true, status: true },
+    });
+    if (!live) {
+      return res.status(401).json({ error: 'Account no longer exists.' });
+    }
+    if (live.status !== 'active') {
+      return res.status(403).json({ error: 'Account is not active.' });
+    }
+    req.user.role = live.role;
+  } catch {
+    // Fail closed: an unreadable role is not an admin role.
+    return res.status(503).json({ error: 'Authorization temporarily unavailable' });
+  }
+  next();
 };
 
 /**

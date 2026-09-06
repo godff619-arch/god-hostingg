@@ -8,6 +8,7 @@
 import crypto from 'crypto';
 import prisma from './prisma.js';
 import { AuthenticatedRequest, isAdmin } from './authMiddleware.js';
+import { effectivePlanKey } from './billingState.js';
 import { getSetting } from './settings.js';
 
 /** Prefixed, URL-safe id in the Render style (`tea-9f3a21c4b7e0`). */
@@ -35,6 +36,26 @@ export type FeatureKey = keyof typeof FEATURE_TIERS;
 export function normalizeTier(planKey: string | null | undefined): PlanTier {
   const key = (planKey || '').toLowerCase();
   return key === 'pro' || key === 'scale' ? key : 'hobby';
+}
+
+/**
+ * The tier a workspace is actually entitled to right now.
+ *
+ * Feature and quota checks must use this rather than `normalizeTier(ws.plan_key)`:
+ * the raw column still reads `pro` after a subscription is canceled or its paid
+ * period lapses — the admin panel and the renewal flow need to see what it *was* —
+ * and honouring it there would hand out paid features for free. Spec §37: the plan
+ * field alone is not the source of truth for billing.
+ *
+ * The billing columns are required, not optional: a caller whose `select` omits
+ * `subscription_status` gets a compile error instead of a silently wrong tier.
+ */
+export function effectiveTier(ws: {
+  plan_key: string;
+  subscription_status: string;
+  current_period_end?: Date | null;
+}): PlanTier {
+  return normalizeTier(effectivePlanKey(ws));
 }
 
 export function tierLabel(tier: PlanTier): string {

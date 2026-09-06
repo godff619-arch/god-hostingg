@@ -15,7 +15,7 @@ import { seal } from '../lib/secretBox.js';
 import {
   FEATURE_TIERS,
   hasFeature,
-  normalizeTier,
+  effectiveTier,
   requestedWorkspaceId,
   resolveWorkspace,
   sendWorkspaceError,
@@ -33,7 +33,7 @@ function fail(res: Response, status: number, code: string, message: string): voi
 /** Resolve the workspace and refuse when its plan does not include `feature`. */
 async function gated(req: AuthenticatedRequest, res: Response, feature: FeatureKey) {
   const workspace = await resolveWorkspace(req, requestedWorkspaceId(req));
-  const tier = normalizeTier(workspace.plan_key);
+  const tier = effectiveTier(workspace);
   if (!hasFeature(tier, feature)) {
     const required = FEATURE_TIERS[feature];
     res.status(403).json({
@@ -79,7 +79,7 @@ const WEBHOOK_EVENTS = [
 router.get('/webhooks', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const workspace = await resolveWorkspace(req, requestedWorkspaceId(req));
-    const tier = normalizeTier(workspace.plan_key);
+    const tier = effectiveTier(workspace);
     const unlocked = hasFeature(tier, 'webhooks');
 
     const hooks = unlocked
@@ -406,7 +406,7 @@ router.post('/observability/:kind/test', async (req: AuthenticatedRequest, res: 
 router.get('/dedicated-ips', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const workspace = await resolveWorkspace(req, requestedWorkspaceId(req));
-    const tier = normalizeTier(workspace.plan_key);
+    const tier = effectiveTier(workspace);
     const unlocked = hasFeature(tier, 'dedicated_ips');
     const ips = unlocked
       ? await prisma.dedicatedIp.findMany({

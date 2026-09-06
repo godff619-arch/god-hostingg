@@ -14,7 +14,9 @@ export function AdminGuard({ write = false }: { write?: boolean }) {
   const { user, loading } = useAuth();
   if (loading) return null;
   const allowed = write ? isFullAdmin(user?.role) : hasAdminAccess(user?.role);
-  if (!allowed) return <Navigate to="/" replace />;
+  // `/projects`, not `/` — `/` is the public homepage, so bouncing a signed-in
+  // user there would look like being logged out.
+  if (!allowed) return <Navigate to="/projects" replace />;
   return <Outlet />;
 }
 

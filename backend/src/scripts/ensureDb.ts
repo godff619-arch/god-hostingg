@@ -849,6 +849,19 @@ const WORKSPACE_TABLES: Array<[string, string, string[]]> = [
       `CREATE INDEX IF NOT EXISTS "error_events_resolved_at_idx" ON "error_events"("resolved_at")`,
     ],
   ],
+  [
+    'platform_uptime',
+    `CREATE TABLE IF NOT EXISTS "platform_uptime" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "started_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "last_seen_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "ended_at" DATETIME,
+      "clean_exit" BOOLEAN NOT NULL DEFAULT false,
+      "gap_seconds" INTEGER NOT NULL DEFAULT 0,
+      "version" TEXT
+    )`,
+    [`CREATE INDEX IF NOT EXISTS "platform_uptime_started_at_idx" ON "platform_uptime"("started_at")`],
+  ],
 ];
 
 async function migrationHistoryEmpty(): Promise<boolean> {

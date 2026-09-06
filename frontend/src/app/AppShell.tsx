@@ -5,6 +5,7 @@
 
 import { useRef } from "react";
 import { Outlet } from "react-router-dom";
+import { AnnouncementBanner } from "@/components/shell/AnnouncementBanner";
 import { CommandPalette } from "@/components/shell/CommandPalette";
 import { MaintenanceBanner, MaintenanceGate } from "@/components/shell/MaintenanceGate";
 import { Sidebar } from "@/components/shell/Sidebar";
@@ -51,6 +52,7 @@ function ShellFrame() {
 
       <div className="shell-inset">
         <MaintenanceBanner />
+        <AnnouncementBanner />
         <main className="w-full px-4 py-6 sm:px-6 lg:px-8">
           <Outlet />
         </main>

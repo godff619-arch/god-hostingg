@@ -132,14 +132,107 @@ export interface PlanOption {
   benefits: string[];
 }
 
-/** Card on file. The API only ever sends the brand and last four digits. */
+/**
+ * Card on file — §6 shape.
+ *
+ * The API sends brand + last four and nothing else that could reconstruct a card.
+ * There is no `number` and no `cvv` field here because the server never stores one;
+ * `label` is the ready-made `Visa •••• 7411` string so no component re-invents the
+ * masking and accidentally prints more than four digits.
+ */
 export interface PaymentMethodRow {
   id: string;
+  provider: string;
   brand: string;
   last4: string;
   exp_month: number;
   exp_year: number;
   is_default: boolean;
+  status: string;
+  type: string;
+  funding: string;
+  billing_name: string | null;
+  billing_country: string | null;
+  created_at: string;
+  label: string;
+  expiry_label: string;
+}
+
+/**
+ * §37 billing state. Five separate fields, because a single `plan` column cannot
+ * express "bought Pro, payment failed, period already over".
+ *
+ * `plan_key` is what was purchased; `effective_plan` is what the workspace is
+ * entitled to *right now* (a lapsed Pro reads `pro` / `hobby`). Feature gating on
+ * the client should read `effective_plan`; `live` is the one-boolean summary.
+ */
+export interface SubscriptionState {
+  plan_key: string;
+  plan_label: string;
+  effective_plan: string;
+  effective_plan_label: string;
+  subscription_status: string;
+  payment_status: string;
+  billing_provider: string | null;
+  subscription_id: string | null;
+  current_period_start: string | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+  live: boolean;
+  manual_override: boolean;
+  manual_override_reason: string | null;
+  manual_override_at: string | null;
+}
+
+/** A checkout session. Never carries a secret key — publishable ids only. */
+export interface CheckoutSessionView {
+  id: string;
+  plan_key: string;
+  amount_cents: number;
+  amount_label: string;
+  currency: string;
+  provider: string;
+  provider_ref: string | null;
+  redirect_url: string | null;
+  status: string;
+  payment_id: string | null;
+  expires_at: string;
+  created_at: string;
+  completed_at: string | null;
+  instructions: string | null;
+  publishable_key: string | null;
+}
+
+export interface CheckoutStatus {
+  checkout: CheckoutSessionView;
+  payment: {
+    id: string;
+    status: string;
+    amount_cents: number;
+    currency: string;
+    failure_code: string | null;
+    failure_message: string | null;
+    succeeded_at: string | null;
+  } | null;
+  subscription: SubscriptionState;
+}
+
+/** How this instance takes money, plus any checkout already in flight. */
+export interface CheckoutConfig {
+  provider: string;
+  currency: string;
+  stripe_publishable_key: string | null;
+  razorpay_key_id: string | null;
+  manual_instructions: string | null;
+  pending_session: {
+    id: string;
+    plan_key: string;
+    amount_cents: number;
+    currency: string;
+    redirect_url: string | null;
+    provider_ref: string | null;
+    expires_at: string;
+  } | null;
 }
 
 export interface BillingProfile {
@@ -185,6 +278,8 @@ export type InvoiceStatus = "paid" | "pending" | "failed" | "refunded";
 
 export interface InvoiceRow {
   id: string;
+  /** Human-facing sequential number, `GH-2026-0001`. */
+  number?: string | null;
   period_start: string;
   period_end: string;
   amount_cents: number;
@@ -192,6 +287,7 @@ export interface InvoiceRow {
   status: InvoiceStatus | string;
   has_pdf: boolean;
   issued_at: string;
+  paid_at?: string | null;
 }
 
 export interface BillingPayload {
@@ -199,6 +295,9 @@ export interface BillingPayload {
   /** Billing period key, `YYYY-MM`. */
   period: string;
   plans: PlanOption[];
+  /** §37 state. `workspace.plan` is the effective tier; this says why. */
+  subscription: SubscriptionState;
+  checkout: CheckoutConfig;
   payment_methods: PaymentMethodRow[];
   billing_profile: BillingProfile | null;
   included_usage: {

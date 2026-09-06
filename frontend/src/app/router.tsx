@@ -1,8 +1,10 @@
-import { createBrowserRouter, Navigate } from "react-router-dom";
+import { createBrowserRouter, Navigate, useLocation } from "react-router-dom";
 import { AppProviders } from "./AppProviders";
 import { AppShell } from "./AppShell";
+import { AdminShell } from "./AdminShell";
 import { ProtectedLayout } from "./ProtectedLayout";
 import { AdminGuard } from "./AdminGuard";
+import { useAuth } from "@/components/AuthProvider";
 
 function Root() {
   return (
@@ -12,11 +14,41 @@ function Root() {
   );
 }
 
+/**
+ * Unknown URL. A session wants its dashboard back; a visitor without one wants
+ * the front door — sending both to `/` would drop a signed-in user onto the
+ * marketing page and make it look like they had been logged out.
+ */
+function NotFoundRedirect() {
+  const { isAuthenticated } = useAuth();
+  return <Navigate to={isAuthenticated ? "/projects" : "/"} replace />;
+}
+
+/**
+ * `/terminal` moved into the admin panel. The query string comes along: the rail's
+ * upgrade button links to `?confirm=upgrade`, and dropping it would land on a bare
+ * shell with the confirmation step silently skipped.
+ */
+function TerminalRedirect() {
+  const { search, hash } = useLocation();
+  return <Navigate to={{ pathname: "/admin/terminal", search, hash }} replace />;
+}
+
 export const router = createBrowserRouter([
   {
     path: "/",
     element: <Root />,
     children: [
+      {
+        // The public front door (pages/Landing.tsx). Outside <AppShell /> on
+        // purpose: a guest has no session, no workspace and no rail to hang the
+        // page on. The signed-in dashboard is `/projects`.
+        index: true,
+        lazy: async () => {
+          const m = await import("@/pages/Landing");
+          return { Component: m.default };
+        },
+      },
       // Sign-in and setup render without the shell — there is no session yet.
       {
         path: "sign-in",
@@ -42,12 +74,6 @@ export const router = createBrowserRouter([
       {
         element: <AppShell />,
         children: [
-          {
-            // Landing page redirects into the canonical Projects list so there is
-            // exactly one project-cards page (no duplicate implementations).
-            index: true,
-            element: <Navigate to="/projects" replace />,
-          },
           {
             // PROJECTS — the project cards. Never a flat service list.
             path: "projects",
@@ -168,6 +194,15 @@ export const router = createBrowserRouter([
             },
           },
           {
+            // The customer's half of the admin Support inbox (§23). The operator
+            // side is `/admin/support`; this is where the ticket is opened.
+            path: "support",
+            lazy: async () => {
+              const m = await import("@/pages/Support");
+              return { Component: m.default };
+            },
+          },
+          {
             // Service-to-service internal networking (Part A → NETWORKING).
             path: "private-links",
             lazy: async () => {
@@ -207,24 +242,36 @@ export const router = createBrowserRouter([
             },
           },
           {
+            // The old tenant-shell terminal URL. The page moved into the admin
+            // panel (it is a root shell on the host, not a workspace feature);
+            // the redirect keeps existing bookmarks and links working.
             path: "terminal",
-            element: <AdminGuard write />,
+            element: <TerminalRedirect />,
+          },
+          {
+            // Availability for everyone. `/system` below is the operator's view of
+            // the same host and stays gated.
+            path: "status",
+            lazy: async () => {
+              const m = await import("@/pages/Status");
+              return { Component: m.default };
+            },
+          },
+          {
+            // Host metrics, disks, kernel, load, PIDs. Admin-only: the API refuses
+            // a non-admin (routes/system.ts), and this stops the URL being typed
+            // in for a page that would then only render errors.
+            path: "system",
+            element: <AdminGuard />,
             children: [
               {
                 index: true,
                 lazy: async () => {
-                  const m = await import("@/pages/Terminal");
+                  const m = await import("@/pages/System");
                   return { Component: m.default };
                 },
               },
             ],
-          },
-          {
-            path: "system",
-            lazy: async () => {
-              const m = await import("@/pages/System");
-              return { Component: m.default };
-            },
           },
           {
             path: "ports",
@@ -261,9 +308,28 @@ export const router = createBrowserRouter([
               return { Component: m.default };
             },
           },
+        ],
+      },
+      {
+        // THE ADMIN PANEL — a sibling of <AppShell />, not a page inside it.
+        //
+        // Its own rail, its own header, no workspace context and no maintenance
+        // gate. Nesting it in the tenant shell is what produced the old layout
+        // where a customer's Projects link sat one row above a destructive
+        // platform switch, and where an operator working during maintenance was
+        // shown the maintenance page by their own shell.
+        path: "admin/login",
+        lazy: async () => {
+          const m = await import("@/pages/admin/AdminLogin");
+          return { Component: m.default };
+        },
+      },
+      {
+        path: "admin",
+        element: <AdminGuard />,
+        children: [
           {
-            path: "admin",
-            element: <AdminGuard />,
+            element: <AdminShell />,
             children: [
               {
                 index: true,
@@ -315,6 +381,21 @@ export const router = createBrowserRouter([
                 },
               },
               {
+                // The host shell. Full admins only — a read-only viewer must not
+                // reach a root prompt (re-checked in services/terminal.ts).
+                path: "terminal",
+                element: <AdminGuard write />,
+                children: [
+                  {
+                    index: true,
+                    lazy: async () => {
+                      const m = await import("@/pages/Terminal");
+                      return { Component: m.default };
+                    },
+                  },
+                ],
+              },
+              {
                 path: "audit-logs",
                 lazy: async () => {
                   const m = await import("@/pages/admin/AdminAuditLogs");
@@ -343,9 +424,103 @@ export const router = createBrowserRouter([
                 },
               },
               {
+                path: "subscriptions",
+                lazy: async () => {
+                  const m = await import("@/pages/admin/AdminSubscriptions");
+                  return { Component: m.default };
+                },
+              },
+              {
+                path: "payments",
+                lazy: async () => {
+                  const m = await import("@/pages/admin/AdminPayments");
+                  return { Component: m.default };
+                },
+              },
+              {
+                path: "invoices",
+                lazy: async () => {
+                  const m = await import("@/pages/admin/AdminInvoices");
+                  return { Component: m.default };
+                },
+              },
+              {
+                path: "credits",
+                lazy: async () => {
+                  const m = await import("@/pages/admin/AdminCredits");
+                  return { Component: m.default };
+                },
+              },
+              {
+                path: "cards",
+                lazy: async () => {
+                  const m = await import("@/pages/admin/AdminCards");
+                  return { Component: m.default };
+                },
+              },
+              {
+                path: "refunds",
+                lazy: async () => {
+                  const m = await import("@/pages/admin/AdminRefunds");
+                  return { Component: m.default };
+                },
+              },
+              {
+                path: "coupons",
+                lazy: async () => {
+                  const m = await import("@/pages/admin/AdminCoupons");
+                  return { Component: m.default };
+                },
+              },
+              {
+                path: "billing-analytics",
+                lazy: async () => {
+                  const m = await import("@/pages/admin/AdminBillingAnalytics");
+                  return { Component: m.default };
+                },
+              },
+              {
+                path: "email",
+                lazy: async () => {
+                  const m = await import("@/pages/admin/AdminEmail");
+                  return { Component: m.default };
+                },
+              },
+              {
+                path: "announcements",
+                lazy: async () => {
+                  const m = await import("@/pages/admin/AdminAnnouncements");
+                  return { Component: m.default };
+                },
+              },
+              {
+                path: "support",
+                lazy: async () => {
+                  const m = await import("@/pages/admin/AdminSupport");
+                  return { Component: m.default };
+                },
+              },
+              {
+                // The link every "new support ticket" notification carries. Same
+                // page; the id opens that thread on arrival instead of dropping the
+                // operator on an inbox and making them search for it.
+                path: "support/:ticketId",
+                lazy: async () => {
+                  const m = await import("@/pages/admin/AdminSupport");
+                  return { Component: m.default };
+                },
+              },
+              {
                 path: "uploads",
                 lazy: async () => {
                   const m = await import("@/pages/admin/AdminUploads");
+                  return { Component: m.default };
+                },
+              },
+              {
+                path: "security",
+                lazy: async () => {
+                  const m = await import("@/pages/admin/AdminSecurity");
                   return { Component: m.default };
                 },
               },
@@ -360,7 +535,7 @@ export const router = createBrowserRouter([
           },
         ],
       },
-      { path: "*", element: <Navigate to="/" replace /> },
+      { path: "*", element: <NotFoundRedirect /> },
     ],
   },
 ]);

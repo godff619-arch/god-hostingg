@@ -23,8 +23,10 @@ import { dedupeEnvVariables } from './lib/envVariables.js';
 import { requestId, getRequestId } from './lib/requestId.js';
 import { recordError, recordRequestError } from './lib/errorCenter.js';
 import { runRetentionSweep } from './lib/retention.js';
+import { sweepLapsedSubscriptions } from './lib/billingState.js';
 import { requireFeatureForWrites } from './lib/featureFlags.js';
 import { platformMaintenanceGate } from './lib/platformSwitches.js';
+import { drainQueued, seedEmailTemplates } from './lib/mailer.js';
 import {
   apiLimiter,
   backupLimiter,
@@ -44,15 +46,23 @@ import backupRouter from './routes/backup.js';
 import logsRouter from './routes/logs.js';
 import databasesRouter from './routes/databases.js';
 import authRouter from './routes/auth.js';
+import publicRouter from './routes/public.js';
 import adminRouter from './routes/admin.js';
+import adminBillingRouter from './routes/adminBilling.js';
+import adminCommsRouter from './routes/adminComms.js';
+import adminSecurityRouter from './routes/adminSecurity.js';
 import workspaceRouter from './routes/workspace.js';
 import billingRouter from './routes/billing.js';
+import paymentWebhooksRouter from './routes/paymentWebhooks.js';
 import integrationsRouter from './routes/integrations.js';
 import envGroupsRouter from './routes/envGroups.js';
 import notificationsRouter from './routes/notifications.js';
+import supportRouter from './routes/support.js';
 import privateLinksRouter from './routes/privateLinks.js';
 import blueprintsRouter from './routes/blueprints.js';
-import { authMiddleware, sseAuthMiddleware, requireAdminAccess } from './lib/authMiddleware.js';
+import { authMiddleware, sseAuthMiddleware, requireAdminAccess, adminApiKeyAuth, attachLiveRole } from './lib/authMiddleware.js';
+import { adminPermissionGate } from './lib/adminPermissions.js';
+import { startUptimeTracking, stopUptimeTracking } from './lib/uptime.js';
 import { setupTerminalWebSocket, cleanupAllSessions } from './services/terminal.js';
 import { startCertRenewWatcher } from './services/certs.js';
 import { reloadNginx, syncNginxConfigs } from './services/nginx.js';
@@ -117,6 +127,18 @@ app.use((req, res, next) => {
     credentials: true,
   })(req, res, next);
 });
+
+// Payment provider webhooks — mounted BEFORE the JSON parser and before any auth.
+//
+// Signature verification is an HMAC over the exact bytes the provider sent, so the
+// body must not be parsed and re-serialised first; `express.raw` hands the router a
+// Buffer. There is no session on these requests — the signature is the credential
+// (spec §34) — which is why this line sits above `authMiddleware`.
+app.use(
+  '/api/billing/webhooks',
+  express.raw({ type: '*/*', limit: '2mb' }),
+  paymentWebhooksRouter,
+);
 
 // Middleware
 // SECURITY: Capture raw body for webhook signature verification (HMAC needs original bytes)
@@ -220,6 +242,13 @@ app.use('/api/auth/register', setupLimiter);
 app.use('/api/auth/setup-token', setupLimiter);
 app.use('/api/auth', authLimiter, authRouter);
 
+// The marketing homepage's data (pricing, whether signups are open). Mounted here,
+// ahead of the maintenance gate, on purpose: a maintenance window means the
+// *product* is paused, and answering the front door with a 503 would tell a
+// first-time visitor the company is gone. It carries its own IP-keyed limiter
+// because the global one deliberately skips GETs.
+app.use('/api/public', publicRouter);
+
 // Protected routes - apply auth middleware
 // A generous per-user/IP ceiling across the whole authenticated API (stops a
 // runaway script; normal dashboard polling stays far under it). Tight,
@@ -236,9 +265,20 @@ app.use('/api', apiLimiter);
 // above, which blocks everyone including admins.
 app.use('/api', platformMaintenanceGate);
 
-// Ops center: `viewer` tier gets in for read-only; the router's own write gate
-// (requireAdminWrite) blocks every mutation for viewers while full admins pass.
-app.use('/api/admin', authMiddleware, requireAdminAccess, adminRouter);
+// Ops center. All four routers sit behind the same chain; admin.ts installs the
+// per-action permission gate itself, and the sibling mounts are passed the same gate
+// explicitly because they are sibling mounts, not child routers. Splitting the files
+// is an organisational choice — it is not a second trust boundary.
+//
+// `adminApiKeyAuth` runs first so a machine key (§31) can authenticate; without the
+// header it is a no-op and the request falls through to the JWT. `attachLiveRole`
+// then replaces the token's week-old role claim with the live one, so a demotion
+// takes effect on the next request instead of at token expiry.
+const adminChain = [adminApiKeyAuth, authMiddleware, attachLiveRole, requireAdminAccess] as const;
+app.use('/api/admin', ...adminChain, adminRouter);
+app.use('/api/admin', ...adminChain, adminPermissionGate, adminBillingRouter);
+app.use('/api/admin', ...adminChain, adminPermissionGate, adminCommsRouter);
+app.use('/api/admin', ...adminChain, adminPermissionGate, adminSecurityRouter);
 app.use('/api/workspace', authMiddleware, workspaceRouter);
 app.use('/api/billing', authMiddleware, billingRouter);
 app.use('/api/integrations', authMiddleware, integrationsRouter);
@@ -246,6 +286,9 @@ app.use('/api/integrations', authMiddleware, integrationsRouter);
 // off never hides what a user already has — see lib/featureFlags.ts.
 app.use('/api/env-groups', authMiddleware, requireFeatureForWrites('env_groups'), envGroupsRouter);
 app.use('/api/notifications', authMiddleware, notificationsRouter);
+// Customer-facing support tickets (§23). The admin inbox reads the same rows; this
+// is the surface that puts anything in them.
+app.use('/api/support', authMiddleware, supportRouter);
 app.use(
   '/api/private-links',
   authMiddleware,
@@ -375,6 +418,20 @@ async function main() {
     // Guarantee the platform has an OWNER (legacy/restored DBs may have none).
     await ensureOwnerExists();
 
+    // Create any built-in email template that is missing (§21). Non-fatal, and it
+    // never overwrites an operator's edit — a redeploy must not silently revert the
+    // wording someone changed in Admin → Email.
+    try {
+      await seedEmailTemplates();
+    } catch (mailErr: any) {
+      console.warn(`⚠️  Email templates not seeded (${mailErr?.message || 'error'})`);
+    }
+
+    // Open this boot's uptime session before accepting traffic. Doing it here is
+    // what lets the status page report the outage that just ended: the gap is
+    // measured against the previous session's last heartbeat.
+    await startUptimeTracking();
+
     // Ensure Docker network exists (non-fatal so auth/API can run without Docker for local smoke)
     try {
       await ensureNetwork();
@@ -455,6 +512,38 @@ async function main() {
     const pruneTimer = setInterval(prune, 24 * 60 * 60 * 1000);
     pruneTimer.unref();
 
+    // Billing lapse sweep: move workspaces whose paid period ended off the paid plan
+    // and honour `cancel_at_period_end`. Hourly rather than daily so a cancellation
+    // takes effect on the day it was due. `effectivePlanKey()` already refuses to
+    // honour a lapsed period, so a missed run leaves a stale status column, never
+    // free Pro — this sweep is what makes the column agree with reality.
+    const sweepBilling = () => {
+      void sweepLapsedSubscriptions()
+        .then((count) => {
+          if (count > 0) console.log(`[billing] ${count} subscription(s) lapsed`);
+        })
+        .catch((err) => console.warn('[billing] lapse sweep failed:', err));
+    };
+    sweepBilling();
+    const billingTimer = setInterval(sweepBilling, 60 * 60 * 1000);
+    billingTimer.unref();
+
+    // Mail queue: a mail written while SMTP was unconfigured (or while the relay was
+    // down) is stored with its rendered body and status `queued`. This is what
+    // eventually sends it. Every five minutes, and a no-op when SMTP is off — so
+    // configuring SMTP later still delivers the invoices already waiting, and nothing
+    // is ever marked sent that the transport did not accept.
+    const sweepMail = () => {
+      void drainQueued(25)
+        .then(({ sent, failed }) => {
+          if (sent > 0 || failed > 0) console.log(`[mailer] drained queue: ${sent} sent, ${failed} failed`);
+        })
+        .catch((err) => console.warn('[mailer] queue drain failed:', err));
+    };
+    sweepMail();
+    const mailTimer = setInterval(sweepMail, 5 * 60 * 1000);
+    mailTimer.unref();
+
     // A crash the operator never sees is the worst kind. Record it, then let the
     // default behaviour stand: an uncaught exception leaves the process in an
     // unknown state, so we exit rather than pretend to keep serving.
@@ -499,6 +588,9 @@ async function main() {
       cleanupAllSessions();
       console.log('   Terminal sessions cleaned up');
       clearInterval(pruneTimer);
+      // Mark the uptime session as a clean exit, so the status page can call this
+      // a planned restart instead of listing it as a crash.
+      await stopUptimeTracking();
       await prisma.$disconnect();
       console.log('   Database disconnected');
       clearTimeout(forceExit);

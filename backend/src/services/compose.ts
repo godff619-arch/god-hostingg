@@ -33,6 +33,21 @@ export interface RuntimeServiceConfig {
   command?: string[];
   /** When false, do not inject PORT= (managed DBs). Default true. */
   injectPortEnv?: boolean;
+  /** Hostnames this service answers on. Used to emit edge routing labels. */
+  hostnames?: string[];
+}
+
+/**
+ * How the host's edge proxy reaches these containers. Only Traefik needs anything
+ * in the compose file — the nginx edge is attached to the project network after
+ * `compose up` and reads its own vhosts.
+ */
+export interface RuntimeEdgeConfig {
+  mode: 'nginx' | 'traefik' | 'none';
+  /** Existing external network Traefik watches; the app joins it. */
+  network: string | null;
+  certResolver: string | null;
+  entrypoints: { http: string; https: string };
 }
 
 export interface RuntimeComposeOptions {
@@ -41,6 +56,7 @@ export interface RuntimeComposeOptions {
   /** Soft defaults — apps can still OOM if they ignore cgroup limits */
   memLimit?: string;
   cpus?: number;
+  edge?: RuntimeEdgeConfig;
 }
 
 // Directories to ignore when scanning
@@ -144,11 +160,55 @@ export function dedupeScannedServices(services: ServiceConfig[]): ServiceConfig[
 }
 
 /**
+ * Traefik router labels for one service.
+ *
+ * Two routers per service, not one: Traefik matches a request to an entrypoint
+ * *and* a rule, so a single router bound to both entrypoints would serve HTTPS
+ * with no certificate the moment the hostname resolves. The plain-HTTP router
+ * exists to answer the ACME challenge and redirect; the TLS router is the one
+ * that carries the certificate.
+ *
+ * Router names are derived from the container name, which is already unique per
+ * project and service — two apps claiming one router name would silently shadow
+ * each other.
+ */
+export function traefikLabels(
+  service: Pick<RuntimeServiceConfig, 'container_name' | 'internal_port' | 'hostnames'>,
+  edge: RuntimeEdgeConfig,
+): Record<string, string> {
+  const hosts = (service.hostnames ?? []).map((h) => h.trim().toLowerCase()).filter(Boolean);
+  if (edge.mode !== 'traefik' || !edge.network || hosts.length === 0) return {};
+
+  const id = service.container_name.replace(/[^a-zA-Z0-9-]/g, '-').replace(/^-+|-+$/g, '');
+  const rule = hosts.map((h) => `Host(\`${h}\`)`).join(' || ');
+  const labels: Record<string, string> = {
+    'traefik.enable': 'true',
+    // Without this Traefik may pick the project's private bridge address, which it
+    // has no route to, and every request 502s.
+    'traefik.docker.network': edge.network,
+    [`traefik.http.routers.${id}.rule`]: rule,
+    [`traefik.http.routers.${id}.entrypoints`]: edge.entrypoints.http,
+    [`traefik.http.routers.${id}.service`]: id,
+    [`traefik.http.routers.${id}-tls.rule`]: rule,
+    [`traefik.http.routers.${id}-tls.entrypoints`]: edge.entrypoints.https,
+    [`traefik.http.routers.${id}-tls.service`]: id,
+    [`traefik.http.routers.${id}-tls.tls`]: 'true',
+    [`traefik.http.services.${id}.loadbalancer.server.port`]: String(service.internal_port),
+  };
+  if (edge.certResolver) {
+    labels[`traefik.http.routers.${id}-tls.tls.certresolver`] = edge.certResolver;
+  }
+  return labels;
+}
+
+/**
  * Write DockLift-owned runtime state outside the source checkout. Repository
  * Dockerfiles and docker-compose.yml files are never modified.
  *
  * Isolation: each project gets its own bridge network. The edge proxy is
- * attached to that network after `compose up` (see docker.connectProxyToProjectNetwork).
+ * attached to that network after `compose up` (see docker.connectProxyToProjectNetwork),
+ * except under Traefik, where the app joins Traefik's existing network instead
+ * and carries router labels.
  * Control-plane services stay on docklift_network only.
  */
 export function generateRuntimeCompose(
@@ -177,6 +237,19 @@ export function generateRuntimeCompose(
       },
     },
   };
+
+  // Under Traefik the app has to be a member of Traefik's own network to be
+  // routable. It is declared external because it belongs to the platform that was
+  // here first — creating it ourselves would produce a second, empty network with
+  // the same name and no Traefik on it.
+  const edge = options?.edge;
+  const usesTraefik =
+    edge?.mode === 'traefik' &&
+    !!edge.network &&
+    services.some((s) => (s.hostnames ?? []).length > 0);
+  if (usesTraefik) {
+    composeConfig.networks.edge = { name: edge!.network, external: true };
+  }
   const topLevelVolumes: Record<string, { name: string; external: true }> = {};
 
   for (const service of services) {
@@ -191,6 +264,8 @@ export function generateRuntimeCompose(
       'com.docklift.project': projectId,
       'com.docklift.service': service.name,
     };
+    const routing = usesTraefik ? traefikLabels(service, edge!) : {};
+    Object.assign(labels, routing);
     const environment: Record<string, string> = { ...runtimeEnv };
     if (service.injectPortEnv !== false) {
       environment.PORT = String(service.internal_port);
@@ -199,7 +274,9 @@ export function generateRuntimeCompose(
       image: service.image,
       container_name: service.container_name,
       restart: 'unless-stopped',
-      networks: ['project'],
+      // Only a service that is actually routed joins the edge network; a worker or
+      // a managed database stays private.
+      networks: Object.keys(routing).length ? ['project', 'edge'] : ['project'],
       labels,
       environment,
       security_opt: ['no-new-privileges:true'],

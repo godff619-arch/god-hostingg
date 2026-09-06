@@ -9,7 +9,13 @@ import prisma from '../lib/prisma.js';
 import { JWT_SECRET, authMiddleware, requireAdmin } from '../lib/authMiddleware.js';
 import { config } from '../lib/config.js';
 import { getSetting, getBoolSetting } from '../lib/settings.js';
-import { writeAudit } from '../lib/audit.js';
+import { writeAudit, clientIp } from '../lib/audit.js';
+import { hasAdminAccess } from '../lib/platformRoles.js';
+import {
+  recordLoginAttempt,
+  recordSession,
+  revokeSessionsForUser,
+} from '../lib/security.js';
 import {
   ensureBootstrapSecret,
   verifyBootstrapSecret,
@@ -53,6 +59,29 @@ function signSessionToken(user: {
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
   );
+}
+
+/**
+ * Sign a session token and, for an account that reaches the admin panel, record the
+ * session so Admin → Security can list and revoke it (spec §30).
+ *
+ * The row's expiry is read back off the signed token instead of recomputed from
+ * `JWT_EXPIRES_IN`, so the table and the credential can never disagree about when
+ * the session ends. Customer sessions are not recorded — see lib/security.ts.
+ */
+async function issueSession(
+  req: Request,
+  user: { id: string; email: string; role: string; passwordChangedAt?: Date | null },
+): Promise<string> {
+  const token = signSessionToken(user);
+  if (hasAdminAccess(user.role)) {
+    const decoded = jwt.decode(token) as { exp?: number } | null;
+    const expiresAt = decoded?.exp
+      ? new Date(decoded.exp * 1000)
+      : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    await recordSession(req, { userId: user.id, token, expiresAt });
+  }
+  return token;
 }
 
 // Check if setup is complete (any users exist)
@@ -155,7 +184,7 @@ router.post('/register', async (req: Request, res: Response) => {
       // Always drop the secret: the claim window is closed now either way.
       consumeBootstrapSecret();
 
-      const token = signSessionToken(user);
+      const token = await issueSession(req, user);
 
       res.status(201).json({
         message: 'Registration successful',
@@ -255,6 +284,10 @@ router.post('/signup', async (req: Request, res: Response) => {
   }
 });
 
+/** Failed attempts before the account is locked, and for how long (spec §2). */
+const MAX_FAILED_LOGINS = 5;
+const LOCKOUT_MS = 15 * 60 * 1000;
+
 // Login
 router.post('/login', async (req: Request, res: Response) => {
   try {
@@ -269,15 +302,100 @@ router.post('/login', async (req: Request, res: Response) => {
     });
 
     if (!user) {
+      // Recorded even though no such account exists: a run of `unknown_user` rows
+      // against `admin@` is exactly what the security page exists to show.
+      await recordLoginAttempt(req, email, 'unknown_user');
       return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    // Locked out by earlier failures. Checked before the password compare so a
+    // lockout cannot be brute-forced through, and the remaining time is stated —
+    // "try again later" with no number reads as a permanent ban.
+    if (user.locked_until && user.locked_until.getTime() > Date.now()) {
+      const minutes = Math.max(1, Math.ceil((user.locked_until.getTime() - Date.now()) / 60000));
+      await recordLoginAttempt(req, email, 'locked');
+      return res.status(423).json({
+        error: `Too many failed sign-in attempts. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`,
+      });
     }
 
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
+      await recordLoginAttempt(req, email, 'bad_password');
+      // Count the failure and lock the account once the threshold is crossed.
+      const failed = user.failed_logins + 1;
+      const lock = failed >= MAX_FAILED_LOGINS;
+      await prisma.user
+        .update({
+          where: { id: user.id },
+          data: {
+            failed_logins: lock ? 0 : failed,
+            locked_until: lock ? new Date(Date.now() + LOCKOUT_MS) : null,
+          },
+        })
+        .catch(() => undefined);
+      if (lock) {
+        (req as any).user = { userId: user.id, email: user.email, role: user.role };
+        await writeAudit(req, 'auth.locked', {
+          target_type: 'user',
+          target_id: user.id,
+          target_label: user.email,
+          severity: 'warning',
+          metadata: { failed_attempts: failed, minutes: LOCKOUT_MS / 60000 },
+        });
+        return res.status(423).json({
+          error: `Too many failed sign-in attempts. Try again in ${LOCKOUT_MS / 60000} minutes.`,
+        });
+      }
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    const token = signSessionToken(user);
+    // Status gates. `authMiddleware` already refuses a suspended account on every
+    // authenticated request, but issuing a token first and failing afterwards
+    // showed the user a working sign-in followed by errors on every page. Refuse
+    // here, with the reason, and never mint the token.
+    if (user.status === 'suspended') {
+      await recordLoginAttempt(req, email, 'suspended');
+      return res.status(403).json({ error: 'Account suspended. Contact an administrator.' });
+    }
+    if (user.status === 'pending') {
+      await recordLoginAttempt(req, email, 'pending');
+      return res
+        .status(403)
+        .json({ error: 'Your account is awaiting administrator approval.' });
+    }
+
+    const token = await issueSession(req, user);
+    await recordLoginAttempt(req, email, 'ok');
+
+    // Record the sign-in. `last_login_ip` is what the admin header shows an
+    // operator so an address they do not recognise is visible as a compromise.
+    const ip = clientIp(req as any);
+    await prisma.user
+      .update({
+        where: { id: user.id },
+        data: {
+          last_login_at: new Date(),
+          last_login_ip: ip,
+          login_count: { increment: 1 },
+          failed_logins: 0,
+          locked_until: null,
+        },
+      })
+      .catch(() => undefined);
+
+    // Operator sign-ins are audited; customer sign-ins are not, or the table
+    // becomes a traffic log and the actual administrative actions drown in it.
+    if (hasAdminAccess(user.role)) {
+      (req as any).user = { userId: user.id, email: user.email, role: user.role };
+      await writeAudit(req, 'admin.login', {
+        target_type: 'user',
+        target_id: user.id,
+        target_label: user.email,
+        severity: 'info',
+        metadata: { role: user.role, ip },
+      });
+    }
 
     res.json({
       message: 'Login successful',
@@ -390,8 +508,13 @@ router.post('/change-password', authMiddleware, async (req: Request, res: Respon
       data: { password: hashedNewPassword, passwordChangedAt: now },
     });
 
+    // Every token minted before this moment is already dead (`pwdv`), so the
+    // session rows are marked to match — a sessions page still listing them as live
+    // would be reporting the opposite of what the middleware does.
+    await revokeSessionsForUser(user.id, 'password_change');
+
     // Issue a fresh session so the current client stays logged in
-    const token = signSessionToken(updated);
+    const token = await issueSession(req, updated);
 
     res.json({ message: 'Password changed successfully', token });
   } catch (error: any) {

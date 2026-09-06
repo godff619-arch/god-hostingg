@@ -13,6 +13,7 @@ import {
   CircleHelp,
   CreditCard,
   Database,
+  HeartPulse,
   Keyboard,
   Layers,
   LayoutGrid,
@@ -80,7 +81,7 @@ export function TopHeader() {
         <Menu className="h-4 w-4" strokeWidth={1.75} />
       </button>
 
-      <Link to="/" aria-label="God Hosting home" className="shrink-0">
+      <Link to="/projects" aria-label="God Hosting home" className="shrink-0">
         <img src="/logo.png" alt="" className="h-[22px] w-[22px] rounded-[5px]" />
       </Link>
 
@@ -410,7 +411,12 @@ function HelpMenu({ onShortcuts }: { onShortcuts: () => void }) {
         Contact Support
       </DropdownItem>
       <DropdownSeparator />
-      <DropdownItem icon={<Network className="h-3.5 w-3.5" />} onClick={() => navigate("/system")}>
+      <DropdownItem
+        icon={<HeartPulse className="h-3.5 w-3.5" />}
+        // `/status`, not `/system`: host metrics are admin-only, and this menu is
+        // shown to every member.
+        onClick={() => navigate("/status")}
+      >
         Platform Status
       </DropdownItem>
     </Dropdown>

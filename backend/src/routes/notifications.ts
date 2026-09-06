@@ -27,6 +27,7 @@ import {
   postJson,
   type NotificationEvent,
 } from '../lib/notify.js';
+import { liveAnnouncementsFor } from '../lib/announcements.js';
 
 const router = express.Router();
 
@@ -84,6 +85,23 @@ function shapeChannel(row: {
 }
 
 // ------------------------------------------------------------------- the feed
+
+/**
+ * GET /api/notifications/announcements — platform notices the caller should see now
+ * (§22). Distinct from the feed: a banner is not a notification, it is a statement
+ * that is true for a window of time, and the audience is evaluated on every read so
+ * a plan change takes effect without anything being re-published.
+ *
+ * Declared before `GET /` only for readability; they do not overlap.
+ */
+router.get('/announcements', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const announcements = await liveAnnouncementsFor(req.user!.userId);
+    res.json({ announcements });
+  } catch (err: any) {
+    fail(res, 500, 'announcements_failed', err?.message || 'Could not load announcements.');
+  }
+});
 
 // GET /api/notifications — one page of the caller's own notifications.
 router.get('/', async (req: AuthenticatedRequest, res: Response) => {

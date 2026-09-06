@@ -48,7 +48,15 @@ import { rankOf, roleLabel } from "@/lib/roles";
 // Roles the current actor may grant, cheapest-first. Mirrors the server's
 // canAssignRole (strictly-below-own-rank); `owner` is never offered. The server
 // re-checks, so this only shapes the menu.
-const ASSIGNABLE_TIERS: UserRole[] = ["user", "viewer", "admin", "super_admin"];
+const ASSIGNABLE_TIERS: UserRole[] = [
+  "user",
+  "viewer",
+  "support_admin",
+  "billing_admin",
+  "operations_admin",
+  "admin",
+  "super_admin",
+];
 function assignableRoles(actorRole: string | null | undefined): UserRole[] {
   return ASSIGNABLE_TIERS.filter((r) => rankOf(actorRole) > rankOf(r));
 }

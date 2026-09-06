@@ -4,7 +4,7 @@ import { Router, Response } from 'express';
 import bcrypt from 'bcrypt';
 import { Prisma } from '@prisma/client';
 import prisma from '../lib/prisma.js';
-import { type AuthenticatedRequest, sendAccessError, requireAdminWrite } from '../lib/authMiddleware.js';
+import { type AuthenticatedRequest, sendAccessError } from '../lib/authMiddleware.js';
 import {
   canAssignRole,
   canManageTarget,
@@ -12,6 +12,15 @@ import {
   isOwner,
   privilegedRoleWhere,
 } from '../lib/platformRoles.js';
+import {
+  ADMIN_ROLES,
+  adminPermissionGate,
+  permissionsFor,
+  requestPermissions,
+  ROLE_BLURBS,
+  ROLE_LABELS,
+  GRANTABLE_ROLES,
+} from '../lib/adminPermissions.js';
 import { writeAudit } from '../lib/audit.js';
 import {
   getSetting,
@@ -27,6 +36,7 @@ import {
   S_ERROR_RESOLVED_RETENTION_DAYS,
 } from '../lib/retention.js';
 import {
+  assignServiceSubdomain,
   getPlatformDomainConfig,
   previewSubdomain,
   setPlatformDomainConfig,
@@ -36,7 +46,11 @@ import {
   getFeatureFlags,
   setFeatureFlags,
 } from '../lib/featureFlags.js';
-import { invalidatePlatformSwitchCache } from '../lib/platformSwitches.js';
+import {
+  getPlatformSwitches,
+  invalidatePlatformSwitchCache,
+} from '../lib/platformSwitches.js';
+import { detectEdgeRouter } from '../lib/edgeRouter.js';
 import { getSystemStats } from './system.js';
 import { getContainerStatus, getDockerEngineInfo } from '../services/docker.js';
 import { getCertificateStatus } from '../services/certs.js';
@@ -50,10 +64,71 @@ import {
 
 const router = Router();
 
-// Read-only viewers may reach every GET below (mounted via requireAdminAccess in
-// index.ts); this gate turns any mutation into a full-admin-only action. Endpoints
-// that manage other admins add a stricter super-admin/owner check on top.
-router.use(requireAdminWrite);
+// Per-action authorization for the whole surface below (spec §47). The router is
+// already behind authMiddleware + requireAdminAccess (index.ts); this gate resolves
+// `method + path` to the exact permission the request needs and refuses anything
+// the caller's role does not hold. It replaces the old blanket "mutations require a
+// full admin" gate: for owner/super_admin/admin/viewer the outcome is identical
+// (they hold every permission, or only the `.view` ones), while the scoped tiers
+// added by spec §2 — operations/billing/support — get real, narrow write access.
+// Endpoints that manage other admin accounts add a super-admin check on top.
+router.use(adminPermissionGate);
+
+/**
+ * Who am I, and what may I do? The admin UI calls this once on mount and gates
+ * every control on the returned `permissions`. Crucially the list is *derived on
+ * the server* from the live DB role — the frontend never computes it, so there is
+ * exactly one permission matrix in the system (spec §47, §61).
+ *
+ * It also carries the two platform switches. Not scope creep: the admin shell
+ * needs them on every page (an operator must not forget the platform is closed),
+ * every admin tier may read them, and this is the one request the panel already
+ * makes unconditionally — the alternative was a second poll from the header, or
+ * `GET /settings`, which a `billing_admin` is refused.
+ */
+router.get('/me', async (req: AuthenticatedRequest, res: Response) => {
+  const role = req.user?.role ?? 'user';
+  const [me, switches] = await Promise.all([
+    req.user?.userId
+      ? prisma.user.findUnique({
+          where: { id: req.user.userId },
+          select: { id: true, email: true, name: true, last_login_at: true, last_login_ip: true },
+        })
+      : Promise.resolve(null),
+    getPlatformSwitches().catch(() => null),
+  ]);
+  res.json({
+    id: me?.id ?? null,
+    email: me?.email ?? req.user?.email ?? null,
+    name: me?.name ?? null,
+    last_login_at: me?.last_login_at ?? null,
+    last_login_ip: me?.last_login_ip ?? null,
+    role,
+    role_label: ROLE_LABELS[role as keyof typeof ROLE_LABELS] ?? 'User',
+    permissions: requestPermissions(req),
+    platform: {
+      maintenance_mode: switches?.maintenanceMode ?? false,
+      maintenance_message: switches?.maintenanceMessage ?? '',
+      deployments_enabled: switches?.deploymentsEnabled ?? true,
+    },
+  });
+});
+
+/** Role catalogue for the role picker: label, blurb, and what this actor may grant. */
+router.get('/roles', (req: AuthenticatedRequest, res: Response) => {
+  const tiers = ['user', ...ADMIN_ROLES] as const;
+  res.json({
+    roles: tiers.map((r) => ({
+      value: r,
+      label: ROLE_LABELS[r as keyof typeof ROLE_LABELS] ?? 'Customer',
+      blurb:
+        ROLE_BLURBS[r as keyof typeof ROLE_BLURBS] ??
+        'A normal customer. No access to the admin panel.',
+      permissions: permissionsFor(r).length,
+      grantable: GRANTABLE_ROLES.includes(r as never) && canAssignRole(req.user?.role, r),
+    })),
+  });
+});
 
 const QUOTA_KEYS = [
   'ram_mb',
@@ -387,6 +462,11 @@ router.get('/operations', async (_req: AuthenticatedRequest, res: Response) => {
 
   const proc = process.memoryUsage();
 
+  // Which proxy owns this host's 80/443, and therefore how a tenant hostname
+  // becomes reachable. Re-probed rather than served from cache: an operator opens
+  // this page precisely when they have just started or stopped a proxy.
+  const edge = await detectEdgeRouter({ refresh: true }).catch(() => null);
+
   // Overall health rollup — degraded if a hard dependency is down.
   const health: 'ok' | 'degraded' = dbOk ? 'ok' : 'degraded';
 
@@ -403,6 +483,15 @@ router.get('/operations', async (_req: AuthenticatedRequest, res: Response) => {
     },
     database: { reachable: dbOk, latencyMs: dbLatencyMs, provider: 'sqlite' },
     docker,
+    edge: edge
+      ? {
+          mode: edge.mode,
+          container: edge.container,
+          network: edge.network,
+          certResolver: edge.certResolver,
+          reason: edge.reason,
+        }
+      : null,
     system,
     deployments,
     maintenance: { enabled: isMaintenanceMode(), reason: maintenanceReason() },
@@ -1109,10 +1198,96 @@ router.get('/domains', async (req: AuthenticatedRequest, res: Response) => {
         managed: filtered.filter((r) => r.managed).length,
         custom: filtered.filter((r) => !r.managed).length,
       },
+      // How hostnames actually reach containers on this host. Without it the page
+      // can only promise routing it may not be able to deliver.
+      edge: await (async () => {
+        const edge = await detectEdgeRouter();
+        return {
+          mode: edge.mode,
+          container: edge.container,
+          network: edge.network,
+          cert_resolver: edge.certResolver,
+          reason: edge.reason,
+        };
+      })(),
     });
   } catch (error) {
     console.error('[admin] list domains failed:', error);
     res.status(500).json({ error: 'Failed to list domains' });
+  }
+});
+
+/**
+ * POST /admin/domains/backfill — give every service that has no hostname one
+ * under the base domain, without waiting for its next deploy.
+ *
+ * Setting the base domain only affects apps deployed *after* it was set, which
+ * reads as "the setting did nothing" to an operator whose apps are all already
+ * running on `ip:port`. This walks the existing services instead. Services with a
+ * hostname of their own are never touched, and managed databases are skipped —
+ * they are private by design.
+ */
+router.post('/domains/backfill', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const cfg = await getPlatformDomainConfig();
+    if (!cfg.baseDomain) {
+      return res.status(400).json({
+        error: 'Set a base domain first — there is nothing to publish apps under yet.',
+      });
+    }
+
+    const projects = await prisma.project.findMany({
+      where: { project_type: { not: 'database' } },
+      select: {
+        id: true,
+        name: true,
+        services: { select: { id: true, name: true, domain: true } },
+      },
+    });
+
+    const assigned: { project: string; service: string; domain: string }[] = [];
+    let skipped = 0;
+    for (const project of projects) {
+      for (const service of project.services) {
+        if (service.domain && service.domain.trim()) {
+          skipped += 1;
+          continue;
+        }
+        // Force the assignment: the operator asked for it by pressing the button,
+        // so the auto-subdomain switch (which governs deploys) must not veto it.
+        const host = await assignServiceSubdomain(service, project.name, {
+          ...cfg,
+          autoSubdomain: true,
+        });
+        if (host) assigned.push({ project: project.name, service: service.name, domain: host });
+      }
+    }
+
+    const edge = await detectEdgeRouter();
+    await writeAudit(req, 'domains.backfill', null, {
+      base_domain: cfg.baseDomain,
+      assigned: assigned.length,
+    });
+    res.json({
+      assigned,
+      skipped,
+      // A hostname in the database is not yet a hostname on the wire: which step
+      // is still missing depends on who owns this host's 80/443.
+      note:
+        assigned.length === 0
+          ? skipped > 0
+            ? 'Every service already has a hostname — nothing to assign.'
+            : 'No services found to assign a hostname to.'
+          : edge.mode === 'traefik'
+            ? `Redeploy each app to publish its routing labels to ${edge.container}.`
+            : edge.mode === 'nginx'
+              ? 'Redeploy each app to write its vhost and request a certificate.'
+              : 'No proxy owns 80/443 on this host yet, so these hostnames are stored but not served.',
+      edge: edge.mode,
+    });
+  } catch (error) {
+    console.error('[admin] domain backfill failed:', error);
+    res.status(500).json({ error: 'Failed to assign subdomains' });
   }
 });
 

@@ -28,13 +28,67 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { refreshEdgeInfo, useEdgeInfo, type EdgeDns } from "@/hooks/useEdgeInfo";
 import { adminGet, adminSend } from "@/lib/adminApi";
-import type { AdminDomainsResponse, AdminSettings } from "@/lib/adminTypes";
+import type { AdminDomainsResponse, AdminEdgeInfo, AdminSettings } from "@/lib/adminTypes";
 import { cn, copyToClipboard } from "@/lib/utils";
 
 const PAGE_SIZE = 20;
 /** The one shape a single `*.base` wildcard DNS record can cover. */
 const DEFAULT_TEMPLATE = "{slug}.{base}";
+
+/**
+ * How hostnames physically reach containers on this host. An operator setting a
+ * base domain needs to know this before they trust the preview above: on a VPS
+ * where another proxy already owns 80/443, God Hosting publishes apps *through*
+ * that proxy, and it cannot serve the panel's own hostname at all.
+ */
+function EdgeBanner({ edge }: { edge: AdminEdgeInfo }) {
+  const tone =
+    edge.mode === "none"
+      ? {
+          box: "border-warning-border bg-warning-surface",
+          icon: "text-warning",
+          Icon: TriangleAlert,
+          title: "No edge proxy on this host",
+        }
+      : edge.mode === "traefik"
+        ? {
+            box: "border-border/60 bg-secondary/20",
+            icon: "text-brand",
+            Icon: Globe,
+            title: `Apps are published through ${edge.container}`,
+          }
+        : {
+            box: "border-success-border bg-success-surface",
+            icon: "text-success",
+            Icon: ShieldCheck,
+            title: `Served by ${edge.container}`,
+          };
+  return (
+    <div className={cn("mb-4 rounded-2xl border p-4 sm:p-5", tone.box)}>
+      <div className="flex items-start gap-3">
+        <tone.Icon className={cn("mt-0.5 h-4 w-4 shrink-0", tone.icon)} />
+        <div className="min-w-0 space-y-1">
+          <p className="text-sm font-semibold">{tone.title}</p>
+          <p className="text-xs leading-relaxed text-muted-foreground">{edge.reason}</p>
+          {edge.mode === "traefik" && !edge.cert_resolver && (
+            <p className="text-[11px] leading-relaxed text-warning">
+              That proxy has no ACME resolver configured, so hostnames serve plain HTTP until
+              one is. Add a certificate resolver to it for HTTPS.
+            </p>
+          )}
+          {edge.mode === "traefik" && (
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              Routing labels are written when an app deploys — redeploy a service after
+              changing its domain.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /** Mirrors the server's normalizeBaseDomain so the preview matches what saves. */
 function normalizeBase(input: string): string {
@@ -64,6 +118,61 @@ function formatDate(iso: string): string {
   return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString();
 }
 
+/**
+ * Live verdict for one DNS record.
+ *
+ * The table used to only say what to create, so an operator who mistyped the
+ * record — or never added it — saw the same green page as one whose DNS was
+ * perfect, and found out from a user hitting NXDOMAIN. This is resolved against a
+ * public resolver on the server, so it is what the internet sees, not what this
+ * browser's cache holds.
+ */
+function DnsStatus({ dns }: { dns: EdgeDns | null }) {
+  if (!dns) {
+    return <span className="text-[11px] font-sans text-muted-foreground">Checking…</span>;
+  }
+  const view = {
+    ok: {
+      label: "Resolving here",
+      className: "border-success-border bg-success-surface text-success",
+      Icon: ShieldCheck,
+    },
+    elsewhere: {
+      label: "Points elsewhere",
+      className: "border-warning-border bg-warning-surface text-warning",
+      Icon: TriangleAlert,
+    },
+    missing: {
+      label: "Not found",
+      className: "border-danger-border bg-danger-surface text-danger",
+      Icon: ShieldAlert,
+    },
+    unknown: {
+      label: "Not verified",
+      className: "border-border/60 bg-secondary/40 text-muted-foreground",
+      Icon: Globe,
+    },
+  }[dns.verdict];
+  const { Icon } = view;
+
+  return (
+    <span
+      title={
+        dns.addresses.length
+          ? `Resolves to ${dns.addresses.join(", ")}`
+          : "No A or AAAA record found"
+      }
+      className={cn(
+        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-2 py-0.5 font-sans text-[11px] font-medium",
+        view.className,
+      )}
+    >
+      <Icon className="h-3 w-3 shrink-0" />
+      {view.label}
+    </span>
+  );
+}
+
 export default function AdminDomains() {
   const [data, setData] = useState<AdminDomainsResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,6 +180,10 @@ export default function AdminDomains() {
   const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
+  // Whether the records below actually resolve. Probed on the server against a
+  // public resolver; `refreshEdgeInfo` re-probes after the operator adds them.
+  const edge = useEdgeInfo();
+  const [rechecking, setRechecking] = useState(false);
 
   // Draft settings — kept separate from `data.config` so typing never fights the
   // list refresh, and Save sends exactly what is on screen.
@@ -79,6 +192,7 @@ export default function AdminDomains() {
   const [template, setTemplate] = useState(DEFAULT_TEMPLATE);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQ(q), 350);
@@ -151,6 +265,9 @@ export default function AdminDomains() {
       );
       setDirty(false);
       fetchDomains();
+      // The DNS card below is keyed on the *saved* base domain, so without this it
+      // would appear stuck on "Checking…" against the old cached probe.
+      void refreshEdgeInfo();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save domain settings");
     } finally {
@@ -161,6 +278,38 @@ export default function AdminDomains() {
   const total = data?.total ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const serverIp = data?.server_ip ?? null;
+  const savedBase = data?.config.base_domain ?? "";
+  /** Only claim HTTPS where something on this host actually terminates it. */
+  const previewScheme =
+    data?.edge && !(data.edge.mode === "nginx" || data.edge.cert_resolver) ? "http" : "https";
+
+  // Setting the base domain only governs *future* deploys, so apps already
+  // running on `ip:port` would stay there and the setting would look inert.
+  const backfill = async () => {
+    setBackfilling(true);
+    try {
+      const res = await adminSend<{
+        assigned: { project: string; service: string; domain: string }[];
+        skipped: number;
+        note: string;
+      }>("/domains/backfill", "POST", {});
+      if (res.assigned.length === 0) {
+        toast.info(res.note);
+      } else {
+        toast.success(
+          res.assigned.length === 1
+            ? `${res.assigned[0].service} → ${res.assigned[0].domain}`
+            : `${res.assigned.length} services got a hostname`,
+          { description: res.note },
+        );
+      }
+      fetchDomains();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to assign subdomains");
+    } finally {
+      setBackfilling(false);
+    }
+  };
 
   return (
     <>
@@ -180,6 +329,8 @@ export default function AdminDomains() {
           </Button>
         }
       />
+
+      {data?.edge && <EdgeBanner edge={data.edge} />}
 
       {/* ── Platform domain ─────────────────────────────────────────────────── */}
       <div className="mb-4 rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
@@ -266,6 +417,38 @@ export default function AdminDomains() {
           />
         </div>
 
+        {/* Existing apps predate the setting. Without this they keep answering on
+            `ip:port` until someone redeploys each one by hand. */}
+        {savedBase && (
+          <div className="mt-4 flex flex-col gap-3 border-t border-border/50 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-start gap-2">
+              <RefreshCw className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+              <div className="min-w-0">
+                <p className="text-sm font-medium">Apps that already exist</p>
+                <p className="text-xs text-muted-foreground">
+                  Assign a hostname under{" "}
+                  <span className="font-mono">{savedBase}</span> to every service that has
+                  none, right now. Custom domains stay as they are.
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              onClick={backfill}
+              disabled={backfilling || dirty}
+              title={dirty ? "Save the base domain first" : undefined}
+              className="h-10 shrink-0"
+            >
+              {backfilling ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Globe className="h-4 w-4" />
+              )}
+              Assign now
+            </Button>
+          </div>
+        )}
+
         {/* What the operator will actually get — rendered from the live draft. */}
         {normalizedBase && templateValid && (
           <div className="mt-4 rounded-xl border border-border/60 bg-secondary/20 px-4 py-3">
@@ -273,7 +456,7 @@ export default function AdminDomains() {
               An app named “my-app” will be published at
             </p>
             <p className="mt-1 break-all font-mono text-sm font-medium text-foreground">
-              https://{preview}
+              {previewScheme}://{preview}
             </p>
             {!isWildcardCoverable(template) && (
               <p className="mt-2 flex items-start gap-1.5 text-[11px] text-warning">
@@ -294,39 +477,108 @@ export default function AdminDomains() {
       {/* ── DNS records to create ───────────────────────────────────────────── */}
       {normalizedBase && (
         <div className="mb-4 rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
-          <h2 className="text-base font-semibold">DNS records</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Add these at your registrar. Until they resolve, hostnames under{" "}
-            <span className="font-mono">{normalizedBase}</span> will not reach this server and
-            certificates cannot be issued.
-          </p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold">DNS records</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Add these at your registrar. Until they resolve, hostnames under{" "}
+                <span className="font-mono">{normalizedBase}</span> will not reach this server and
+                certificates cannot be issued.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="press h-8 shrink-0 border-border/60"
+              disabled={rechecking}
+              onClick={async () => {
+                setRechecking(true);
+                try {
+                  const info = await refreshEdgeInfo();
+                  const verdicts = [info.dns, info.apexDns].filter(Boolean) as EdgeDns[];
+                  if (verdicts.length && verdicts.every((d) => d.verdict === "ok")) {
+                    toast.success("DNS is resolving to this server");
+                  } else if (verdicts.some((d) => d.verdict === "missing")) {
+                    toast.error("Still not found — new records can take a few minutes to spread");
+                  } else {
+                    toast.message("Re-checked");
+                  }
+                } finally {
+                  setRechecking(false);
+                }
+              }}
+            >
+              {rechecking ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              Re-check DNS
+            </Button>
+          </div>
           <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[520px] text-left text-sm">
+            <table className="w-full min-w-[620px] text-left text-sm">
               <thead>
                 <tr className="border-b border-border/60 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                   <th className="pb-2 pr-4 font-semibold">Type</th>
                   <th className="pb-2 pr-4 font-semibold">Name</th>
-                  <th className="pb-2 font-semibold">Value</th>
+                  <th className="pb-2 pr-4 font-semibold">Value</th>
+                  <th className="pb-2 font-semibold">Status</th>
                 </tr>
               </thead>
               <tbody className="font-mono text-xs">
                 <tr className="border-b border-border/40">
                   <td className="py-2.5 pr-4">A</td>
                   <td className="py-2.5 pr-4">*.{normalizedBase}</td>
-                  <td className="py-2.5">
+                  <td className="py-2.5 pr-4">
                     <CopyValue value={serverIp} />
+                  </td>
+                  <td className="py-2.5">
+                    {isWildcardCoverable(template) ? (
+                      <DnsStatus dns={edge.dns} />
+                    ) : (
+                      <span className="font-sans text-[11px] text-muted-foreground">
+                        Not used by this template
+                      </span>
+                    )}
                   </td>
                 </tr>
                 <tr>
                   <td className="py-2.5 pr-4">A</td>
                   <td className="py-2.5 pr-4">{normalizedBase}</td>
-                  <td className="py-2.5">
+                  <td className="py-2.5 pr-4">
                     <CopyValue value={serverIp} />
+                  </td>
+                  <td className="py-2.5">
+                    <DnsStatus dns={edge.apexDns} />
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
+          {/* The single most common cause of "my app URL does not open": the proxy
+              is fine, the container is up, and the name simply does not exist. */}
+          {edge.dns?.verdict === "missing" && isWildcardCoverable(template) && (
+            <p className="mt-3 flex items-start gap-1.5 text-[11px] leading-relaxed text-danger">
+              <ShieldAlert className="mt-px h-3.5 w-3.5 shrink-0" />
+              <span>
+                <span className="font-mono">*.{normalizedBase}</span> does not exist yet, so every
+                app hostname under it returns NXDOMAIN — the apps themselves are running and are
+                still reachable on their host port. Add the wildcard record above and re-check.
+              </span>
+            </p>
+          )}
+          {edge.dns?.verdict === "elsewhere" && (
+            <p className="mt-3 flex items-start gap-1.5 text-[11px] leading-relaxed text-warning">
+              <TriangleAlert className="mt-px h-3.5 w-3.5 shrink-0" />
+              <span>
+                <span className="font-mono">*.{normalizedBase}</span> resolves to{" "}
+                <span className="font-mono">{edge.dns.addresses.slice(0, 2).join(", ")}</span>
+                {serverIp ? `, not to ${serverIp}` : ""}. That is expected behind a proxy such as
+                Cloudflare; otherwise repoint it here.
+              </span>
+            </p>
+          )}
           {!serverIp && (
             <p className="mt-3 flex items-start gap-1.5 text-[11px] text-warning">
               <TriangleAlert className="mt-px h-3.5 w-3.5 shrink-0" />

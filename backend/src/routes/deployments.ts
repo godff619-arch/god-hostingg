@@ -44,6 +44,7 @@ import {
 } from '../lib/imageCleanup.js';
 import { requireStepUpPassword } from '../lib/stepUpAuth.js';
 import { cleanupServiceDomain, updateServiceDomain } from '../services/nginx.js';
+import { activationNote, detectEdgeRouter, type EdgeRouter } from '../lib/edgeRouter.js';
 import { ensureProjectSubdomains } from '../lib/platformDomain.js';
 import { assertDeploymentsEnabled } from '../lib/platformSwitches.js';
 import {
@@ -59,6 +60,7 @@ import {
   composeProjectName,
   composeProjectAliases,
   dockerSlug,
+  projectNetworkName,
   serviceContainerName,
   storageVolumeComposeKey,
 } from '../lib/naming.js';
@@ -767,7 +769,12 @@ router.put('/:projectId/services/:serviceId', async (req: AuthenticatedRequest, 
     }
 
     const ssl = await sslMapForDomainString(service?.domain);
-    res.json({ success: true, ssl, events: getSslEvents(next) });
+    // What happens next differs per host: our own nginx serves it immediately,
+    // Traefik needs the labels a redeploy publishes, and a host with no edge cannot
+    // serve it at all yet. Saying "domain added" for all three is how a dead link
+    // ships.
+    const activation = next.length ? activationNote(await detectEdgeRouter(), next) : null;
+    res.json({ success: true, ssl, events: getSslEvents(next), activation });
   } catch (error) {
     if (sendAccessError(res, error)) return;
     console.error(error);
@@ -903,9 +910,11 @@ async function deployProject(req: AuthenticatedRequest, res: Response) {
     // Platform base domain (Admin → Domains): any service without a hostname of
     // its own is published at `<app>.<base-domain>` before the proxy is wired, so
     // the URL is live the moment this deploy finishes.
-    for (const assignment of await ensureProjectSubdomains(projectId)) {
+    const subdomains = await ensureProjectSubdomains(projectId);
+    for (const assignment of subdomains.assigned) {
       writeLog(`🌐 Subdomain assigned: ${assignment.service} → ${assignment.domain}\n`);
     }
+    if (subdomains.note) writeLog(`💡 ${subdomains.note}\n`);
     
     // Pull latest if GitHub project
     if (project.source_type === 'github' && project.github_url) {
@@ -1050,16 +1059,26 @@ async function deployProject(req: AuthenticatedRequest, res: Response) {
     const statePath = path.join(config.deploymentsPath, '.docklift', projectId);
     const composePath = path.join(statePath, 'compose.yml');
 
-    // Reachability, decided per host. Domain routing needs the nginx edge proxy
-    // container; where it does not exist (native install, or a VPS whose 80/443 are
-    // already owned by another proxy such as Coolify's Traefik) an app that
-    // publishes nothing would come up healthy and still be unreachable. So publish
-    // a host port for apps automatically in that case. A managed database is never
-    // auto-exposed — that would put Postgres/MySQL/Redis on a public IP — it stays
-    // strictly opt-in via publish_host_port.
-    const edgeProxyUp = await dockerService.edgeProxyExists();
-    const autoPublishHostPort = !optedInHostPort && !isManagedDb && !edgeProxyUp;
+    // Reachability, decided per host. Three cases, and only the first one lets us
+    // serve a hostname from a vhost of our own:
+    //
+    //   nginx    our edge proxy container is up — domains are routed by it and
+    //            certbot issues the certificates.
+    //   traefik  something else (on a Coolify VPS, its Traefik) already owns 80/443.
+    //            Apps are published *through* it: routing labels on the container
+    //            plus membership of Traefik's network, below.
+    //   none     no edge at all — a host port is the only way in.
+    //
+    // Without a host port an app that publishes nothing would come up healthy and
+    // still be unreachable, so publish one automatically whenever we do not own the
+    // edge. A managed database is never auto-exposed — that would put
+    // Postgres/MySQL/Redis on a public IP — it stays strictly opt-in via
+    // publish_host_port.
+    const edge: EdgeRouter = await detectEdgeRouter({ refresh: true });
+    const ownEdge = edge.mode === 'nginx';
+    const autoPublishHostPort = !optedInHostPort && !isManagedDb && !ownEdge;
     const publishHostPort = optedInHostPort || autoPublishHostPort;
+
 
     const runtimeServices: Array<{
       name: string;
@@ -1490,9 +1509,29 @@ async function deployProject(req: AuthenticatedRequest, res: Response) {
     ) {
       throw new Error('Deployment cancelled');
     }
+    // Hostnames are read from the database rather than the build plan so a
+    // subdomain auto-assigned earlier in this same deploy (ensureProjectSubdomains)
+    // is routed on this deploy and not the next one. A managed database is never
+    // routed by hostname, whatever somebody typed into its domain field.
+    const hostnameRows = isManagedDb
+      ? []
+      : await prisma.service
+          .findMany({
+            where: { project_id: projectId },
+            select: { name: true, domain: true },
+          })
+          .catch(() => [] as Array<{ name: string; domain: string | null }>);
+    const hostnamesByService = new Map(
+      hostnameRows.map((row) => [row.name, domainList(row.domain)] as const),
+    );
+    const routedServices = runtimeServices.map((svc) => ({
+      ...svc,
+      hostnames: hostnamesByService.get(svc.name) ?? [],
+    }));
+
     generateRuntimeCompose(
       composePath,
-      runtimeServices,
+      routedServices,
       envVars.map((v) => ({
         key: v.key,
         value: v.value,
@@ -1500,11 +1539,29 @@ async function deployProject(req: AuthenticatedRequest, res: Response) {
         is_runtime: v.is_runtime ?? true,
         service_name: v.service_name ?? '',
       })),
-      { projectId, publishHostPort, memLimit: deployLimits.memLimit, cpus: deployLimits.cpus }
+      {
+        projectId,
+        publishHostPort,
+        memLimit: deployLimits.memLimit,
+        cpus: deployLimits.cpus,
+        edge,
+      }
     );
     writeLog(`✅ DockLift runtime compose created outside the repository\n`);
-    writeLog(`   Network: dl-net-${projectId.replace(/-/g, '').slice(0, 8)} (proxy attached after up)\n\n`);
-    
+    writeLog(`   Network: ${projectNetworkName(projectId)}\n`);
+    const labelled = routedServices.filter((svc) => svc.hostnames.length > 0);
+    if (edge.mode === 'traefik' && labelled.length > 0) {
+      writeLog(
+        `   Edge: ${edge.container} — joining "${edge.network}" and publishing routing labels for\n` +
+          labelled.map((svc) => `     • ${svc.name} → ${svc.hostnames.join(', ')}\n`).join(''),
+      );
+    } else if (edge.mode === 'nginx') {
+      writeLog(`   Edge: ${edge.container} (attached after up)\n`);
+    } else if (labelled.length > 0) {
+      writeLog(`   Edge: none — ${labelled.length} hostname(s) stay inactive until this host has one\n`);
+    }
+    writeLog(`\n`);
+
     writeLog(`${'─'.repeat(40)}\n`);
     writeLog(`🚀 Starting containers...\n`);
     writeLog(`   Compose project: ${composeProject}\n`);
@@ -1600,6 +1657,19 @@ async function deployProject(req: AuthenticatedRequest, res: Response) {
           await stopIfSuperseded();
           return;
         }
+        if (!ownEdge) {
+          // Nothing to attach: under Traefik the containers joined its network
+          // themselves (compose did it, above), and with no edge there is nothing to
+          // join. Report which of those it is instead of warning about a container
+          // this host was never supposed to have.
+          writeLog(`🌐 ${edge.reason}\n`);
+          if (edge.mode === 'none' && labelled.length > 0) {
+            writeLog(
+              `   ${labelled.length} hostname(s) stay inactive until an edge proxy owns 80/443 here:\n` +
+                labelled.map((svc) => `     • ${svc.name} → ${svc.hostnames.join(', ')}\n`).join(''),
+            );
+          }
+        } else {
         // Managed DBs are linked over Docker DNS — proxy attach is best-effort only.
         try {
           await dockerService.connectProxyToProjectNetwork(projectId);
@@ -1667,6 +1737,7 @@ async function deployProject(req: AuthenticatedRequest, res: Response) {
             );
           }
         }
+        }
       }
 
       if (await stopIfSuperseded()) return;
@@ -1692,12 +1763,23 @@ async function deployProject(req: AuthenticatedRequest, res: Response) {
               select: { name: true, domain: true },
             })
             .catch(() => [] as Array<{ name: string; domain: string | null }>);
+          // Only claim https:// where something actually terminates TLS for it: our
+          // own nginx (certbot) or a Traefik that has an ACME resolver. A Traefik
+          // without one serves the hostname on plain HTTP, and a printed https link
+          // that refuses to connect is worse than no link.
+          const scheme =
+            edge.mode === 'nginx' || (edge.mode === 'traefik' && edge.certResolver)
+              ? 'https'
+              : 'http';
           let anyDomain = false;
           for (const row of domainRows) {
             for (const d of domainList(row.domain)) {
               anyDomain = true;
-              writeLog(`  🔗 ${row.name}: https://${d}\n`);
+              writeLog(`  🔗 ${row.name}: ${scheme}://${d}\n`);
             }
+          }
+          if (anyDomain && edge.mode === 'none') {
+            writeLog(`     (saved, but not served yet — this host has no edge proxy on 80/443)\n`);
           }
           let anyHost = false;
           for (const svc of servicesData) {
@@ -1708,6 +1790,12 @@ async function deployProject(req: AuthenticatedRequest, res: Response) {
           }
           if (!anyHost && !anyDomain) {
             writeLog(`  📍 Host ports disabled — use your custom domain (nginx-proxy → container DNS)\n`);
+          }
+          if (!anyDomain) {
+            writeLog(
+              `  💡 Add a domain on the service's Domain tab, or set a base domain in ` +
+                `Admin → Domains to have one assigned automatically.\n`,
+            );
           }
         }
 
@@ -1800,6 +1888,22 @@ async function deployProject(req: AuthenticatedRequest, res: Response) {
         }
         await syncProjectStatusFromContainers(projectId);
         if (await stopIfSuperseded()) return;
+        if (!ownEdge) {
+          // Vhosts and certbot belong to our own edge. Under Traefik the labels this
+          // deploy just published are the activation, and it issues the certificate
+          // itself; `activateServiceDomains` would have nothing to do.
+          const hosts = labelled.flatMap((svc) => svc.hostnames);
+          if (hosts.length > 0) {
+            writeLog(
+              edge.mode === 'traefik'
+                ? `🌐 ${hosts.join(', ')} published through ${edge.container}` +
+                    (edge.certResolver
+                      ? ` — it issues the certificate as soon as DNS points here.\n`
+                      : ` on plain HTTP (that Traefik has no ACME resolver configured).\n`)
+                : `🌐 ${hosts.join(', ')} saved but not served — no edge proxy owns 80/443 on this host.\n`,
+            );
+          }
+        } else {
         try {
           await activateServiceDomains(projectId, {
             shouldContinue: () => stillOwns(),
@@ -1819,6 +1923,7 @@ async function deployProject(req: AuthenticatedRequest, res: Response) {
             return;
           }
           writeLog(`⚠️ Domain activation warning: ${e?.message || 'failed'}\n`);
+        }
         }
         if (await stopIfSuperseded()) return;
 
@@ -2034,11 +2139,13 @@ router.post('/:projectId/stop', async (req: AuthenticatedRequest, res: Response)
 
     // Containers may still be running — restore proxy + linked DB DNS
     if (!success) {
-      try {
-        await dockerService.connectProxyToProjectNetwork(projectId);
-        writeLog(`🔗 Reconnected edge proxy after failed stop (app may still be running)\n`);
-      } catch (reErr: any) {
-        writeLog(`⚠️ Could not reconnect edge proxy: ${reErr?.message || reErr}\n`);
+      if ((await detectEdgeRouter()).mode === 'nginx') {
+        try {
+          await dockerService.connectProxyToProjectNetwork(projectId);
+          writeLog(`🔗 Reconnected edge proxy after failed stop (app may still be running)\n`);
+        } catch (reErr: any) {
+          writeLog(`⚠️ Could not reconnect edge proxy: ${reErr?.message || reErr}\n`);
+        }
       }
       if (project.project_type !== 'database') {
         try {
@@ -2460,6 +2567,9 @@ router.post('/:projectId/rollback', async (req: AuthenticatedRequest, res: Respo
           internal_port: svc.internal_port || 3000,
           port: svc.port,
           container_name: svc.container_name,
+          // A rollback that dropped the routing labels would take the hostname
+          // offline while claiming the previous deploy was restored.
+          hostnames: domainList(svc.domain),
           volumes: persistentVolumes
             .filter((volume) => volume.service_name === svc.name)
             .map((volume, index) => ({
@@ -2485,6 +2595,7 @@ router.post('/:projectId/rollback', async (req: AuthenticatedRequest, res: Respo
         (project as { publish_host_port?: boolean }).publish_host_port === true ||
         runtimeServices.some((svc) => svc.port != null);
       const deployLimits = await getDeployLimits(project.user_id);
+      const edge = await detectEdgeRouter();
 
       writeLog(`📝 Rewriting runtime compose with previous images...\n`);
       generateRuntimeCompose(
@@ -2502,6 +2613,7 @@ router.post('/:projectId/rollback', async (req: AuthenticatedRequest, res: Respo
           publishHostPort,
           memLimit: deployLimits.memLimit,
           cpus: deployLimits.cpus,
+          edge,
         },
       );
 
@@ -2531,13 +2643,17 @@ router.post('/:projectId/rollback', async (req: AuthenticatedRequest, res: Respo
         throw new Error('Rollback cancelled');
       }
 
-      try {
-        await dockerService.connectProxyToProjectNetwork(projectId);
-        writeLog(`🔗 Edge proxy attached\n`);
-      } catch (netErr: unknown) {
-        writeLog(
-          `⚠️ Proxy attach warning: ${netErr instanceof Error ? netErr.message : String(netErr)}\n`,
-        );
+      if (edge.mode === 'nginx') {
+        try {
+          await dockerService.connectProxyToProjectNetwork(projectId);
+          writeLog(`🔗 Edge proxy attached\n`);
+        } catch (netErr: unknown) {
+          writeLog(
+            `⚠️ Proxy attach warning: ${netErr instanceof Error ? netErr.message : String(netErr)}\n`,
+          );
+        }
+      } else if (edge.mode === 'traefik') {
+        writeLog(`🔗 Routing labels republished for ${edge.container}\n`);
       }
 
       try {
@@ -2748,11 +2864,13 @@ router.post('/:projectId/cancel', async (req: AuthenticatedRequest, res: Respons
     }
 
     if (!success) {
-      try {
-        await dockerService.connectProxyToProjectNetwork(projectId);
-        res.write(`🔗 Reconnected edge proxy after failed cancel teardown\n`);
-      } catch (reErr: any) {
-        res.write(`⚠️ Could not reconnect edge proxy: ${reErr?.message || reErr}\n`);
+      if ((await detectEdgeRouter()).mode === 'nginx') {
+        try {
+          await dockerService.connectProxyToProjectNetwork(projectId);
+          res.write(`🔗 Reconnected edge proxy after failed cancel teardown\n`);
+        } catch (reErr: any) {
+          res.write(`⚠️ Could not reconnect edge proxy: ${reErr?.message || reErr}\n`);
+        }
       }
       if (project.project_type !== 'database') {
         try {

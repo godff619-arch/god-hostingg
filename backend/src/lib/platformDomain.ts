@@ -162,6 +162,16 @@ export interface AssignedSubdomain {
   domain: string;
 }
 
+export interface SubdomainAssignment {
+  assigned: AssignedSubdomain[];
+  /**
+   * Why nothing was assigned, when nothing was. An app that comes up on
+   * `ip:port` because a setting is blank is indistinguishable from a broken
+   * product unless the deploy log says which setting.
+   */
+  note: string | null;
+}
+
 /**
  * Called at the start of every deploy: any service in the project that has no
  * hostname gets one under the base domain, so the app is reachable by name
@@ -170,10 +180,23 @@ export interface AssignedSubdomain {
  *
  * Soft-fails: a settings or DNS-bookkeeping problem must never fail a deploy.
  */
-export async function ensureProjectSubdomains(projectId: string): Promise<AssignedSubdomain[]> {
+export async function ensureProjectSubdomains(projectId: string): Promise<SubdomainAssignment> {
   try {
     const config = await getPlatformDomainConfig();
-    if (!config.baseDomain || !config.autoSubdomain) return [];
+    if (!config.baseDomain) {
+      return {
+        assigned: [],
+        note:
+          'No platform base domain set — set one in Admin → Domains (e.g. godhosting.cyou) and every app ' +
+          'gets its own hostname instead of a host port.',
+      };
+    }
+    if (!config.autoSubdomain) {
+      return {
+        assigned: [],
+        note: `Automatic subdomains are switched off in Admin → Domains — apps under ${config.baseDomain} keep whatever domain you set by hand.`,
+      };
+    }
 
     const project = await prisma.project.findUnique({
       where: { id: projectId },
@@ -183,17 +206,17 @@ export async function ensureProjectSubdomains(projectId: string): Promise<Assign
         services: { select: { id: true, name: true, domain: true } },
       },
     });
-    if (!project || project.project_type === 'database') return [];
+    if (!project || project.project_type === 'database') return { assigned: [], note: null };
 
     const assigned: AssignedSubdomain[] = [];
     for (const service of project.services) {
       const host = await assignServiceSubdomain(service, project.name, config);
       if (host) assigned.push({ service: service.name, domain: host });
     }
-    return assigned;
+    return { assigned, note: null };
   } catch (error) {
     console.error('[platformDomain] subdomain assignment skipped:', error);
-    return [];
+    return { assigned: [], note: null };
   }
 }
 

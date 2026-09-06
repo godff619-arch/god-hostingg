@@ -5,9 +5,12 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 // Flat, dense, Render-style buttons: solid fills, 1px borders, 6px radius.
-// No gradients, no glow shadows, no scale bounce (spec §28).
+// No gradients, no glow shadows, no scale bounce (spec §28) — `press` is a 3% dip
+// on pointer-down, not a bounce: on touch there is no hover state, so without it a
+// tap gives no feedback at all until the request comes back. See globals.css; it
+// is disabled under `prefers-reduced-motion` and on disabled buttons.
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-[13px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+  "press inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-[13px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
   {
     variants: {
       variant: {

@@ -3,7 +3,15 @@
 
 import type { Project } from "@/lib/types";
 
-export type UserRole = "user" | "viewer" | "admin" | "super_admin" | "owner";
+export type UserRole =
+  | "user"
+  | "viewer"
+  | "support_admin"
+  | "billing_admin"
+  | "operations_admin"
+  | "admin"
+  | "super_admin"
+  | "owner";
 export type UserStatus = "active" | "suspended" | "pending";
 
 /** Per-user quota overrides. `null` means "inherit from plan". */
@@ -251,6 +259,19 @@ export interface AdminDomainRow {
   ssl: { status: string; expires_at: string | null } | null;
 }
 
+/**
+ * Which reverse proxy owns the host's 80/443, and therefore how a tenant hostname
+ * becomes reachable: our own nginx, an incumbent Traefik we publish through, or
+ * nothing at all (host ports only).
+ */
+export interface AdminEdgeInfo {
+  mode: "nginx" | "traefik" | "none";
+  container: string | null;
+  network: string | null;
+  cert_resolver: string | null;
+  reason: string;
+}
+
 export interface AdminDomainsResponse {
   domains: AdminDomainRow[];
   total: number;
@@ -266,6 +287,7 @@ export interface AdminDomainsResponse {
     /** Rendered sample, e.g. `my-app.godhosting.bond`. */
     example: string | null;
   };
+  edge?: AdminEdgeInfo | null;
 }
 
 // ── Feature flags ────────────────────────────────────────────────────────────

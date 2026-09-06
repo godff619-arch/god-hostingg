@@ -52,7 +52,7 @@ export default function LoginPage() {
       login(data.token, data.user);
       
       // Redirect to dashboard
-      navigate("/");
+      navigate("/projects");
     } catch (err: any) {
       setError(err.message);
     } finally {

@@ -40,7 +40,7 @@ export default function SignUpPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Signup failed");
       login(data.token, data.user);
-      navigate("/");
+      navigate("/projects");
     } catch (err: any) {
       setError(err.message);
     } finally {

@@ -5,35 +5,30 @@
 //   Projects · Blueprints · Environment Groups
 //   INTEGRATIONS → Observability · Webhooks · Notifications
 //   NETWORKING   → Private Links · Dedicated IPs
-//   WORKSPACE    → Billing · Settings
+//   WORKSPACE    → Billing · Settings · Status
 // The PLATFORM and ADMIN groups below are operator-only surfaces (host metrics,
-// container logs, shell, plans…) and are hidden from ordinary members.
+// container logs, shell, plans…) and are hidden from ordinary members. Status is
+// the tenant-safe half of that split: uptime and downtime, no host detail.
 
 import type { ComponentType } from "react";
 import {
   Activity,
   Anchor,
-  Archive,
   Bell,
   BookOpen,
   Blocks,
   CreditCard,
   Database,
   Gauge,
-  Globe,
+  HeartPulse,
   Layers,
   LayoutGrid,
+  LifeBuoy,
   Link2,
   Network,
-  Rocket,
   ScrollText,
   Settings,
   ShieldCheck,
-  SlidersHorizontal,
-  SquareTerminal,
-  ToggleLeft,
-  TriangleAlert,
-  Users,
   Webhook,
 } from "lucide-react";
 
@@ -171,6 +166,24 @@ export const navGroups: NavGroup[] = [
         description: "Workspace, team and security",
         section: ["/workspace/settings"],
       },
+      {
+        // Platform-wide, not workspace-scoped, but this is where a member looks to
+        // ask "is it me or is it them". The operator's own view of the same host
+        // is System, below, and stays admin-only.
+        label: "Status",
+        href: "/status",
+        icon: HeartPulse,
+        description: "Uptime and recent downtime",
+        section: ["/status"],
+      },
+      {
+        // The customer end of the operator inbox. Answered from /admin/support.
+        label: "Support",
+        href: "/support",
+        icon: LifeBuoy,
+        description: "Ask us something, and read the replies",
+        section: ["/support"],
+      },
     ],
   },
   {
@@ -215,101 +228,25 @@ export const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: "Admin",
+    // One door, not a second copy of the panel's tree.
+    //
+    // This group used to mirror all thirteen admin destinations, which put a
+    // customer's Projects link and a destructive platform switch in the same
+    // scroll. The panel is a separate app now (`app/AdminShell.tsx`) with its own
+    // rail in `components/admin/adminNavigation.ts`; the tenant rail only needs to
+    // say that it exists.
+    // "Administration", not "Platform": the group above already owns that word for
+    // the host-level tenant pages (databases, ports, system, logs), and two groups
+    // sharing a label render two identical headings and collide as React keys.
+    label: "Administration",
     adminOnly: true,
     items: [
       {
-        label: "Overview",
+        label: "Admin panel",
         href: "/admin",
         icon: ShieldCheck,
-        description: "Platform-wide health and activity",
+        description: "Operate the platform: users, plans, domains, audit",
         section: ["/admin"],
-      },
-      {
-        label: "Operations",
-        href: "/admin/operations",
-        icon: Activity,
-        description: "Live control-plane, database and Docker health",
-        section: ["/admin/operations"],
-      },
-      {
-        label: "Users",
-        href: "/admin/users",
-        icon: Users,
-        description: "Manage every account",
-        section: ["/admin/users"],
-      },
-      {
-        label: "Applications",
-        href: "/admin/apps",
-        icon: LayoutGrid,
-        description: "Every app across all tenants",
-        section: ["/admin/apps"],
-      },
-      {
-        label: "Deployments",
-        href: "/admin/deployments",
-        icon: Rocket,
-        description: "Platform-wide deployment history",
-        section: ["/admin/deployments"],
-      },
-      {
-        label: "Domains",
-        href: "/admin/domains",
-        icon: Globe,
-        description: "Base domain, per-app subdomains and SSL",
-        section: ["/admin/domains"],
-      },
-      {
-        label: "Uploads",
-        href: "/admin/uploads",
-        icon: Archive,
-        description: "Archived user ZIP uploads",
-        section: ["/admin/uploads"],
-      },
-      {
-        label: "Audit Logs",
-        href: "/admin/audit-logs",
-        icon: ScrollText,
-        description: "Who did what, and from where",
-        section: ["/admin/audit-logs"],
-      },
-      {
-        label: "Errors",
-        href: "/admin/errors",
-        icon: TriangleAlert,
-        description: "Grouped platform failures",
-        section: ["/admin/errors"],
-      },
-      {
-        label: "Plans",
-        href: "/admin/plans",
-        icon: CreditCard,
-        description: "Quota tiers and pricing",
-        section: ["/admin/plans"],
-      },
-      {
-        label: "Feature Flags",
-        href: "/admin/feature-flags",
-        icon: ToggleLeft,
-        description: "Turn platform capabilities on or off",
-        section: ["/admin/feature-flags"],
-      },
-      {
-        // The server shell belongs with the operator tools, not the tenant rail.
-        label: "Terminal",
-        href: "/terminal",
-        icon: SquareTerminal,
-        description: "Interactive shell on the server",
-        section: ["/terminal"],
-        fullAdminOnly: true,
-      },
-      {
-        label: "Settings",
-        href: "/admin/settings",
-        icon: SlidersHorizontal,
-        description: "Platform configuration",
-        section: ["/admin/settings"],
       },
     ],
   },
@@ -390,6 +327,8 @@ const segmentLabels: Record<string, string> = {
   workspace: "Workspace",
   databases: "Databases",
   ports: "Ports",
+  status: "Status",
+  support: "Support",
   system: "System",
   logs: "Logs",
   terminal: "Terminal",

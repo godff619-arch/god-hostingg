@@ -151,7 +151,7 @@ export function SidebarStatus({ collapsed }: { collapsed: boolean }) {
 
   const handleUpgrade = () => {
     // Confirm + offline wait UI lives on Terminal — never fire upgrade from the rail
-    navigate("/terminal?confirm=upgrade");
+    navigate("/admin/terminal?confirm=upgrade");
   };
 
   const currentVersion = version?.current || __APP_VERSION__;

@@ -185,6 +185,33 @@ model User {
   created_at        DateTime  @default(now())
   updated_at        DateTime? @default(now()) @updatedAt
 
+  // -- Account lifecycle + security (spec §4, §5, §26, §27) --
+  email_verified      Boolean   @default(true)
+  email_verified_at   DateTime?
+  /// Single-use verification / reset token hash. Never the plaintext token.
+  verify_token_hash   String?
+  verify_expires_at   DateTime?
+  reset_token_hash    String?
+  reset_expires_at    DateTime?
+  last_login_at       DateTime?
+  last_login_ip       String?
+  login_count         Int       @default(0)
+  /// Locked out until this moment after repeated failures (spec §2).
+  locked_until        DateTime?
+  failed_logins       Int       @default(0)
+  /// Populated whenever status moves to suspended; cleared on unsuspend.
+  suspend_reason      String?
+  suspended_at        DateTime?
+  suspended_by        String?
+  /// Pending-approval flow (spec §27).
+  approved_at         DateTime?
+  approved_by         String?
+  /// TOTP secret, sealed with secretBox. NULL = 2FA off.
+  totp_secret_enc     String?
+  totp_enabled        Boolean   @default(false)
+  /// Admin note only operators can read.
+  internal_note       String?
+
   plan          Plan?          @relation(fields: [plan_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
   projects      Project[]
   subscriptions Subscription[]
@@ -219,6 +246,32 @@ model Plan {
   created_at  DateTime  @default(now())
   updated_at  DateTime? @default(now()) @updatedAt
 
+  // -- Dynamic plan manager (spec §9). Editing these NEVER migrates existing
+  // subscriptions; a live subscription keeps the plan row it points at and only
+  // moves when the billing state machine or an audited override moves it.
+  description   String?
+  /// Yearly price in cents. NULL = not offered yearly.
+  price_yearly_cents Int?
+  trial_days    Int?      @default(0)
+  /// Rail order in the pricing table.
+  sort_order    Int       @default(0)
+  /// Highlighted as "most popular" in the pricing table.
+  highlighted   Boolean   @default(false)
+  /// Soft retire: hidden from signup/upgrade but existing subscribers keep it.
+  archived      Boolean   @default(false)
+  /// Bundled bandwidth in GB. NULL = unlimited.
+  bandwidth_gb  Int?
+  /// Bundled instance hours per month. NULL = unlimited.
+  instance_hours Int?
+  max_members   Int?
+  max_databases Int?
+  /// JSON object of plan feature toggles — see PLAN_FEATURES in lib/planFeatures.ts.
+  /// Read through `planFeature()`, which falls back to the tier default so an
+  /// older row missing a key never silently disables a feature.
+  features      Json?
+  /// Marketing bullets shown on the pricing card (JSON array of strings).
+  benefits      Json?
+
   users         User[]
   subscriptions Subscription[]
 
@@ -236,10 +289,31 @@ model Subscription {
   created_at DateTime  @default(now())
   updated_at DateTime? @default(now()) @updatedAt
 
+  // -- Spec §8. `source` is the honest answer to "was this actually paid for?".
+  /// checkout | webhook | manual | trial | signup
+  source     String    @default("signup")
+  provider   String    @default("manual")
+  provider_ref String?
+  current_period_start DateTime?
+  current_period_end   DateTime?
+  cancel_at_period_end Boolean  @default(false)
+  canceled_at DateTime?
+  cancel_reason String?
+  trial_ends_at DateTime?
+  /// month | year | lifetime
+  interval   String    @default("month")
+  amount_cents Int     @default(0)
+  currency   String    @default("USD")
+  /// True for an admin-granted plan with no payment behind it (spec §59).
+  manual_override Boolean @default(false)
+  workspace_id String?
+
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   plan Plan @relation(fields: [plan_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([user_id])
+  @@index([status])
+  @@index([workspace_id])
   @@map("subscriptions")
 }
 
@@ -336,10 +410,33 @@ model AuditLog {
   ip         String?
   created_at DateTime @default(now())
 
+  // -- Spec §24. Immutable: the API exposes no update or delete for these rows,
+  // and `writeAudit` is the only writer. `before`/`after` capture the change so a
+  // manual billing override can be reconstructed months later.
+  /// Actor's platform role at the time of the action (roles change; this doesn't).
+  actor_role String?
+  /// Actor email, denormalised so a deleted account still reads sensibly.
+  actor_email String?
+  user_agent String?
+  /// Type of the thing acted on ("user", "workspace", "payment"…).
+  target_type String?
+  /// Id of the thing acted on, split out so it can be indexed and filtered.
+  target_id  String?
+  /// Human-readable name of the target at the time.
+  target_label String?
+  /// Operator-supplied justification. Required for overrides and refunds.
+  reason     String?
+  before     Json?
+  after      Json?
+  /// info | warning | critical — drives the severity filter and alerting.
+  severity   String   @default("info")
+
   user User? @relation(fields: [user_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
 
   @@index([user_id])
   @@index([action])
+  @@index([target_id])
+  @@index([created_at])
   @@map("audit_logs")
 }
 
@@ -421,10 +518,33 @@ model Workspace {
   email      String?
   /// Uploaded avatar URL. NULL = render the first letter of `name`.
   avatar     String?
-  /// hobby | pro | scale. Drives PlanGate; never hardcoded in the UI.
+  /// hobby | pro | scale. The *entitlement* the workspace currently enjoys.
+  /// NOT the billing source of truth on its own — a paid `plan_key` is only ever
+  /// written by the billing state machine after a verified payment, or by an
+  /// audited manual override. Read it with `effectivePlanKey()`, which downgrades
+  /// to hobby when `subscription_status` says the paid access has lapsed.
   plan_key   String    @default("hobby")
   created_at DateTime  @default(now())
   updated_at DateTime? @default(now()) @updatedAt
+
+  // -- Billing state model (spec §37). Separate fields, never one `plan` field. --
+  /// none | trialing | active | past_due | canceled | expired | paused
+  subscription_status    String    @default("none")
+  /// none | pending | paid | failed | refunded | partially_refunded
+  payment_status         String    @default("none")
+  /// Provider that owns the live subscription: manual | stripe | razorpay | paypal
+  billing_provider       String    @default("manual")
+  /// Provider-side subscription id, when the provider models subscriptions.
+  subscription_id        String?
+  current_period_start   DateTime?
+  current_period_end     DateTime?
+  cancel_at_period_end   Boolean   @default(false)
+  /// True when an admin granted this plan without a payment (spec §59). Always
+  /// paired with the actor, reason and timestamp — never set silently.
+  manual_override        Boolean   @default(false)
+  manual_override_by     String?
+  manual_override_reason String?
+  manual_override_at     DateTime?
 
   owner           User               @relation(fields: [owner_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   projects        WorkspaceProject[]
@@ -445,6 +565,11 @@ model Workspace {
   notify_setting  NotificationSetting?
   notify_channels NotificationChannel[]
   notifications   Notification[]
+  payments        Payment[]
+  checkout_sessions CheckoutSession[]
+  subscription_events SubscriptionEvent[]
+  credit_transactions CreditTransaction[]
+  support_tickets SupportTicket[]
 
   @@index([owner_id])
   @@map("workspaces")
@@ -525,6 +650,11 @@ model BillingProfile {
 }
 
 /// Card on file. Only provider tokens + display metadata are stored — never a PAN.
+///
+/// Spec §6 is explicit about what must NOT be here: no full card number, no CVV,
+/// no security code, not even encrypted. `provider_ref` is the provider's opaque
+/// token and is never returned by any API. `looksLikeCardNumber()` guards the
+/// write path so a PAN cannot arrive by accident either.
 model PaymentMethod {
   id           String   @id @default(uuid())
   workspace_id String
@@ -537,6 +667,16 @@ model PaymentMethod {
   exp_year     Int
   is_default   Boolean  @default(false)
   created_at   DateTime @default(now())
+
+  // -- Spec §6 display metadata --
+  billing_name    String?
+  billing_country String?
+  /// active | expired | requires_action | removed
+  status          String  @default("active")
+  /// credit | debit | prepaid | unknown
+  funding         String  @default("unknown")
+  /// card | upi | paypal | bank_account
+  type            String  @default("card")
 
   workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
@@ -593,6 +733,20 @@ model PromoCode {
   max_redemables Int?
   created_at     DateTime  @default(now())
 
+  // -- Coupon fields (spec §13) --
+  /// fixed | percent — `amount_cents` is the value for `fixed`, `percent_off` for `percent`.
+  kind           String    @default("fixed")
+  percent_off    Int?
+  description    String?
+  /// JSON array of plan keys the code applies to. NULL/[] = any plan.
+  plan_keys      Json?
+  /// once | forever | months
+  duration       String    @default("once")
+  duration_months Int?
+  active         Boolean   @default(true)
+  created_by     String?
+  starts_at      DateTime?
+
   redemptions PromoRedemption[]
 
   @@map("promo_codes")
@@ -618,15 +772,38 @@ model Invoice {
   period_end   DateTime
   amount_cents Int       @default(0)
   currency     String    @default("USD")
-  /// paid | pending | failed | refunded
+  /// paid | pending | failed | refunded | void
   status       String    @default("pending")
   pdf_path     String?
   issued_at    DateTime  @default(now())
   paid_at      DateTime?
 
+  // -- Spec §11 fields --
+  /// Sequential human number (GH-2026-0001), distinct from the id.
+  number       String?   @unique
+  subtotal_cents Int     @default(0)
+  tax_cents    Int       @default(0)
+  discount_cents Int     @default(0)
+  credit_cents Int       @default(0)
+  due_at       DateTime?
+  /// Payment that settled it, when there is one.
+  payment_id   String?
+  notes        String?
+  voided_at    DateTime?
+  voided_by    String?
+  /// Set when an admin marked it paid outside the provider (§11: authorized /
+  /// manual cases only). Carries who and why.
+  marked_paid_by String?
+  marked_paid_reason String?
+  /// Times the invoice was emailed.
+  sent_count   Int       @default(0)
+  last_sent_at DateTime?
+
   workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  items     InvoiceItem[]
 
   @@index([workspace_id])
+  @@index([status])
   @@map("invoices")
 }
 
@@ -925,3 +1102,422 @@ model EnvGroupLink {
   @@index([environment_id])
   @@map("env_group_links")
 }
+
+// ===========================================================================
+//  BILLING STATE MACHINE (spec §7, §34–§37)
+//
+//  The rule these tables exist to enforce: a paid plan is only ever activated
+//  by `activateFromPayment()` after a provider webhook has been signature-
+//  verified, and every activation leaves a Payment row, a SubscriptionEvent row
+//  and an Invoice behind. Nothing in the frontend can reach these writes.
+// ===========================================================================
+
+/// One attempt to collect money. Created *before* the user is sent to the
+/// provider (status `pending`) and only ever moved to `succeeded` by verified
+/// webhook processing — never by an API call the browser can make.
+model Payment {
+  id           String   @id @default(uuid())
+  workspace_id String
+  user_id      String?
+  /// manual | stripe | razorpay | paypal
+  provider     String   @default("manual")
+  /// Provider's own payment id (pi_…, pay_…). Unique so a replayed webhook
+  /// cannot create a second payment row for the same charge.
+  provider_ref String?  @unique
+  /// pending | processing | succeeded | failed | refunded | partially_refunded | canceled
+  status       String   @default("pending")
+  amount_cents Int
+  currency     String   @default("USD")
+  /// Cents actually returned to the customer across all refunds.
+  refunded_cents Int    @default(0)
+  /// Plan this payment buys, so activation never has to trust the client.
+  plan_key     String?
+  /// subscription | one_time | credit_topup
+  kind         String   @default("subscription")
+  description  String?
+  failure_code String?
+  failure_message String?
+  invoice_id   String?
+  /// Provider payload of the last verified event, for support/forensics.
+  provider_event Json?
+  created_at   DateTime @default(now())
+  updated_at   DateTime? @default(now()) @updatedAt
+  succeeded_at DateTime?
+  failed_at    DateTime?
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  refunds   Refund[]
+
+  @@index([workspace_id])
+  @@index([status])
+  @@index([created_at])
+  @@map("payments")
+}
+
+/// A refund against a Payment. Admin-initiated refunds are recorded here with
+/// the acting admin and a mandatory reason (spec §10 "every financial action
+/// must be audited").
+model Refund {
+  id           String   @id @default(uuid())
+  payment_id   String
+  provider     String   @default("manual")
+  provider_ref String?  @unique
+  amount_cents Int
+  currency     String   @default("USD")
+  /// pending | succeeded | failed
+  status       String   @default("pending")
+  reason       String
+  /// Admin who issued it. NULL = provider- or customer-initiated.
+  admin_id     String?
+  created_at   DateTime @default(now())
+  settled_at   DateTime?
+
+  payment Payment @relation(fields: [payment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([payment_id])
+  @@map("refunds")
+}
+
+/// A started checkout. The *only* legitimate entry point to a paid plan: the
+/// user gets a session, the provider collects the money, the webhook flips the
+/// matching Payment to `succeeded`. An abandoned session simply expires.
+model CheckoutSession {
+  id           String   @id @default(uuid())
+  workspace_id String
+  user_id      String?
+  plan_key     String
+  amount_cents Int
+  currency     String   @default("USD")
+  provider     String   @default("manual")
+  /// Provider session id (cs_…), when the provider issues one.
+  provider_ref String?
+  /// Where the user is sent to pay. NULL for the manual/self-hosted provider.
+  redirect_url String?
+  /// open | completed | expired | canceled
+  status       String   @default("open")
+  /// Payment row this session created, once it has one.
+  payment_id   String?
+  expires_at   DateTime
+  created_at   DateTime @default(now())
+  completed_at DateTime?
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([workspace_id])
+  @@index([status])
+  @@map("checkout_sessions")
+}
+
+/// Immutable ledger of every subscription state transition, whether it came from
+/// a webhook or an admin. `before`/`after` snapshot the billing-state fields so
+/// "who put this account on Pro, and why" is always answerable (spec §8).
+model SubscriptionEvent {
+  id           String   @id @default(uuid())
+  workspace_id String
+  /// activated | renewed | upgraded | downgraded | canceled | expired |
+  /// payment_failed | reactivated | manual_override | refunded
+  event        String
+  /// webhook | admin | system | user
+  source       String   @default("system")
+  from_plan    String?
+  to_plan      String?
+  /// Admin who caused it, for `source = admin`.
+  admin_id     String?
+  reason       String?
+  payment_id   String?
+  before       Json?
+  after        Json?
+  created_at   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([workspace_id])
+  @@index([event])
+  @@map("subscription_events")
+}
+
+/// Inbound provider webhook ledger. This table *is* the idempotency guarantee
+/// (spec §34): `provider + event_id` is unique, so the same charge arriving five
+/// times inserts once and the other four are answered 200 without side effects.
+/// Rejected (bad-signature) attempts are recorded too — that is the audit trail
+/// for forged payment attempts.
+model ProviderWebhookEvent {
+  id          String   @id @default(uuid())
+  provider    String
+  /// Provider's event id. Synthesised from a payload hash when absent.
+  event_id    String
+  event_type  String
+  /// received | processed | ignored | rejected | failed
+  status      String   @default("received")
+  /// Why it was rejected/failed (bad signature, unknown payment, amount drift…).
+  detail      String?
+  signature_ok Boolean @default(false)
+  payload     Json?
+  ip          String?
+  received_at DateTime @default(now())
+  processed_at DateTime?
+
+  @@unique([provider, event_id])
+  @@index([event_type])
+  @@index([received_at])
+  @@map("provider_webhook_events")
+}
+
+/// Every movement of the credit balance. §13: "Never silently modify balances."
+/// The balance in `credit_balances` is a cache of the sum of these rows.
+model CreditTransaction {
+  id            String   @id @default(uuid())
+  workspace_id  String
+  /// Signed cents: positive = granted, negative = consumed/revoked.
+  amount_cents  Int
+  /// grant | revoke | promo | refund | usage | adjustment
+  kind          String   @default("adjustment")
+  reason        String
+  /// Admin who moved it. NULL = automated (promo redemption, usage debit).
+  admin_id      String?
+  balance_after Int
+  created_at    DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([workspace_id])
+  @@map("credit_transactions")
+}
+
+/// A line on an invoice (spec §11). Amounts in integer cents.
+model InvoiceItem {
+  id           String  @id @default(uuid())
+  invoice_id   String
+  description  String
+  quantity     Float   @default(1)
+  unit_cents   Int     @default(0)
+  amount_cents Int     @default(0)
+  /// plan | usage | credit | discount | tax
+  kind         String  @default("plan")
+
+  invoice Invoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([invoice_id])
+  @@map("invoice_items")
+}
+
+// ===========================================================================
+//  COMMUNICATION (spec §20–§23)
+// ===========================================================================
+
+/// A transactional email body an admin can edit. `key` is the trigger name the
+/// code sends against, so adding a row cannot invent a new trigger — the code
+/// side is the contract.
+model EmailTemplate {
+  id         String    @id @default(uuid())
+  key        String    @unique
+  name       String
+  subject    String
+  /// Handlebars-ish `{{token}}` body. Rendered with escaping.
+  body_html  String
+  body_text  String?
+  enabled    Boolean   @default(true)
+  updated_by String?
+  created_at DateTime  @default(now())
+  updated_at DateTime? @default(now()) @updatedAt
+
+  @@map("email_templates")
+}
+
+/// Delivery record for every email the platform attempts. `error` holds the SMTP
+/// failure; credentials never appear here.
+model EmailLog {
+  id           String   @id @default(uuid())
+  to_email     String
+  from_email   String?
+  subject      String
+  template_key String?
+  /// queued | sent | delivered | failed | bounced
+  status       String   @default("queued")
+  error        String?
+  /// SMTP message id, when the transport returned one.
+  message_id   String?
+  user_id      String?
+  /// system | admin_test | announcement | transactional
+  kind         String   @default("transactional")
+  /// The rendered message. Without it a queued mail cannot be sent once SMTP is
+  /// configured, and "what exactly did we send them?" has no answer.
+  body_html    String?
+  body_text    String?
+  /// What the mail is about — `invoice` + its id — so a bounce is traceable.
+  related_type String?
+  related_id   String?
+  attempts     Int      @default(0)
+  last_attempt_at DateTime?
+  created_at   DateTime @default(now())
+  sent_at      DateTime?
+
+  @@index([status])
+  @@index([created_at])
+  @@index([to_email])
+  @@map("email_logs")
+}
+
+/// Broadcast shown in-app and optionally emailed (spec §22).
+model Announcement {
+  id         String    @id @default(uuid())
+  title      String
+  body       String
+  /// info | warning | critical | success
+  level      String    @default("info")
+  /// all | plan | role | user
+  audience   String    @default("all")
+  /// JSON array of plan keys / roles / user ids, per `audience`.
+  audience_ref Json?
+  /// banner | modal | inbox
+  placement  String    @default("inbox")
+  published  Boolean   @default(false)
+  send_email Boolean   @default(false)
+  starts_at  DateTime?
+  ends_at    DateTime?
+  created_by String?
+  created_at DateTime  @default(now())
+  updated_at DateTime? @default(now()) @updatedAt
+
+  @@index([published])
+  @@map("announcements")
+}
+
+/// Support conversation (spec §23).
+model SupportTicket {
+  id           String    @id // tkt-xxxxxxxx
+  user_id      String?
+  workspace_id String?
+  subject      String
+  /// low | normal | high | urgent
+  priority     String    @default("normal")
+  /// open | pending | in_progress | resolved | closed
+  status       String    @default("open")
+  /// billing | deployment | domain | account | other
+  category     String    @default("other")
+  /// Admin the ticket is assigned to.
+  assignee_id  String?
+  created_at   DateTime  @default(now())
+  updated_at   DateTime? @default(now()) @updatedAt
+  resolved_at  DateTime?
+
+  workspace Workspace?      @relation(fields: [workspace_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  messages  SupportMessage[]
+
+  @@index([status])
+  @@index([user_id])
+  @@map("support_tickets")
+}
+
+model SupportMessage {
+  id         String   @id @default(uuid())
+  ticket_id  String
+  /// user | admin
+  author     String
+  author_id  String?
+  body       String
+  /// Internal notes are never shown to the customer.
+  internal   Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  ticket SupportTicket @relation(fields: [ticket_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([ticket_id])
+  @@map("support_messages")
+}
+
+// ===========================================================================
+//  ADMIN SESSIONS + API KEYS (spec §2, §30, §31)
+// ===========================================================================
+
+/// One admin sign-in. Lets an operator see and revoke their own devices, and
+/// lets a super-admin kill someone else's session (spec §30). A revoked row is
+/// rejected by authMiddleware on the next request.
+model AdminSession {
+  id           String    @id @default(uuid())
+  user_id      String
+  /// SHA-256 of the JWT. The token itself is never stored.
+  token_hash   String    @unique
+  ip           String?
+  user_agent   String?
+  /// Coarse label derived from the UA ("Chrome on Windows").
+  device       String?
+  /// True when the IP or device had never been seen for this account.
+  suspicious   Boolean   @default(false)
+  created_at   DateTime  @default(now())
+  last_seen_at DateTime  @default(now())
+  expires_at   DateTime
+  revoked_at   DateTime?
+  /// Who revoked it: `self`, an admin id, or `password_change`.
+  revoked_by   String?
+
+  @@index([user_id])
+  @@index([expires_at])
+  @@map("admin_sessions")
+}
+
+/// Failed sign-in attempt, for lockout + the security dashboard (spec §2, §29).
+model LoginAttempt {
+  id         String   @id @default(uuid())
+  email      String
+  ip         String?
+  user_agent String?
+  success    Boolean  @default(false)
+  /// bad_password | unknown_user | suspended | locked | ok
+  outcome    String
+  created_at DateTime @default(now())
+
+  @@index([email, created_at])
+  @@index([ip, created_at])
+  @@map("login_attempts")
+}
+
+/// Machine credential for the admin API (spec §31). Only the hash is stored, so
+/// the plaintext exists exactly once — in the create response.
+model AdminApiKey {
+  id           String    @id @default(uuid())
+  name         String
+  /// SHA-256 of the secret. Never reversible.
+  key_hash     String    @unique
+  /// First 8 chars, so a key can be identified in a list.
+  key_prefix   String
+  /// JSON array of permission strings this key may exercise.
+  permissions  Json
+  created_by   String?
+  last_used_at DateTime?
+  expires_at   DateTime?
+  revoked_at   DateTime?
+  created_at   DateTime  @default(now())
+
+  @@map("admin_api_keys")
+}
+
+/// One row per backend boot, so the status page can state uptime and downtime as
+/// fact instead of a decorative "99.9%".
+///
+/// While the process runs it refreshes `last_seen_at` every 30s. The next boot
+/// reads the previous row: the gap between that row's last heartbeat and the new
+/// `started_at` is exactly how long the platform was unreachable, which is the
+/// only honest way to report an outage nobody was around to observe (§53 — no
+/// invented numbers). A clean SIGTERM sets `ended_at` and `clean_exit`, so a
+/// planned restart can be told apart from a crash or a host reboot.
+model PlatformUptime {
+  id           String    @id @default(uuid())
+  started_at   DateTime  @default(now())
+  /// Refreshed by the running process; the moment the platform was last known up.
+  last_seen_at DateTime  @default(now())
+  /// Set when this session ends — at shutdown, or by the next boot from the last
+  /// heartbeat. Null means "this is the session serving you right now".
+  ended_at     DateTime?
+  clean_exit   Boolean   @default(false)
+  /// Seconds the platform was down immediately before this session started.
+  gap_seconds  Int       @default(0)
+  /// Panel version this session ran, when the build stamped one.
+  version      String?
+
+  @@index([started_at])
+  @@map("platform_uptime")
+}
+
+
+

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { adminGet, adminSend, adminDownload } from "@/lib/adminApi";
+import { useAdminMe } from "@/hooks/useAdminMe";
 import type { AdminSettings as SettingsData, Plan } from "@/lib/adminTypes";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +20,8 @@ export default function AdminSettings() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
+  // The header's maintenance indicator reads `/me`, which is cached per page load.
+  const { reload: reloadAdminMe } = useAdminMe();
 
   const fetchSettings = useCallback(async () => {
     setLoading(true);
@@ -62,6 +65,9 @@ export default function AdminSettings() {
         error_resolved_retention_days: settings.error_resolved_retention_days,
       });
       toast.success("Settings saved");
+      // Maintenance mode may have just changed; refresh the shell's copy so the
+      // header badge appears (or disappears) without a reload.
+      reloadAdminMe();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save settings");
     } finally {

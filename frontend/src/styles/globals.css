@@ -247,8 +247,76 @@
   }
 }
 
+/* ─── Press feedback ─────────────────────────────────────────────────────────
+   The tap animation, as one utility instead of a per-button decision. A 3% dip on
+   pointer-down stays inside the flat register (§28 rules out bounce) while still
+   confirming a touch on mobile, where there is no hover state to fall back on.
+
+   Two deliberate choices:
+     • `scale`, not `transform: scale()`. A button positioned with
+       `-translate-y-1/2` would lose its offset the moment a transform shorthand
+       overwrote it; the standalone property composes instead of clobbering.
+     • The transition lists the colour properties too. This rule is authored after
+       `@tailwind utilities`, so a bare `transition-property: scale` here would win
+       over the `transition-colors` on the same element and kill its hover fade. */
+.press {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .press {
+    transition-property: scale, color, background-color, border-color, box-shadow, filter, opacity;
+    transition-duration: 150ms;
+    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  .press:active {
+    scale: 0.97;
+  }
+
+  /* A disabled control must not answer a tap — movement suggests it worked. */
+  .press:disabled:active,
+  .press[aria-disabled='true']:active,
+  .press[data-disabled]:active {
+    scale: 1;
+  }
+}
+
+/* ─── Marketing surfaces ─────────────────────────────────────────────────────
+   The public homepage lives on the same light plane as the app. Texture comes
+   from a hairline dot grid, not a gradient: it gives the hero depth while the
+   palette stays exactly the product's. */
+.hero-grid {
+  background-image: radial-gradient(circle at center, rgba(15, 23, 42, 0.07) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* Fades the grid out at the edges so it reads as texture, not as a table. */
+.hero-grid-mask {
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 35%, #000 40%, transparent 100%);
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 35%, #000 40%, transparent 100%);
+}
+
+/* Deploy-pipeline illustration: the accent that walks down the steps. */
+@keyframes pipeline-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-pipeline-pulse {
+  animation: pipeline-pulse 2.4s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  [data-sonner-toast].docklift-toast {
+  [data-sonner-toast].docklift-toast,
+  .animate-pipeline-pulse,
+  .shimmer::after,
+  .animate-progress-scan {
     animation: none;
   }
 }

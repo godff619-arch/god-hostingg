@@ -5,20 +5,24 @@
 // hardcoded per-account (§81): an untouched month legitimately reads 0, and an
 // unlimited allowance renders "Unlimited" rather than a full bar.
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
+  AlertTriangle,
   Check,
   ChevronDown,
   ChevronRight,
+  Clock,
   CreditCard,
   Download,
+  ExternalLink,
   Gift,
   Loader2,
   Pencil,
   Plus,
   RefreshCw,
+  ShieldCheck,
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -39,9 +43,12 @@ import { cn } from "@/lib/utils";
 import type {
   BillingPayload,
   BillingProfile,
+  CheckoutStatus,
+  CheckoutSessionView,
   InvoiceRow,
   PaymentMethodRow,
   PlanOption,
+  SubscriptionState,
   UnbilledGroup,
   UsageMeter,
 } from "@/lib/workspaceTypes";
@@ -139,6 +146,47 @@ export default function Billing() {
     await refreshWorkspace();
   }, [load, refreshWorkspace]);
 
+  // Returning from the provider. The query parameter says only "the browser came
+  // back" — it is never taken as proof of payment (§34), so the session is re-read
+  // from the server and the plan shown is whatever the webhook actually did.
+  const [params, setParams] = useSearchParams();
+  const returned = params.get("checkout");
+  useEffect(() => {
+    if (!returned) return;
+    const status = params.get("status");
+    let cancelled = false;
+    void (async () => {
+      try {
+        const result = await apiGet<CheckoutStatus>(scope(`/api/billing/checkout/${returned}`));
+        if (cancelled) return;
+        if (result.payment?.status === "succeeded") {
+          toast.success("Payment confirmed. Your plan is active.");
+        } else if (result.payment?.status === "failed") {
+          toast.error(result.payment.failure_message ?? "The payment failed. Your plan is unchanged.");
+        } else if (status === "cancelled") {
+          toast.info("Checkout cancelled. Nothing was charged.");
+        } else {
+          toast.info("Payment received by the provider. Your plan activates once it is confirmed.");
+        }
+      } catch {
+        /* the banner on the page still shows the pending session */
+      } finally {
+        if (!cancelled) {
+          const next = new URLSearchParams(params);
+          next.delete("checkout");
+          next.delete("status");
+          setParams(next, { replace: true });
+          await reload();
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Runs once per return; `params` is read inside deliberately.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [returned]);
+
   if (loading && !data) {
     return (
       <div className="mx-auto w-full max-w-[1160px] space-y-4">
@@ -208,6 +256,69 @@ export default function Billing() {
 
 // ------------------------------------------------------------------ Plan (§8–§13)
 
+/** §37 subscription status → a small coloured pill. */
+const STATUS_TONE: Record<string, string> = {
+  active: "border-success-border bg-success-surface text-success",
+  trialing: "border-brand-strong bg-brand/15 text-brand-foreground",
+  past_due: "border-warning-border bg-warning-surface text-warning",
+  unpaid: "border-danger-border bg-danger-surface text-danger",
+  canceled: "border-border bg-secondary/50 text-muted-foreground",
+  none: "border-border bg-secondary/50 text-muted-foreground",
+};
+
+function StatusPill({ status }: { status: string }) {
+  return (
+    <span
+      className={cn(
+        "rounded-full border px-2 py-[2px] text-[10px] font-medium uppercase tracking-[0.07em]",
+        STATUS_TONE[status] ?? STATUS_TONE.none,
+      )}
+    >
+      {status.replace(/_/g, " ")}
+    </span>
+  );
+}
+
+/**
+ * The billing state §37 asks for, rendered as separate facts rather than one word.
+ *
+ * `plan_key` is what was bought and `effective_plan` is what is live, so a lapsed Pro
+ * shows "Pro — expired, running as Hobby" instead of silently claiming Pro.
+ */
+function SubscriptionFacts({ sub }: { sub: SubscriptionState }) {
+  const lapsed = sub.effective_plan !== sub.plan_key;
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-3 text-[12px] text-muted-foreground">
+      <span className="flex items-center gap-1.5">
+        Subscription <StatusPill status={sub.subscription_status} />
+      </span>
+      <span className="flex items-center gap-1.5">
+        Payment <StatusPill status={sub.payment_status} />
+      </span>
+      {sub.billing_provider ? <span>via {sub.billing_provider}</span> : null}
+      {sub.current_period_end ? (
+        <span className="flex items-center gap-1">
+          <Clock className="h-3 w-3" />
+          {sub.cancel_at_period_end ? "Ends" : "Renews"} {dateLabel(sub.current_period_end)}
+        </span>
+      ) : null}
+      {sub.manual_override ? (
+        <span
+          className="flex items-center gap-1 rounded-full border border-warning-border bg-warning-surface px-2 py-[2px] text-[10px] font-medium uppercase tracking-[0.07em] text-warning"
+          title={sub.manual_override_reason ?? "Set by an operator"}
+        >
+          <ShieldCheck className="h-3 w-3" /> Manual override
+        </span>
+      ) : null}
+      {lapsed ? (
+        <span className="text-warning">
+          Paid tier {sub.plan_label} is not live — running as {sub.effective_plan_label}.
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 function PlanSection({
   data,
   canWrite,
@@ -218,8 +329,10 @@ function PlanSection({
   onChanged: () => Promise<void>;
 }) {
   const [target, setTarget] = useState<PlanOption | null>(null);
-  const current = data.workspace.plan.key;
+  // The *effective* tier drives "Current plan", so a lapsed Pro can re-buy Pro.
+  const current = data.subscription.effective_plan;
   const currentPlan = data.plans.find((p) => p.key === current);
+  const sub = data.subscription;
 
   return (
     <TocSection
@@ -234,7 +347,7 @@ function PlanSection({
               <span className="text-[15px] font-medium text-foreground">
                 {currentPlan?.name ?? data.workspace.plan.label}
               </span>
-              <PlanBadge tier={current} />
+              <PlanBadge tier={data.workspace.plan.key} />
             </div>
             <p className="mt-1 text-[12px] text-muted-foreground">
               {currentPlan
@@ -243,7 +356,20 @@ function PlanSection({
             </p>
           </div>
         </div>
+        <SubscriptionFacts sub={sub} />
       </div>
+
+      {sub.cancel_at_period_end && sub.current_period_end ? (
+        <div className="mt-3 flex items-start gap-2 rounded-md border border-warning-border bg-warning-surface p-3 text-[12px] text-warning">
+          <AlertTriangle className="mt-[1px] h-3.5 w-3.5 shrink-0" />
+          <span>
+            This subscription is set to end on {dateLabel(sub.current_period_end)}. Paid features
+            keep working until then — pick a plan below to stay on it.
+          </span>
+        </div>
+      ) : null}
+
+      <PendingCheckoutBanner data={data} canWrite={canWrite} onChanged={onChanged} />
 
       <h3 className="mt-6 text-[13px] font-medium text-foreground">Plan Benefits</h3>
       <div className="mt-3 grid gap-3 md:grid-cols-3">
@@ -288,18 +414,21 @@ function PlanSection({
               >
                 {isCurrent
                   ? "Current plan"
-                  : plan.price_cents > (data.plans.find((p) => p.key === current)?.price_cents ?? 0)
-                    ? `Upgrade to ${plan.name}`
-                    : `Switch to ${plan.name}`}
+                  : plan.price_cents === 0
+                    ? "Downgrade to Free"
+                    : plan.price_cents > (currentPlan?.price_cents ?? 0)
+                      ? `Upgrade to ${plan.name}`
+                      : `Switch to ${plan.name}`}
               </Button>
             </div>
           );
         })}
       </div>
 
-      <ConfirmPlanChange
+      <PlanChangeDialog
         plan={target}
         currentLabel={currentPlan?.name ?? data.workspace.plan.label}
+        checkout={data.checkout}
         onOpenChange={(open) => {
           if (!open) setTarget(null);
         }}
@@ -309,29 +438,199 @@ function PlanSection({
   );
 }
 
-/** Plan changes are billed, so they go through an explicit confirmation (§77). */
-function ConfirmPlanChange({
+/**
+ * Banner for a checkout that was started and never finished.
+ *
+ * It exists because §34 makes payment asynchronous: the customer leaves for the
+ * provider and the plan only moves when the signed webhook lands. Coming back to a
+ * page with no trace of that would look like the payment vanished.
+ */
+function PendingCheckoutBanner({
+  data,
+  canWrite,
+  onChanged,
+}: {
+  data: BillingPayload;
+  canWrite: boolean;
+  onChanged: () => Promise<void>;
+}) {
+  const scope = useScope();
+  const [busy, setBusy] = useState(false);
+  const pending = data.checkout.pending_session;
+  const plan = data.plans.find((p) => p.key === pending?.plan_key);
+  if (!pending) return null;
+
+  const abandon = async () => {
+    setBusy(true);
+    try {
+      await apiSend(scope(`/api/billing/checkout/${pending.id}/cancel`), "POST");
+      toast.success("Checkout cancelled. Nothing was charged.");
+      await onChanged();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mt-3 rounded-md border border-brand-strong bg-brand/10 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="text-[12px]">
+          <div className="font-medium text-foreground">
+            Payment in progress — {plan?.name ?? pending.plan_key} · {money(pending.amount_cents)}
+          </div>
+          <p className="mt-0.5 text-muted-foreground">
+            Your plan activates once {data.checkout.provider} confirms the payment. Started{" "}
+            {dateLabel(pending.expires_at)} expiry.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {pending.redirect_url ? (
+            <Button asChild size="sm">
+              <a href={pending.redirect_url} target="_blank" rel="noreferrer">
+                Continue payment <ExternalLink className="ml-1.5 h-3 w-3" />
+              </a>
+            </Button>
+          ) : null}
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy || !canWrite}
+            onClick={() => void abandon()}
+          >
+            {busy ? "Cancelling…" : "Cancel"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Payment states that will never change on their own — stop polling on these. */
+const TERMINAL_PAYMENT = new Set(["succeeded", "failed", "canceled", "refunded"]);
+
+/**
+ * Plan change (§7).
+ *
+ * Two genuinely different operations behind one button, because they are different
+ * operations on the server too:
+ *
+ *   • Downgrade to Free → `PATCH /api/billing/plan`, which cancels at period end.
+ *     Nothing is charged, so nothing has to be verified.
+ *   • Any paid plan → `POST /api/billing/checkout`, then wait. This dialog CANNOT
+ *     grant the plan and does not pretend to: it polls the session and only reports
+ *     success once the server says the payment succeeded, which only a
+ *     signature-verified webhook can cause. There is deliberately no "mark as paid"
+ *     button here — that was the §7/§57 bug.
+ */
+function PlanChangeDialog({
   plan,
   currentLabel,
+  checkout,
   onOpenChange,
   onDone,
 }: {
   plan: PlanOption | null;
   currentLabel: string;
+  checkout: BillingPayload["checkout"];
   onOpenChange: (open: boolean) => void;
   onDone: () => Promise<void>;
 }) {
   const scope = useScope();
   const [saving, setSaving] = useState(false);
+  const [session, setSession] = useState<CheckoutSessionView | null>(null);
+  const [payment, setPayment] = useState<CheckoutStatus["payment"]>(null);
+  const [waiting, setWaiting] = useState(false);
+  const doneRef = useRef(onDone);
+  doneRef.current = onDone;
 
-  const apply = async () => {
+  // Reset when the dialog is reopened for a different plan.
+  useEffect(() => {
+    if (!plan) {
+      setSession(null);
+      setPayment(null);
+      setWaiting(false);
+    }
+  }, [plan]);
+
+  // Poll while a session is open. Timer, not a subscription: the authoritative
+  // event arrives on the server from the provider, never in this browser.
+  //
+  // Keyed on the session *id*, not the object — each tick replaces the object, and
+  // depending on it would restart the interval on every response.
+  const sessionId = session?.id ?? null;
+  const planName = plan?.name;
+  useEffect(() => {
+    if (!sessionId || !waiting) return;
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const status = await apiGet<CheckoutStatus>(scope(`/api/billing/checkout/${sessionId}`));
+        if (cancelled) return;
+        setSession(status.checkout);
+        setPayment(status.payment);
+        if (status.payment && TERMINAL_PAYMENT.has(status.payment.status)) {
+          setWaiting(false);
+          if (status.payment.status === "succeeded") {
+            toast.success(`Payment confirmed — you are on ${planName ?? "the new plan"}.`);
+            await doneRef.current();
+          }
+        } else if (status.checkout.status === "expired" || status.checkout.status === "canceled") {
+          setWaiting(false);
+        }
+      } catch {
+        /* transient; the next tick retries */
+      }
+    };
+    void tick();
+    const timer = window.setInterval(() => void tick(), 4000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [sessionId, waiting, scope, planName]);
+
+  const start = async () => {
     if (!plan) return;
     setSaving(true);
     try {
-      await apiSend(scope("/api/billing/plan"), "PATCH", { plan_key: plan.key });
-      toast.success(`Plan updated to ${plan.name}`);
-      onOpenChange(false);
-      await onDone();
+      if (plan.price_cents === 0) {
+        // The free path is a cancellation, not a purchase.
+        const res = await apiSend<{ message?: string }>(scope("/api/billing/plan"), "PATCH", {
+          plan_key: plan.key,
+        });
+        toast.success(res?.message ?? `Moving to ${plan.name}.`);
+        onOpenChange(false);
+        await onDone();
+        return;
+      }
+
+      const res = await apiSend<{
+        activated?: boolean;
+        checkout?: CheckoutSessionView;
+        message?: string;
+        funded_by?: string;
+      }>(scope("/api/billing/checkout"), "POST", { plan_key: plan.key, interval: "month" });
+
+      if (res?.activated) {
+        // Credit already on the account is real, ledgered money, so the server
+        // could settle it synchronously.
+        toast.success(res.message ?? `${plan.name} is active.`);
+        onOpenChange(false);
+        await onDone();
+        return;
+      }
+      if (!res?.checkout) {
+        toast.error("The server did not return a checkout session.");
+        return;
+      }
+      setSession(res.checkout);
+      setWaiting(true);
+      if (res.checkout.redirect_url) {
+        // Opened rather than navigated so this tab keeps polling.
+        window.open(res.checkout.redirect_url, "_blank", "noopener");
+      }
     } catch (err) {
       toast.error(errorMessage(err));
     } finally {
@@ -339,25 +638,112 @@ function ConfirmPlanChange({
     }
   };
 
+  const abandon = async () => {
+    if (!session) return;
+    try {
+      await apiSend(scope(`/api/billing/checkout/${session.id}/cancel`), "POST");
+    } catch {
+      /* already closed server-side; closing the dialog is enough */
+    }
+    setWaiting(false);
+    onOpenChange(false);
+    await onDone();
+  };
+
+  const succeeded = payment?.status === "succeeded";
+  const failed = payment ? ["failed", "canceled"].includes(payment.status) : false;
+
   return (
-    <Dialog open={!!plan} onOpenChange={onOpenChange}>
+    <Dialog open={!!plan} onOpenChange={(open) => (open ? undefined : onOpenChange(false))}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Update plan?</DialogTitle>
+          <DialogTitle>
+            {session ? `Pay for ${plan?.name}` : plan?.price_cents === 0 ? "Downgrade plan?" : "Confirm upgrade"}
+          </DialogTitle>
           <DialogDescription>
-            This workspace moves from {currentLabel} to {plan?.name}.
-            {plan && plan.price_cents > 0
-              ? ` ${money(plan.price_cents)} per month will be added to your unbilled charges.`
-              : " Paid features stop being available immediately."}
+            {session
+              ? "Your plan changes when the payment is confirmed by the provider — not when this page says so."
+              : plan && plan.price_cents > 0
+                ? `${currentLabel} → ${plan.name}, ${money(plan.price_cents)} per month. You will be taken to ${checkout.provider === "manual" ? "the payment instructions" : checkout.provider} to pay.`
+                : `This workspace moves from ${currentLabel} to ${plan?.name}. Paid features stay available until the end of the period you already paid for.`}
           </DialogDescription>
         </DialogHeader>
+
+        {session ? (
+          <div className="space-y-3 text-[12px]">
+            <div className="flex items-center justify-between rounded-md border border-border bg-secondary/40 px-3 py-2">
+              <span className="text-muted-foreground">Amount</span>
+              <span className="font-medium text-foreground">{session.amount_label}</span>
+            </div>
+
+            {session.instructions ? (
+              <div className="rounded-md border border-border bg-card p-3">
+                <div className="mb-1 font-medium text-foreground">Payment instructions</div>
+                <p className="whitespace-pre-wrap leading-relaxed text-muted-foreground">
+                  {session.instructions}
+                </p>
+              </div>
+            ) : null}
+
+            {session.redirect_url && !succeeded ? (
+              <Button asChild variant="outline" className="w-full">
+                <a href={session.redirect_url} target="_blank" rel="noreferrer">
+                  Open payment page <ExternalLink className="ml-1.5 h-3 w-3" />
+                </a>
+              </Button>
+            ) : null}
+
+            {succeeded ? (
+              <div className="flex items-center gap-2 rounded-md border border-success-border bg-success-surface p-3 text-success">
+                <Check className="h-3.5 w-3.5" /> Payment confirmed. {plan?.name} is active.
+              </div>
+            ) : failed ? (
+              <div className="flex items-start gap-2 rounded-md border border-danger-border bg-danger-surface p-3 text-danger">
+                <AlertTriangle className="mt-[1px] h-3.5 w-3.5 shrink-0" />
+                <span>
+                  {payment?.failure_message ?? "The payment did not go through."} Your plan was not
+                  changed — you can try again.
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 rounded-md border border-border bg-secondary/40 p-3 text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Waiting for {session.provider} to confirm the payment…
+              </div>
+            )}
+          </div>
+        ) : null}
+
         <DialogFooter className="gap-2">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button type="button" disabled={saving} onClick={() => void apply()}>
-            {saving ? "Updating…" : `Update to ${plan?.name ?? ""}`}
-          </Button>
+          {session ? (
+            succeeded ? (
+              <Button type="button" onClick={() => onOpenChange(false)}>
+                Done
+              </Button>
+            ) : (
+              <>
+                <Button type="button" variant="outline" onClick={() => void abandon()}>
+                  Cancel payment
+                </Button>
+                <Button type="button" variant="outline" onClick={() => setWaiting(true)}>
+                  <RefreshCw className="mr-1.5 h-3 w-3" /> Check now
+                </Button>
+              </>
+            )
+          ) : (
+            <>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button type="button" disabled={saving} onClick={() => void start()}>
+                {saving
+                  ? "Starting…"
+                  : plan && plan.price_cents > 0
+                    ? `Continue to payment`
+                    : `Move to ${plan?.name ?? ""}`}
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -397,7 +783,7 @@ function PaymentMethodSection({
     <TocSection
       id="payment-method"
       title="Payment Method"
-      description="Cards are tokenized by the payment provider — Docklift stores only the brand, last four digits and expiry."
+      description="Cards are tokenized by the payment provider — God Hosting stores only the brand, last four digits and expiry. Adding a card does not change your plan."
       action={
         canWrite ? (
           <Button variant="outline" onClick={() => setAddOpen(true)}>
@@ -416,7 +802,8 @@ function PaymentMethodSection({
           />
           <p className="mt-2 text-[14px] text-foreground">No card on file.</p>
           <p className="mt-1 text-[12px] text-muted-foreground">
-            Add a payment method to move off the Hobby plan.
+            Save a card so future checkouts are one click. Your plan only changes when a
+            payment is confirmed.
           </p>
         </div>
       ) : (
@@ -426,18 +813,24 @@ function PaymentMethodSection({
               <CreditCard className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-[13px] text-foreground">
-                    {method.brand} •••• {method.last4}
-                  </span>
+                  {/* Server-rendered mask, so this component cannot widen it. */}
+                  <span className="text-[13px] text-foreground">{method.label}</span>
                   {method.is_default ? (
                     <span className="rounded-[3px] border border-border px-1.5 py-[2px] text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
                       Default
                     </span>
                   ) : null}
+                  {method.status !== "active" ? (
+                    <span className="rounded-[3px] border border-warning-border bg-warning-surface px-1.5 py-[2px] text-[10px] uppercase tracking-[0.08em] text-warning">
+                      {method.status}
+                    </span>
+                  ) : null}
                 </div>
                 <p className="mt-0.5 text-[12px] text-muted-foreground">
-                  Expires {String(method.exp_month).padStart(2, "0")}/
-                  {String(method.exp_year).slice(-2)}
+                  Expiry {method.expiry_label}
+                  {method.funding && method.funding !== "unknown" ? ` · ${method.funding}` : ""}
+                  {method.billing_country ? ` · ${method.billing_country}` : ""}
+                  {` · ${method.provider}`}
                 </p>
               </div>
               {canWrite ? (

@@ -12,6 +12,10 @@ import { fileURLToPath } from 'url';
 import bcrypt from 'bcrypt';
 import prisma from '../lib/prisma.js';
 import { type AuthenticatedRequest, isAdmin } from '../lib/authMiddleware.js';
+import { detectEdgeRouter } from '../lib/edgeRouter.js';
+import { checkDns, checkWildcardDns, invalidateDnsCache } from '../lib/dnsCheck.js';
+import { getPlatformDomainConfig, DEFAULT_SUBDOMAIN_TEMPLATE } from '../lib/platformDomain.js';
+import { uptimeStatus } from '../lib/uptime.js';
 import { requireStepUpPassword } from '../lib/stepUpAuth.js';
 
 const __filenameSystem = fileURLToPath(import.meta.url);
@@ -518,14 +522,44 @@ export async function getSystemStats(): Promise<SystemStats> {
   }
 }
 
-// GET /api/system/stats - Get all system statistics
+/**
+ * Host detail is operator information: hostname, kernel, arch, load, disks,
+ * process names and PIDs describe the machine every tenant shares, and a tenant
+ * has no use for it. Enforced here rather than only hidden in the sidebar — the
+ * endpoint is what has to say no (spec §47).
+ */
+function requireOperator(req: Request, res: Response): boolean {
+  if (isAdmin(req as AuthenticatedRequest)) return true;
+  res.status(403).json({ error: 'Admin privileges required' });
+  return false;
+}
+
+// GET /api/system/stats - Get all system statistics (admin only)
 router.get('/stats', async (req: Request, res: Response) => {
+  if (!requireOperator(req, res)) return;
   try {
     const stats = await getSystemStats();
     res.json(stats);
   } catch (error) {
     console.error('Failed to get system stats:', error);
     res.status(500).json({ error: 'Failed to fetch system statistics' });
+  }
+});
+
+/**
+ * GET /api/system/status — what everyone else gets instead.
+ *
+ * Uptime, downtime and the restart history, with nothing about the hardware in
+ * it. Every number comes from the `platform_uptime` rows written at boot and by
+ * the heartbeat (lib/uptime.ts), so an outage appears here only because one was
+ * actually observed.
+ */
+router.get('/status', async (_req: Request, res: Response) => {
+  try {
+    res.json(await uptimeStatus());
+  } catch (error) {
+    console.error('Failed to build platform status:', error);
+    res.status(500).json({ error: 'Failed to fetch platform status' });
   }
 });
 
@@ -553,8 +587,9 @@ router.get('/logs/:service', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/system/quick - Get only CPU and memory (for header widget)
+// GET /api/system/quick - Get only CPU and memory (for header widget, admin only)
 router.get('/quick', async (req: Request, res: Response) => {
+  if (!requireOperator(req, res)) return;
   try {
     const [cpuLoad, memData] = await Promise.all([
       si.currentLoad(),
@@ -581,6 +616,81 @@ router.get('/ip', async (req: Request, res: Response) => {
     res.json({ ip: cachedPublicIP });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch server IP' });
+  }
+});
+
+/**
+ * GET /api/system/edge — how a tenant hostname is served on this host.
+ *
+ * Two independent things have to be true before a hostname works, and the UI
+ * needs both: something must serve 80/443 (`mode`/`serves`), **and** the name
+ * must resolve here (`dns`). Only reporting the first is how a project page ends
+ * up advertising an NXDOMAIN hostname as the app's live URL while the working
+ * host port is demoted to a footnote.
+ *
+ * Container and network names stay in the admin payload — a tenant has no use
+ * for the platform's internals. `?refresh=1` re-probes both.
+ */
+router.get('/edge', async (req: Request, res: Response) => {
+  try {
+    const refresh = req.query.refresh === '1' || req.query.refresh === 'true';
+    const [edge, cfg] = await Promise.all([
+      detectEdgeRouter({ refresh }),
+      getPlatformDomainConfig(),
+    ]);
+    if (refresh) invalidateDnsCache();
+
+    // The record to advertise has to be the address a visitor would be sent to,
+    // so the public IP is worth one cached HTTP call before answering.
+    if (cachedPublicIP === 'N/A' || Date.now() - lastIPFetch > IP_CACHE_TTL) {
+      await fetchPublicIPInfo().catch(() => undefined);
+    }
+    const expected = cachedPublicIP !== 'N/A' ? cachedPublicIP : null;
+
+    // `{slug}.{base}` is the one shape a single wildcard record covers; any other
+    // template needs a record per app, and probing a wildcard would be misleading.
+    const wildcardCovers = cfg.template === DEFAULT_SUBDOMAIN_TEMPLATE;
+    const [dns, apex] = await Promise.all([
+      cfg.baseDomain && wildcardCovers
+        ? checkWildcardDns(cfg.baseDomain, expected, { refresh })
+        : Promise.resolve(null),
+      // The apex is what the panel itself is reached on. It is listed in Admin →
+      // Domains next to the wildcard, so it gets a verdict too rather than being
+      // the one row an operator has to verify by hand.
+      cfg.baseDomain ? checkDns(cfg.baseDomain, expected, { refresh }) : Promise.resolve(null),
+    ]);
+
+    res.json({
+      mode: edge.mode,
+      https: edge.mode === 'nginx' || (edge.mode === 'traefik' && Boolean(edge.certResolver)),
+      /** False when a saved hostname cannot reach a container at all yet. */
+      serves: edge.mode !== 'none',
+      base_domain: cfg.baseDomain,
+      dns: dns
+        ? {
+            verdict: dns.verdict,
+            hostname: dns.hostname,
+            addresses: dns.addresses,
+            expected,
+            record: { type: 'A', name: `*.${cfg.baseDomain}`, value: expected },
+          }
+        : null,
+      dns_apex: apex
+        ? {
+            verdict: apex.verdict,
+            hostname: apex.hostname,
+            addresses: apex.addresses,
+            expected,
+            record: { type: 'A', name: cfg.baseDomain, value: expected },
+          }
+        : null,
+      /** No wildcard is possible under this template — each app needs its own record. */
+      per_app_records: Boolean(cfg.baseDomain) && !wildcardCovers,
+    });
+  } catch {
+    // Never fail the page over this: `mode: null` means "not known", and the
+    // caller keeps its previous assumption rather than downgrading every link.
+    res.json({ mode: null, https: true, serves: true, base_domain: null, dns: null });
   }
 });
 

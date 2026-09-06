@@ -15,6 +15,7 @@ import {
   issueCertificate,
 } from './certs.js';
 import { recordError } from '../lib/errorCenter.js';
+import { activationNote, detectEdgeRouter } from '../lib/edgeRouter.js';
 
 export async function updateServiceDomain(
   service: any,
@@ -30,6 +31,29 @@ export async function updateServiceDomain(
       throw new Error('Deployment cancelled');
     }
   };
+
+  // This function only means something on a host where *we* own the edge. Under
+  // Traefik the hostname is published by container labels at deploy time, and with
+  // no edge at all there is nothing to write to. Writing a vhost anyway would fail
+  // its reload (`docker exec docklift-nginx-proxy` — a container that does not
+  // exist) and, because a failed reload is rethrown so a domain save can never be
+  // reported as success, turn a perfectly valid hostname into "Failed to update
+  // service".
+  const edge = await detectEdgeRouter();
+  if (edge.mode !== 'nginx') {
+    const domains = String(service?.domain ?? '')
+      .split(',')
+      .map((d: string) => d.trim().toLowerCase())
+      .filter(Boolean);
+    if (domains.length) {
+      appendSslEvent(
+        domains,
+        edge.mode === 'traefik' ? 'info' : 'warn',
+        activationNote(edge, domains),
+      );
+    }
+    return;
+  }
 
   // Ensure config directory exists
   if (!fs.existsSync(config.nginxConfPath)) {
@@ -202,6 +226,9 @@ export async function updateServiceDomain(
 export async function syncNginxConfigs() {
   try {
     if (!fs.existsSync(config.nginxConfPath)) return;
+    // Boot-time reconciliation of vhosts we own. On a Traefik host there are no
+    // vhosts of ours to reconcile and no nginx to reload.
+    if ((await detectEdgeRouter()).mode !== 'nginx') return;
 
     const files = fs
       .readdirSync(config.nginxConfPath)
