@@ -6,16 +6,12 @@
 @tailwind utilities;
 
 @layer base {
-  /* Light, minimal palette — the Stripe/Linear register. The product is
-     light-only: `:root`, `.light` and `.dark` carry the same values so a stale
-     `theme=dark` in localStorage cannot break the UI.
+  /* Light palette — the Stripe/Linear register.
        #F7F9FB content · #FFFFFF cards and header · #DFE4EC borders
        #0F172A ink · #64748B secondary · #8B98A9 muted · #F1F4F8 hover
-       #0F172A sidebar (the one dark plane) · #2563EB accent
-     No gradients, no glass, no neon. */
+       #0F172A sidebar (the one dark plane) · #2563EB accent */
   :root,
-  .light,
-  .dark {
+  .light {
     --background: 210 20% 98%; /* #F7F9FB */
     --foreground: 222 47% 11%; /* #0F172A */
     --card: 0 0% 100%; /* #FFFFFF */
@@ -78,12 +74,82 @@
     --brand-ring: 217 91% 60%; /* #3B82F6 */
   }
 
+  /* Dark palette — deep navy surfaces, lighter text. The sidebar stays the same
+     shade as light mode so it acts as a stable anchor in both themes. */
+  .dark {
+    --background: 222 47% 7%; /* #0B1120 */
+    --foreground: 210 40% 92%; /* #E2E8F0 */
+    --card: 222 44% 10%; /* #111827 */
+    --card-foreground: 210 40% 92%;
+    --popover: 222 44% 10%;
+    --popover-foreground: 210 40% 92%;
+    --primary: 210 40% 92%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 217 33% 14%; /* #1E293B */
+    --secondary-foreground: 210 40% 92%;
+    --muted: 217 33% 14%;
+    --muted-foreground: 215 20% 55%;
+    --subtle-foreground: 215 16% 45%;
+    --accent: 217 33% 14%;
+    --accent-foreground: 210 40% 92%;
+    --destructive: 0 62% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 217 33% 18%;
+    --input: 217 33% 20%;
+    --ring: 221 83% 60%;
+    --radius: 0.5rem;
+
+    --success: 142 72% 45%;
+    --success-surface: 142 40% 12%;
+    --success-border: 142 40% 22%;
+    --warning: 38 92% 55%;
+    --warning-surface: 38 50% 12%;
+    --warning-border: 38 50% 22%;
+    --danger: 0 72% 55%;
+    --danger-surface: 0 50% 12%;
+    --danger-border: 0 50% 22%;
+    --info: 221 83% 60%;
+
+    --chart-1: 221 83% 60%;
+    --chart-2: 160 84% 45%;
+    --chart-3: 38 92% 55%;
+    --chart-4: 0 72% 58%;
+    --chart-5: 215 20% 55%;
+
+    --sidebar: 222 47% 11%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-muted: 215 20% 72%;
+    --sidebar-subtle: 215 16% 55%;
+    --sidebar-border: 217 33% 20%;
+    --sidebar-accent: 217 33% 17%;
+
+    --header: 222 44% 10%;
+
+    --brand: 221 83% 60%;
+    --brand-strong: 224 76% 55%;
+    --brand-foreground: 0 0% 100%;
+    --brand-ring: 217 91% 65%;
+  }
+
   * {
     @apply border-border;
   }
 
   html {
     color-scheme: light;
+  }
+
+  .dark {
+    color-scheme: dark;
+  }
+
+  .dark ::selection {
+    background-color: hsl(221 83% 53% / 0.30);
+    color: hsl(210 40% 92%);
+  }
+  .dark ::-moz-selection {
+    background-color: hsl(221 83% 53% / 0.30);
+    color: hsl(210 40% 92%);
   }
 
   html {
@@ -138,9 +204,12 @@
   position: absolute;
   inset: 0;
   transform: translateX(-100%);
-  /* A dark sweep: on a white card a white sweep is invisible. */
   background: linear-gradient(90deg, transparent, rgba(15,23,42,0.06), transparent);
   animation: shimmer 2s infinite;
+}
+
+.dark .shimmer::after {
+  background: linear-gradient(90deg, transparent, rgba(226,232,240,0.06), transparent);
 }
 
 @keyframes progress-scan {
@@ -161,6 +230,14 @@
 
 .glass-strong {
   @apply bg-card border border-border shadow-[0_1px_3px_0_rgba(15,23,42,0.06)];
+}
+
+.dark .glass {
+  @apply shadow-[0_1px_2px_0_rgba(0,0,0,0.20)];
+}
+
+.dark .glass-strong {
+  @apply shadow-[0_1px_3px_0_rgba(0,0,0,0.30)];
 }
 
 /* ─── App shell ─────────────────────────────────────────────────────────────
@@ -357,6 +434,10 @@
   animation: hero-grid-drift 25s linear infinite;
 }
 
+.dark .hero-grid {
+  background-image: radial-gradient(circle at center, rgba(226, 232, 240, 0.05) 1px, transparent 1px);
+}
+
 @keyframes hero-grid-drift {
   0%   { background-position: 0 0; }
   100% { background-position: 22px 22px; }
@@ -426,6 +507,10 @@
   justify-content: center;
   border: 2px solid hsl(var(--card));
   line-height: 1;
+}
+
+.dark [data-sonner-toaster] [data-sonner-toast].godhosting-toast {
+  --tw-shadow: 0 4px 14px 0 rgba(0,0,0,0.25);
 }
 
 /* Vertical connector line (mobile/tablet) */
@@ -504,6 +589,10 @@
 .card-lift:hover {
   transform: translateY(-3px);
   box-shadow: 0 8px 24px -8px rgba(15, 23, 42, 0.10), 0 0 0 1px hsl(var(--brand) / 0.12);
+}
+
+.dark .card-lift:hover {
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.30), 0 0 0 1px hsl(var(--brand) / 0.20);
 }
 
 /* Nav bar entrance */

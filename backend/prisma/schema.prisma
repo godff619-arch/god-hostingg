@@ -25,6 +25,9 @@ model Project {
   base_directory String        @default(".")
   dockerfile_path String?
   internal_port  Int           @default(3000)
+  build_command  String?
+  start_command  String?
+  runtime_hint   String?
   /// When true, publish host ports (PORT_RANGE). Default false — reach apps via domain/proxy.
   publish_host_port Boolean     @default(false)
   /// Managed DB engine id when project_type=database (postgres|mysql|mariadb|redis|mongodb).

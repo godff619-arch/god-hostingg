@@ -234,6 +234,9 @@ router.post('/', (req: Request, res: Response, next: NextFunction) => {
       base_directory,
       dockerfile_path,
       internal_port,
+      build_command,
+      start_command,
+      runtime_hint,
       workspace_project_id,
       environment_id,
     } = req.body;
@@ -312,6 +315,9 @@ router.post('/', (req: Request, res: Response, next: NextFunction) => {
         base_directory: String(base_directory || '.').trim() || '.',
         dockerfile_path: dockerfile_path ? String(dockerfile_path).trim() : null,
         internal_port: Math.min(65535, Math.max(1, parseInt(internal_port, 10) || 3000)),
+        build_command: build_command ? String(build_command).trim() || null : null,
+        start_command: start_command ? String(start_command).trim() || null : null,
+        runtime_hint: runtime_hint ? String(runtime_hint).trim() || null : null,
         workspace_project_id: placement.workspace_project_id,
         environment_id: placement.environment_id,
         // Owner: internal/admin calls with no user context leave this null (legacy-style).

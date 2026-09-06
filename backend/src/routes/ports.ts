@@ -3,6 +3,7 @@ import { Router, Request, Response } from 'express';
 import prisma from '../lib/prisma.js';
 import { config } from '../lib/config.js';
 import * as dockerService from '../services/docker.js';
+import { detectPortFromContent } from '../services/compose.js';
 
 const router = Router();
 
@@ -91,6 +92,108 @@ router.get('/', async (req: Request, res: Response) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to list ports' });
+  }
+});
+
+// Next available host port in the pool
+router.get('/next-available', async (req: Request, res: Response) => {
+  try {
+    const locked = await prisma.port.findMany({
+      where: { is_locked: true },
+      select: { port: true },
+    });
+    const usedSet = new Set(locked.map((p) => p.port));
+    const total = config.portRangeEnd - config.portRangeStart + 1;
+
+    let nextAvailable: number | null = null;
+    for (let p = config.portRangeStart; p <= config.portRangeEnd; p++) {
+      if (!usedSet.has(p)) {
+        nextAvailable = p;
+        break;
+      }
+    }
+
+    res.json({
+      next_available: nextAvailable,
+      pool: { start: config.portRangeStart, end: config.portRangeEnd },
+      used_count: usedSet.size,
+      total,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to check port availability' });
+  }
+});
+
+// Detect suggested internal port from a GitHub repo
+router.post('/detect', async (req: Request, res: Response) => {
+  try {
+    const { github_url, github_branch } = req.body;
+    if (!github_url || typeof github_url !== 'string') {
+      return res.status(400).json({ error: 'github_url is required' });
+    }
+
+    const branch = github_branch || 'main';
+    const match = github_url.match(/github\.com[\/:]([^\/]+)\/([^\/\.]+)/);
+    if (!match) {
+      return res.json({ suggested_internal_port: 3000, reason: 'Could not parse GitHub URL — using default' });
+    }
+
+    const [, owner, repo] = match;
+    const headers: Record<string, string> = {
+      Accept: 'application/vnd.github.v3.raw',
+      'User-Agent': 'GodHosting',
+    };
+
+    const tryFetch = async (filePath: string): Promise<string | null> => {
+      try {
+        const url = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}?ref=${encodeURIComponent(branch)}`;
+        const r = await fetch(url, { headers });
+        if (r.ok) return await r.text();
+      } catch { /* network error */ }
+      return null;
+    };
+
+    const dockerfile = await tryFetch('Dockerfile');
+    if (dockerfile) {
+      const result = detectPortFromContent(dockerfile);
+      return res.json({ suggested_internal_port: result.port, reason: result.reason });
+    }
+
+    const packageJson = await tryFetch('package.json');
+    if (packageJson) {
+      const lower = packageJson.toLowerCase();
+      if (lower.includes('"next"')) return res.json({ suggested_internal_port: 3000, reason: 'Detected Next.js in package.json' });
+      if (lower.includes('"vite"') || lower.includes('"@vitejs')) return res.json({ suggested_internal_port: 5173, reason: 'Detected Vite in package.json' });
+      if (lower.includes('"express"')) return res.json({ suggested_internal_port: 3000, reason: 'Detected Express in package.json' });
+      if (lower.includes('"fastify"')) return res.json({ suggested_internal_port: 3000, reason: 'Detected Fastify in package.json' });
+      if (lower.includes('"nuxt"')) return res.json({ suggested_internal_port: 3000, reason: 'Detected Nuxt in package.json' });
+      return res.json({ suggested_internal_port: 3000, reason: 'Node.js project detected — using default port' });
+    }
+
+    const requirements = await tryFetch('requirements.txt');
+    if (requirements) {
+      const lower = requirements.toLowerCase();
+      if (lower.includes('fastapi') || lower.includes('uvicorn')) return res.json({ suggested_internal_port: 8000, reason: 'Detected FastAPI in requirements.txt' });
+      if (lower.includes('flask')) return res.json({ suggested_internal_port: 5000, reason: 'Detected Flask in requirements.txt' });
+      if (lower.includes('django')) return res.json({ suggested_internal_port: 8000, reason: 'Detected Django in requirements.txt' });
+      return res.json({ suggested_internal_port: 8000, reason: 'Python project detected — using default port' });
+    }
+
+    const goMod = await tryFetch('go.mod');
+    if (goMod) return res.json({ suggested_internal_port: 8080, reason: 'Go project detected' });
+
+    const gemfile = await tryFetch('Gemfile');
+    if (gemfile) {
+      const lower = gemfile.toLowerCase();
+      if (lower.includes('rails')) return res.json({ suggested_internal_port: 3000, reason: 'Detected Rails in Gemfile' });
+      return res.json({ suggested_internal_port: 3000, reason: 'Ruby project detected' });
+    }
+
+    res.json({ suggested_internal_port: 3000, reason: 'Default port' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Port detection failed' });
   }
 });
 

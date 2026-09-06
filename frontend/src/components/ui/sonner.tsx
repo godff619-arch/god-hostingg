@@ -18,11 +18,11 @@ type ToasterProps = React.ComponentProps<typeof Sonner>;
  * visible above sticky footers and work from any page.
  */
 const Toaster = ({ ...props }: ToasterProps) => {
-  useTheme();
+  const { resolvedTheme } = useTheme();
 
   return (
     <Sonner
-      theme="light"
+      theme={resolvedTheme}
       position="top-center"
       expand={false}
       closeButton

@@ -69,25 +69,26 @@ const IGNORE_DIRS = new Set([
 function detectPortFromDockerfile(dockerfilePath: string): number {
   try {
     const content = fs.readFileSync(dockerfilePath, 'utf-8');
-    
-    // Check EXPOSE directive
-    const exposeMatch = content.match(/EXPOSE\s+(\d+)/i);
-    if (exposeMatch) {
-      return parseInt(exposeMatch[1]);
-    }
-    
-    // Fallback based on common patterns
-    const contentLower = content.toLowerCase();
-    if (contentLower.includes('next') || contentLower.includes('react')) return 3000;
-    if (contentLower.includes('uvicorn') || contentLower.includes('fastapi')) return 8000;
-    if (contentLower.includes('flask')) return 5000;
-    if (contentLower.includes('django')) return 8000;
-    if (contentLower.includes('express') || contentLower.includes('node')) return 3000;
-    
-    return 3000; // Default
+    return detectPortFromContent(content).port;
   } catch {
     return 3000;
   }
+}
+
+export function detectPortFromContent(content: string): { port: number; reason: string } {
+  const exposeMatch = content.match(/EXPOSE\s+(\d+)/i);
+  if (exposeMatch) {
+    return { port: parseInt(exposeMatch[1]), reason: `Detected from Dockerfile EXPOSE ${exposeMatch[1]}` };
+  }
+
+  const lower = content.toLowerCase();
+  if (lower.includes('next') || lower.includes('react')) return { port: 3000, reason: 'Heuristic: Next.js / React detected' };
+  if (lower.includes('uvicorn') || lower.includes('fastapi')) return { port: 8000, reason: 'Heuristic: FastAPI / Uvicorn detected' };
+  if (lower.includes('flask')) return { port: 5000, reason: 'Heuristic: Flask detected' };
+  if (lower.includes('django')) return { port: 8000, reason: 'Heuristic: Django detected' };
+  if (lower.includes('express') || lower.includes('node')) return { port: 3000, reason: 'Heuristic: Express / Node detected' };
+
+  return { port: 3000, reason: 'Default port' };
 }
 
 // Scan for Dockerfiles in project

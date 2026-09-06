@@ -106,7 +106,13 @@ function NewProjectContent() {
   const [buildType, setBuildType] = useState<"auto" | "dockerfile" | "railpack">("auto");
   const [baseDirectory, setBaseDirectory] = useState(".");
   const [dockerfilePath, setDockerfilePath] = useState("Dockerfile");
+  const [runtimeHint, setRuntimeHint] = useState("");
+  const [buildCommand, setBuildCommand] = useState("");
+  const [startCommand, setStartCommand] = useState("");
   const [internalPort, setInternalPort] = useState(3000);
+  const [portReason, setPortReason] = useState<string | null>(null);
+  const [nextHostPort, setNextHostPort] = useState<number | null>(null);
+  const [hostPortInfo, setHostPortInfo] = useState<{ used: number; total: number } | null>(null);
 
   // Environment Variables State
   const [envVars, setEnvVars] = useState<{key: string, value: string, is_build_arg: boolean, is_runtime: boolean}[]>([]);
@@ -189,6 +195,7 @@ function NewProjectContent() {
       setGithubBranch("");
       setRefKind("branch");
       setRepoAccessError(null);
+      setPortReason(null);
       const timer = setTimeout(() => {
         const match = githubUrl.match(/github\.com\/([^\/]+\/[^\/]+)/);
         if (match) {
@@ -210,6 +217,35 @@ function NewProjectContent() {
     if (list.includes("master")) return "master";
     return list[0] || "";
   };
+
+  const detectPort = async (repoUrl: string, branch: string) => {
+    try {
+      const res = await authFetch(`${API_URL}/api/ports/detect`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ github_url: repoUrl, github_branch: branch }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setInternalPort(data.suggested_internal_port);
+        setPortReason(data.reason);
+      }
+    } catch { /* silent fallback, keeps existing default */ }
+  };
+
+  useEffect(() => {
+    if (step !== 2) return;
+    let cancelled = false;
+    authFetch(`${API_URL}/api/ports/next-available`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        setNextHostPort(data.next_available);
+        setHostPortInfo({ used: data.used_count, total: data.total });
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [step]);
 
   const handleRefKindChange = (next: GitRefKind) => {
     // No tags → stay on Branch (ignore Tag mode)
@@ -398,6 +434,7 @@ function NewProjectContent() {
     setGithubBranch(repo.default_branch);
     setRefKind("branch");
     fetchRefs(repo.full_name, "private");
+    detectPort(repo.html_url, repo.default_branch);
     setStep(2);
   };
 
@@ -448,6 +485,9 @@ function NewProjectContent() {
         buildType === "dockerfile" ? dockerfilePath.trim() : "",
       );
       formData.append("internal_port", String(internalPort));
+      if (runtimeHint) formData.append("runtime_hint", runtimeHint);
+      if (buildCommand.trim()) formData.append("build_command", buildCommand.trim());
+      if (startCommand.trim()) formData.append("start_command", startCommand.trim());
       // The hierarchy the service is born into. Empty means "unplaced", which the
       // backend adopts into the workspace's default project.
       if (targetProject) {
@@ -535,6 +575,7 @@ function NewProjectContent() {
     }
 
     if (!name) setName(githubUrl.split("/").pop()?.replace(".git", "") || "my-app");
+    detectPort(githubUrl, githubBranch);
     setStep(2);
   };
 
@@ -1052,6 +1093,27 @@ function NewProjectContent() {
                     ))}
                   </div>
 
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Language / Runtime</label>
+                    <select
+                      value={runtimeHint}
+                      onChange={(e) => setRuntimeHint(e.target.value)}
+                      className="h-10 w-full rounded-md border border-input bg-secondary/30 px-3 text-sm outline-none focus:border-brand-ring"
+                    >
+                      <option value="">Auto-detect</option>
+                      <option value="docker">Docker</option>
+                      <option value="node">Node</option>
+                      <option value="python">Python</option>
+                      <option value="go">Go</option>
+                      <option value="ruby">Ruby</option>
+                      <option value="rust">Rust</option>
+                      <option value="elixir">Elixir</option>
+                    </select>
+                    <p className="text-[10px] text-muted-foreground">
+                      Helps the build resolver pick the right builder.
+                    </p>
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Base Directory</label>
@@ -1072,12 +1134,29 @@ function NewProjectContent() {
                         min={1}
                         max={65535}
                         value={internalPort}
-                        onChange={(e) => setInternalPort(Number(e.target.value))}
+                        onChange={(e) => {
+                          setInternalPort(Number(e.target.value));
+                          setPortReason(null);
+                        }}
                         className="h-10 bg-secondary/30 font-mono"
                       />
                       <p className="text-[10px] text-muted-foreground">
                         The port your application listens on inside its container.
                       </p>
+                      {portReason && (
+                        <div className="flex items-center gap-1.5 rounded-md bg-success-surface px-2 py-1 text-[11px] text-success">
+                          <Sparkles className="h-3 w-3 shrink-0" />
+                          {portReason}
+                        </div>
+                      )}
+                      {hostPortInfo && (
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                          <Info className="h-3 w-3 shrink-0" />
+                          {nextHostPort
+                            ? `Host port ${nextHostPort} will be assigned on deploy (${hostPortInfo.used} of ${hostPortInfo.total} in use)`
+                            : `All ${hostPortInfo.total} host ports are allocated — free a port before deploying`}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1093,6 +1172,35 @@ function NewProjectContent() {
                       <p className="text-[10px] text-muted-foreground">
                         Path relative to the base directory.
                       </p>
+                    </div>
+                  )}
+
+                  {buildType !== "dockerfile" && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Build Command</label>
+                        <Input
+                          value={buildCommand}
+                          onChange={(e) => setBuildCommand(e.target.value)}
+                          placeholder="npm install && npm run build"
+                          className="h-10 bg-secondary/30 font-mono"
+                        />
+                        <p className="text-[10px] text-muted-foreground">
+                          Command to build your application.
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Start Command</label>
+                        <Input
+                          value={startCommand}
+                          onChange={(e) => setStartCommand(e.target.value)}
+                          placeholder="npm start"
+                          className="h-10 bg-secondary/30 font-mono"
+                        />
+                        <p className="text-[10px] text-muted-foreground">
+                          Command to start your application.
+                        </p>
+                      </div>
                     </div>
                   )}
                 </Card>

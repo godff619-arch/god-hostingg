@@ -50,6 +50,7 @@ import { errorMessage } from "@/lib/workspaceApi";
 import { cn } from "@/lib/utils";
 import { breadcrumbsFor } from "./navigation";
 import { useShell } from "./ShellContext";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function TopHeader() {
   const { pathname } = useLocation();
@@ -127,6 +128,7 @@ export function TopHeader() {
           </kbd>
         </button>
 
+        <ThemeToggle />
         <NewMenu />
         <UpgradeButton />
         <HelpMenu onShortcuts={() => setShortcutsOpen(true)} />

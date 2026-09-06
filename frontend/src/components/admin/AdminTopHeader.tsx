@@ -23,6 +23,7 @@ import { Dropdown, DropdownItem, DropdownSeparator } from "@/components/ui/dropd
 import { adminCrumbs } from "@/components/admin/adminNavigation";
 import { useShell } from "@/components/shell/ShellContext";
 import { useAdminMe } from "@/hooks/useAdminMe";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function AdminTopHeader() {
   const { pathname } = useLocation();
@@ -69,6 +70,7 @@ export function AdminTopHeader() {
       </nav>
 
       <div className="ml-auto flex shrink-0 items-center gap-1.5">
+        <ThemeToggle />
         <MaintenanceIndicator />
         <Link
           to="/projects"
