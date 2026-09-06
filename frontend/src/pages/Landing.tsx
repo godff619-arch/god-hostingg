@@ -183,15 +183,15 @@ const FAQ: FaqItem[] = [
 function LandingSkeleton() {
   return (
     <div className="min-h-screen bg-background">
-      <div className="h-14 border-b border-border bg-card" />
+      <div className="h-14 border-b border-border bg-card nav-enter" />
       <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-2xl space-y-4 text-center">
+        <div className="mx-auto max-w-2xl space-y-4 text-center stagger-in">
           <div className="shimmer mx-auto h-6 w-44 rounded-full bg-secondary" />
-          <div className="shimmer h-11 rounded-lg bg-secondary" />
+          <div className="shimmer mx-auto h-11 w-full rounded-lg bg-secondary" />
           <div className="shimmer mx-auto h-11 w-4/5 rounded-lg bg-secondary" />
           <div className="shimmer mx-auto h-4 w-3/5 rounded bg-secondary" />
         </div>
-        <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4 stagger-in">
           {[0, 1, 2, 3].map((i) => (
             <div key={i} className="shimmer h-32 rounded-xl border border-border bg-card" />
           ))}
@@ -288,7 +288,7 @@ export default function Landing() {
             </span>
             <h1 className="mt-5 text-[2rem] font-bold leading-[1.1] tracking-tight text-foreground sm:text-5xl">
               Push code. Get a URL.
-              <span className="mt-1 block text-brand">On your own server.</span>
+              <span className="mt-1 block text-brand hero-brand-text">On your own server.</span>
             </h1>
             <p className="mx-auto mt-5 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
               {platformName} turns a repository or a ZIP into a running container: it builds the
@@ -299,14 +299,14 @@ export default function Landing() {
 
           <Reveal delay={90} className="mt-8 flex flex-col items-center justify-center gap-2.5 sm:flex-row">
             {signupHref ? (
-              <Button asChild className="h-11 w-full px-6 text-sm sm:w-auto">
+              <Button asChild className="h-11 w-full px-6 text-sm sm:w-auto cta-glow">
                 <Link to={signupHref}>
                   {data.setup_complete ? "Create your account" : "Claim this server"}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
             ) : (
-              <Button asChild className="h-11 w-full px-6 text-sm sm:w-auto">
+              <Button asChild className="h-11 w-full px-6 text-sm sm:w-auto cta-glow">
                 <Link to="/sign-in">
                   Sign in
                   <ArrowRight className="ml-2 h-4 w-4" />
@@ -366,7 +366,7 @@ export default function Landing() {
           <ol className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {PIPELINE.map((step, index) => (
               <Reveal key={step.title} delay={index * 80} as="li" className="h-full">
-                <div className="relative flex h-full flex-col rounded-xl border border-border bg-background p-5">
+                <div className="relative flex h-full flex-col rounded-xl border border-border bg-background p-5 card-lift">
                   {/* The connector only exists where there is a next card to
                       reach, and only on the row that actually sits side by side. */}
                   {index < PIPELINE.length - 1 && (
@@ -414,7 +414,7 @@ export default function Landing() {
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {features.map((feature, index) => (
               <Reveal key={feature.title} delay={(index % 3) * 70} className="h-full">
-                <div className="group flex h-full flex-col rounded-xl border border-border bg-card p-5 transition-colors hover:border-brand/30">
+                <div className="group flex h-full flex-col rounded-xl border border-border bg-card p-5 card-lift transition-colors hover:border-brand/30">
                   <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-background transition-colors group-hover:border-brand/30">
                     <feature.icon className="h-4 w-4 text-brand" />
                   </span>
@@ -463,7 +463,7 @@ export default function Landing() {
             </Reveal>
 
             <Reveal delay={110}>
-              <div className="rounded-xl border border-border bg-background p-6">
+              <div className="rounded-xl border border-border bg-background p-6 card-lift">
                 <h3 className="text-sm font-semibold text-foreground">What is under the hood</h3>
                 <dl className="mt-4 divide-y divide-border">
                   {[

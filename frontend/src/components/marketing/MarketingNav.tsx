@@ -57,7 +57,7 @@ export function MarketingNav({ platformName, signupHref, signedIn }: MarketingNa
   return (
     <header
       className={cn(
-        "sticky top-0 z-50 bg-header/95 backdrop-blur-sm transition-shadow duration-200",
+        "nav-enter sticky top-0 z-50 bg-header/95 backdrop-blur-sm transition-shadow duration-200",
         scrolled ? "border-b border-border" : "border-b border-transparent",
       )}
     >
@@ -112,7 +112,7 @@ export function MarketingNav({ platformName, signupHref, signedIn }: MarketingNa
       </div>
 
       {open && (
-        <div className="border-t border-border bg-card px-4 pb-4 pt-2 md:hidden">
+        <div className="animate-in fade-in slide-in-from-top-2 duration-200 border-t border-border bg-card px-4 pb-4 pt-2 md:hidden">
           <nav className="flex flex-col">
             {LINKS.map((link) => (
               <a

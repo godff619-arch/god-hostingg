@@ -104,7 +104,7 @@ export function PricingSection({ plans, signupHref }: PricingSectionProps) {
               <Reveal key={plan.key} delay={index * 70} className="h-full">
                 <div
                   className={cn(
-                    "flex h-full flex-col rounded-xl border bg-card p-6 transition-colors",
+                    "flex h-full flex-col rounded-xl border bg-card p-6 card-lift transition-colors",
                     plan.highlighted
                       ? "border-brand/40 ring-1 ring-brand/20"
                       : "border-border hover:border-brand/30",

@@ -86,6 +86,10 @@
     color-scheme: light;
   }
 
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Inter', system-ui, sans-serif;
@@ -350,12 +354,79 @@
 .hero-grid {
   background-image: radial-gradient(circle at center, rgba(15, 23, 42, 0.07) 1px, transparent 1px);
   background-size: 22px 22px;
+  animation: hero-grid-drift 25s linear infinite;
+}
+
+@keyframes hero-grid-drift {
+  0%   { background-position: 0 0; }
+  100% { background-position: 22px 22px; }
 }
 
 /* Fades the grid out at the edges so it reads as texture, not as a table. */
 .hero-grid-mask {
   -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 35%, #000 40%, transparent 100%);
   mask-image: radial-gradient(ellipse 70% 60% at 50% 35%, #000 40%, transparent 100%);
+}
+
+/* Hero brand text: a gentle gradient shimmer on the accent line. */
+@keyframes brand-shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.hero-brand-text {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--brand)) 0%,
+    hsl(221 83% 68%) 40%,
+    hsl(var(--brand)) 60%,
+    hsl(221 83% 68%) 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: brand-shimmer 6s ease-in-out infinite;
+}
+
+/* Subtle glow behind the hero CTA button. */
+@keyframes cta-glow {
+  0%, 100% { box-shadow: 0 0 12px 2px hsl(var(--brand) / 0.15); }
+  50%      { box-shadow: 0 0 24px 6px hsl(var(--brand) / 0.25); }
+}
+
+.cta-glow {
+  animation: cta-glow 3s ease-in-out infinite;
+}
+
+/* Marketing card hover: lift and glow. */
+.card-lift {
+  transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+}
+
+.card-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px -8px rgba(15, 23, 42, 0.10), 0 0 0 1px hsl(var(--brand) / 0.12);
+}
+
+/* Nav bar entrance */
+@keyframes nav-enter {
+  from { opacity: 0; transform: translateY(-100%); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.nav-enter {
+  animation: nav-enter 500ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+/* Footer entrance — a slow fade */
+@keyframes fade-up-slow {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.fade-up-slow {
+  animation: fade-up-slow 700ms cubic-bezier(0.2, 0, 0, 1) both;
 }
 
 /* Deploy-pipeline illustration: the accent that walks down the steps. */
@@ -374,13 +445,32 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
   [data-sonner-toast].docklift-toast,
   .animate-pipeline-pulse,
   .shimmer::after,
   .animate-progress-scan,
   .page-enter,
   .stagger-in > *,
-  .route-progress-bar {
+  .route-progress-bar,
+  .hero-grid,
+  .hero-brand-text,
+  .cta-glow,
+  .nav-enter,
+  .fade-up-slow {
     animation: none;
+  }
+
+  .hero-brand-text {
+    -webkit-text-fill-color: unset;
+    background: none;
+    color: hsl(var(--brand));
+  }
+
+  .card-lift:hover {
+    transform: none;
   }
 }
