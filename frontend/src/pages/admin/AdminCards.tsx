@@ -231,7 +231,7 @@ export default function AdminCards() {
         />
       ) : (
         <>
-          <div className="space-y-3 md:hidden">
+          <div className="space-y-3 md:hidden stagger-in">
             {rows.map((card) => {
               const exp = expiryTone(card);
               return (

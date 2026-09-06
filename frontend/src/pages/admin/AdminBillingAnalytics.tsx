@@ -203,7 +203,7 @@ export default function AdminBillingAnalytics() {
         )}
       </section>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2 stagger-in">
         <section className="rounded-2xl border border-border/60 bg-card p-4 sm:p-5">
           <h2 className="mb-3 text-sm font-semibold">Accounts by plan</h2>
           {loading ? (

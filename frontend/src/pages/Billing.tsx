@@ -372,7 +372,7 @@ function PlanSection({
       <PendingCheckoutBanner data={data} canWrite={canWrite} onChanged={onChanged} />
 
       <h3 className="mt-6 text-[13px] font-medium text-foreground">Plan Benefits</h3>
-      <div className="mt-3 grid gap-3 md:grid-cols-3">
+      <div className="mt-3 grid gap-3 md:grid-cols-3 stagger-in">
         {data.plans.map((plan) => {
           const isCurrent = plan.key === current;
           return (
@@ -807,7 +807,7 @@ function PaymentMethodSection({
           </p>
         </div>
       ) : (
-        <div className="divide-y divide-border rounded-md border border-border">
+        <div className="divide-y divide-border rounded-md border border-border stagger-in">
           {data.payment_methods.map((method) => (
             <div key={method.id} className="flex flex-wrap items-center gap-3 p-3.5">
               <CreditCard className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
@@ -1245,7 +1245,7 @@ function IncludedUsageSection({ data }: { data: BillingPayload }) {
       title="Monthly Included Usage"
       description={`Allowances reset at the start of each billing period. Period: ${periodLabel(data.period)}.`}
     >
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2 stagger-in">
         <MeterCard
           title="Free Instance Hours"
           meter={usage.instance_hours}

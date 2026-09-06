@@ -166,7 +166,7 @@ export default function AdminFeatureFlags() {
 
       <ScopeNotice disabledCount={disabledCount} />
 
-      <div className="space-y-4">
+      <div className="space-y-4 stagger-in">
         {groups.map(([group, items]) => (
           <section
             key={group}

@@ -222,7 +222,7 @@ export default function AdminOperations() {
         </div>
       ) : data ? (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 stagger-in">
             {/* Control-plane process */}
             <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
               <h2 className="mb-4 flex items-center gap-2 text-base font-semibold">
@@ -330,7 +330,7 @@ export default function AdminOperations() {
             </div>
             {data.system ? (
               <>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 stagger-in">
                   <Meter label="CPU" value={data.system.cpuPercent} icon={Cpu} />
                   <Meter
                     label="Memory"

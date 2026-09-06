@@ -1481,7 +1481,7 @@ export default function ProjectDetail() {
                         : "Live"}
                   </span>
                 </div>
-                <div className="grid gap-4">
+                <div className="stagger-in grid gap-4">
                   {(workspace === "service" && selectedService
                     ? [selectedService]
                     : services
@@ -1744,7 +1744,7 @@ export default function ProjectDetail() {
             ) : null}
 
             {/* Quick Stats Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
+            <div className="stagger-in grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
               <Card className="p-4 sm:p-6 border-border/40 hover:border-border transition-colors">
                 <div className="flex items-center justify-between mb-2 sm:mb-4">
                   <div className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-chart-3/10">
@@ -2508,7 +2508,7 @@ export default function ProjectDetail() {
                 </p>
               </div>
 
-              <div className="grid gap-4">
+              <div className="grid gap-4 stagger-in">
                 {(workspace === "service" && selectedService
                   ? [selectedService]
                   : services

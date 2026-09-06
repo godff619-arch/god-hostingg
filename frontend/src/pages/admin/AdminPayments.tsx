@@ -240,7 +240,7 @@ export default function AdminPayments() {
         />
       ) : (
         <>
-          <div className="space-y-3 md:hidden">
+          <div className="space-y-3 md:hidden stagger-in">
             {rows.map((row) => (
               <article key={row.id} className="rounded-2xl border border-border/60 bg-card p-4">
                 <div className="flex items-start justify-between gap-3">

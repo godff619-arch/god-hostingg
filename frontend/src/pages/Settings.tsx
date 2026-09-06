@@ -584,7 +584,7 @@ function SettingsContent() {
             {/* Profile */}
             {activeTab === 'profile' && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <div className="grid gap-4">
+                <div className="stagger-in grid gap-4">
                   <Card className="rounded-2xl border-border/60 p-5 sm:p-6">
                     <div className="mb-5 flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-secondary/40">

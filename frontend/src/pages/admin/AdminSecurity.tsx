@@ -193,7 +193,7 @@ export default function AdminSecurity() {
         </TabsList>
 
         <TabsContent value="overview">
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid gap-4 lg:grid-cols-3 stagger-in">
             <div className="lg:col-span-2">
               <Panel
                 title="Latest sign-in attempts"

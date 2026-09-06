@@ -207,7 +207,7 @@ export default function AdminAnnouncements() {
         />
       ) : (
         <>
-          <div className="space-y-3">
+          <div className="space-y-3 stagger-in">
             {rows.map((a) => {
               const badge = stateBadge(a);
               const busy = busyId === a.id;

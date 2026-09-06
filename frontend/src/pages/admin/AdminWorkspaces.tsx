@@ -236,7 +236,7 @@ export default function AdminWorkspaces() {
         />
       ) : (
         <>
-          <div className="space-y-3 md:hidden">
+          <div className="space-y-3 md:hidden stagger-in">
             {rows.map((row) => (
               <article
                 key={row.id}

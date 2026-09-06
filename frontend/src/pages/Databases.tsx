@@ -334,7 +334,7 @@ export default function DatabasesPage() {
         </div>
       ) : (
         <>
-          <div className="space-y-3 md:hidden">
+          <div className="stagger-in space-y-3 md:hidden">
             {pageItems.map((project) => {
               const created = formatDateTime(project.created_at);
               const updated = formatDateTime(project.updated_at);
@@ -443,7 +443,7 @@ export default function DatabasesPage() {
                     <th className="px-4 py-3 text-right font-semibold">Actions</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="stagger-in">
                   {pageItems.map((project) => {
                     const created = formatDateTime(project.created_at);
                     const updated = formatDateTime(project.updated_at);

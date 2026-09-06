@@ -836,7 +836,7 @@ function BuildPipelineSection({
       title="Build Pipeline"
       description="The machine size used to build this workspace's services, and an optional monthly cap on build spend."
     >
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2 stagger-in">
         {data.pipeline_tiers.map((option) => {
           const selected = option.key === tier;
           const locked = !allowed(option);
@@ -1058,7 +1058,7 @@ function RegistryCredentialsSection({ canWrite }: { canWrite: boolean }) {
           No registry credentials. Public images deploy without one.
         </Panel>
       ) : (
-        <div className="space-y-2.5">
+        <div className="space-y-2.5 stagger-in">
           {data.credentials.map((cred) => (
             <Panel key={cred.id} className="flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
@@ -1938,7 +1938,7 @@ function DocumentsSection({ data }: { data: WorkspaceSettingsPayload }) {
       title="Documents"
       description="Compliance reports and agreements covering this platform."
     >
-      <div className="space-y-2.5">
+      <div className="space-y-2.5 stagger-in">
         {data.documents.map((doc) => (
           <Panel key={doc.key} className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex min-w-0 items-start gap-2.5">

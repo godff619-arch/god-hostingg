@@ -273,7 +273,7 @@ export default function Projects() {
         </p>
       ) : null}
 
-      <div className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
+      <div className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3 stagger-in">
         {projects === null && !error
           ? [0, 1, 2].map((key) => (
               <div

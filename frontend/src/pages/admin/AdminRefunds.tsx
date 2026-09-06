@@ -215,7 +215,7 @@ export default function AdminRefunds() {
         />
       ) : (
         <>
-          <div className="space-y-3 md:hidden">
+          <div className="space-y-3 md:hidden stagger-in">
             {rows.map((row) => (
               <article
                 key={row.id}

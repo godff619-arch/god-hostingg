@@ -329,7 +329,7 @@ export default function AdminWorkspaceDetail() {
               </p>
             </div>
 
-            <ul className="divide-y divide-border/40">
+            <ul className="divide-y divide-border/40 stagger-in">
               <li className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                 <span className="min-w-0">
                   <span className="block truncate font-semibold">

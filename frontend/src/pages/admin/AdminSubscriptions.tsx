@@ -300,7 +300,7 @@ export default function AdminSubscriptions() {
       ) : (
         <>
           {/* Mobile: one card per account. */}
-          <div className="space-y-3 md:hidden">
+          <div className="space-y-3 md:hidden stagger-in">
             {rows.map((row) => (
               <article
                 key={row.workspace_id ?? row.user_id ?? Math.random().toString()}

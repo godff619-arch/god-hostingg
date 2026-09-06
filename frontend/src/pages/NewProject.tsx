@@ -1027,7 +1027,7 @@ function NewProjectContent() {
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 stagger-in">
                     {([
                       ["auto", "Auto", "Detect the best builder"],
                       ["dockerfile", "Dockerfile", "Use your Dockerfile"],
@@ -1308,7 +1308,7 @@ SESSION_SECRET=your-secret-here
                          <p className="text-xs font-medium text-muted-foreground">No custom environment variables added yet.</p>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 gap-2">
+                      <div className="grid grid-cols-1 gap-2 stagger-in">
                         {envVars.map((env, i) => (
                           <div key={i} className="group flex items-center justify-between rounded-xl border border-border/60 bg-secondary/30 p-3.5 transition-colors hover:border-brand/30">
                             <div className="flex min-w-0 items-center gap-3 sm:gap-4">
