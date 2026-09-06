@@ -134,6 +134,8 @@ export interface AdminOperations {
   database: { reachable: boolean; latencyMs: number | null; provider: string };
   docker: {
     cliAvailable: boolean;
+    /** The socket or TCP address the backend is talking to. */
+    endpoint: string;
     daemonReachable: boolean;
     version: string | null;
     runningContainers: number | null;

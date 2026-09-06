@@ -1,10 +1,8 @@
 // Docklift-scoped image retention (keep-2) + BuildKit prune helpers.
 // Never host-wide system prune; never delete non-docklift-* images.
 import { spawn } from 'child_process';
-import Docker from 'dockerode';
+import { docker } from './dockerClient.js';
 import { dockerSlug } from './naming.js';
-
-const docker = new Docker();
 
 export type ImageTagsMap = Record<string, string>;
 

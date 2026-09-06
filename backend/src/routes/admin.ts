@@ -53,6 +53,7 @@ import {
 import { detectEdgeRouter } from '../lib/edgeRouter.js';
 import { getSystemStats } from './system.js';
 import { getContainerStatus, getDockerEngineInfo } from '../services/docker.js';
+import { dockerEndpoint } from '../lib/dockerClient.js';
 import { getCertificateStatus } from '../services/certs.js';
 import { getServerPublicIp } from '../services/dnsCheck.js';
 import { isMaintenanceMode, maintenanceReason } from '../lib/maintenance.js';
@@ -396,6 +397,7 @@ router.get('/operations', async (_req: AuthenticatedRequest, res: Response) => {
   // Docker engine — honest reachability (not installed / not started → surfaced).
   const docker = await getDockerEngineInfo().catch(() => ({
     cliAvailable: false,
+    endpoint: dockerEndpoint,
     daemonReachable: false,
     version: null,
     runningContainers: null,

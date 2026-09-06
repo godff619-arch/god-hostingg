@@ -52,6 +52,7 @@ import adminBillingRouter from './routes/adminBilling.js';
 import adminCommsRouter from './routes/adminComms.js';
 import adminSecurityRouter from './routes/adminSecurity.js';
 import adminWorkspacesRouter from './routes/adminWorkspaces.js';
+import { dockerEndpoint, dockerEndpointResolved } from './lib/dockerClient.js';
 import workspaceRouter from './routes/workspace.js';
 import billingRouter from './routes/billing.js';
 import paymentWebhooksRouter from './routes/paymentWebhooks.js';
@@ -440,7 +441,14 @@ async function main() {
       console.log(`🐳 Docker network "${config.dockerNetwork}" ready`);
     } catch (dockerErr: any) {
       const reason = dockerErr?.code || dockerErr?.message || 'error';
-      console.warn(`⚠️  Docker unavailable (${reason}) — API starting without Docker`);
+      // Name the endpoint. An operator reading "ENOENT" on a host where docker is
+      // running needs to know which socket was tried before they can fix it — a
+      // rootless daemon and a DOCKER_HOST typo produce the identical error code.
+      console.warn(
+        `⚠️  Docker unavailable at ${dockerEndpoint} (${reason})` +
+          `${dockerEndpointResolved ? '' : ' — no engine socket found; set DOCKER_HOST if it is elsewhere'}` +
+          ' — API starting without Docker',
+      );
       // Surfaced in the Error Center: "why is nothing deploying?" has an answer
       // in the UI, not only in whatever scrolled past in the console at boot.
       void recordError({

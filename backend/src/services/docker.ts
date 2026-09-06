@@ -1,9 +1,9 @@
 // Docker service - container operations (status, logs, stats) and compose streaming
-import Docker from 'dockerode';
 import { spawn, type ChildProcess } from 'child_process';
 import { Response } from 'express';
 import path from 'path';
 import { config } from '../lib/config.js';
+import { docker, dockerEndpoint } from '../lib/dockerClient.js';
 import { projectNetworkName } from '../lib/naming.js';
 import {
   isDockerDaemonUnreachable,
@@ -13,7 +13,7 @@ import {
 
 const DEFAULT_PULL_TIMEOUT_MS = 600_000;
 
-const docker = new Docker();
+export { dockerEndpoint };
 
 export const EDGE_PROXY_CONTAINER = process.env.NGINX_PROXY_CONTAINER || 'docklift-nginx-proxy';
 
@@ -58,6 +58,13 @@ export function isEdgeProxyMissingError(err: unknown): boolean {
 export interface DockerEngineInfo {
   /** Docker CLI resolvable on PATH (client-only probe). */
   cliAvailable: boolean;
+  /**
+   * The engine this process is actually talking to — `DOCKER_HOST`, a discovered
+   * rootless/Desktop socket, or the platform default. Shown on the operations page
+   * so "not reachable" names an address instead of leaving the operator to guess
+   * which of the four possible sockets was tried.
+   */
+  endpoint: string;
   /** Engine daemon reachable (socket ping succeeded). */
   daemonReachable: boolean;
   /** Engine version string, or null when unreachable. */
@@ -80,6 +87,7 @@ export async function getDockerEngineInfo(): Promise<DockerEngineInfo> {
     const info = await docker.info();
     return {
       cliAvailable,
+      endpoint: dockerEndpoint,
       daemonReachable: true,
       version: version?.Version ?? null,
       runningContainers:
@@ -89,6 +97,7 @@ export async function getDockerEngineInfo(): Promise<DockerEngineInfo> {
   } catch (err) {
     return {
       cliAvailable,
+      endpoint: dockerEndpoint,
       daemonReachable: false,
       version: null,
       runningContainers: null,
@@ -110,15 +119,16 @@ export async function getDockerEngineInfo(): Promise<DockerEngineInfo> {
 function dockerUnreachableReason(err: unknown, cliAvailable: boolean): string {
   if (isDockerPermissionDenied(err)) {
     return (
-      'Docker socket found but permission denied — this process may not use ' +
-      '/var/run/docker.sock. Run the panel as root or add its user to the docker group.'
+      `Docker socket found but permission denied — this process may not use ${dockerEndpoint}. ` +
+      'Run the panel as root or add its user to the docker group.'
     );
   }
   if (cliAvailable) {
     return (
-      'Docker engine is not reachable — the docker CLI is installed but no engine ' +
-      'socket answered. If the panel runs in a container, mount the host socket: ' +
-      '-v /var/run/docker.sock:/var/run/docker.sock (see docker-compose.coolify.yml).'
+      `Docker engine is not reachable at ${dockerEndpoint} — the docker CLI is installed ` +
+      'but no engine socket answered. If the panel runs in a container, mount the host ' +
+      'socket: -v /var/run/docker.sock:/var/run/docker.sock (see docker-compose.coolify.yml). ' +
+      'For a remote or rootless engine, set DOCKER_HOST.'
     );
   }
   if (isDockerDaemonUnreachable(err)) {

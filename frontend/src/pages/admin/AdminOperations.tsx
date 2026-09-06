@@ -301,6 +301,15 @@ export default function AdminOperations() {
                         : "CLI not found"
                   }
                 />
+                {/* Which socket was tried. "Not reachable" with no address leaves the
+                    operator guessing between the root socket, a rootless one and a
+                    DOCKER_HOST they may have set months ago. */}
+                <p className="px-1 pt-1 text-xs text-muted-foreground">
+                  Engine endpoint{" "}
+                  <code className="rounded bg-secondary/50 px-1 py-0.5 font-mono text-[11px]">
+                    {data.docker.endpoint}
+                  </code>
+                </p>
               </div>
             </div>
           </div>

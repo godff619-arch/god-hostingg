@@ -21,10 +21,8 @@
 // Detection is cached briefly: it costs two Docker API calls and is consulted on
 // every deploy and every domain save.
 
-import Docker from 'dockerode';
+import { docker } from './dockerClient.js';
 import { EDGE_PROXY_CONTAINER } from '../services/docker.js';
-
-const docker = new Docker();
 
 export type EdgeMode = 'nginx' | 'traefik' | 'none';
 
