@@ -12,6 +12,7 @@ import { PageHeader } from "@/components/shell/PageHeader";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
 import { adminGet } from "@/lib/adminApi";
+import { ListError, ListSkeleton, ListEmpty } from "@/components/admin/AdminList";
 import type { DeploymentRow, DeploymentsResponse } from "@/lib/adminTypes";
 import { cn } from "@/lib/utils";
 
@@ -110,29 +111,16 @@ export default function AdminDeployments() {
         ))}
       </div>
 
-      {error && (
-        <div className="mb-4 rounded-2xl border border-danger-border bg-danger-surface px-4 py-3 text-sm text-danger">
-          {error}
-        </div>
-      )}
+      {error && <ListError message={error} onRetry={fetchDeployments} />}
 
       {loading ? (
-        <div className="overflow-hidden rounded-2xl border border-border/60">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div
-              key={i}
-              className="h-14 animate-pulse border-b border-border/40 bg-secondary/20 last:border-b-0"
-            />
-          ))}
-        </div>
+        <ListSkeleton />
       ) : rows.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border/60 px-4 py-16 text-center text-sm text-muted-foreground">
-          No deployments found.
-        </div>
+        <ListEmpty message="No deployments found." hint="Deployments appear here once a project is deployed." />
       ) : (
         <>
           {/* Mobile cards */}
-          <div className="space-y-3 lg:hidden">
+          <div className="stagger-in space-y-3 lg:hidden">
             {rows.map((d) => (
               <article key={d.id} className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3">

@@ -29,6 +29,7 @@ import { PageHeader } from "@/components/shell/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { adminDownload, adminGet } from "@/lib/adminApi";
+import { ListError, ListSkeleton, ListEmpty } from "@/components/admin/AdminList";
 import type { AdminSettings, AuditLogsResponse, AuditRow } from "@/lib/adminTypes";
 import { cn } from "@/lib/utils";
 
@@ -229,27 +230,15 @@ export default function AdminAuditLogs() {
         )}
       </div>
 
-      {error && (
-        <div className="mb-4 rounded-2xl border border-danger-border bg-danger-surface px-4 py-3 text-sm text-danger">
-          {error}
-        </div>
-      )}
+      {error && <ListError message={error} onRetry={fetchLogs} />}
 
       {loading && !data ? (
-        <div className="overflow-hidden rounded-2xl border border-border/60">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div
-              key={i}
-              className="h-16 animate-pulse border-b border-border/40 bg-secondary/20 last:border-b-0"
-            />
-          ))}
-        </div>
+        <ListSkeleton />
       ) : !data || data.logs.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border/60 px-4 py-16 text-center text-sm text-muted-foreground">
-          {filtered
-            ? "No action matches these filters."
-            : "No audit entries yet — they appear here as soon as a privileged action is taken."}
-        </div>
+        <ListEmpty
+          message={filtered ? "No action matches these filters." : "No audit entries yet."}
+          hint={filtered ? "Try a different filter or search term." : "Entries appear here as soon as a privileged action is taken."}
+        />
       ) : (
         <AuditTable
           rows={data.logs}
@@ -333,7 +322,7 @@ function AuditTable({ rows, expanded, onToggle, onFilterActor }: AuditTableProps
   return (
     <>
       {/* Mobile */}
-      <div className="space-y-3 md:hidden">
+      <div className="stagger-in space-y-3 md:hidden">
         {rows.map((row) => {
           const when = formatWhen(row.created_at);
           const meta = formatMetadata(row.metadata);

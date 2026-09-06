@@ -10,6 +10,7 @@ import { CommandPalette } from "@/components/shell/CommandPalette";
 import { MaintenanceBanner, MaintenanceGate } from "@/components/shell/MaintenanceGate";
 import { Sidebar } from "@/components/shell/Sidebar";
 import { ShellProvider, useShell } from "@/components/shell/ShellContext";
+import { RouteProgress, RouteTransition } from "@/components/shell/RouteTransition";
 import { TopHeader } from "@/components/shell/TopHeader";
 import { WorkspaceProvider } from "@/components/workspace/WorkspaceProvider";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,7 @@ function ShellFrame() {
 
   return (
     <div className="min-h-screen bg-background">
+      <RouteProgress />
       {/* Full-width 48px header; the rail starts directly below it (spec §7). */}
       <TopHeader />
 
@@ -54,7 +56,9 @@ function ShellFrame() {
         <MaintenanceBanner />
         <AnnouncementBanner />
         <main className="w-full px-4 py-6 sm:px-6 lg:px-8">
-          <Outlet />
+          <RouteTransition>
+            <Outlet />
+          </RouteTransition>
         </main>
       </div>
 

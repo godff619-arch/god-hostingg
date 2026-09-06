@@ -28,6 +28,7 @@ import { PageHeader, StatChip } from "@/components/shell/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { adminGet, adminSend, adminDownload } from "@/lib/adminApi";
+import { ListError, ListSkeleton, ListEmpty } from "@/components/admin/AdminList";
 import type { ErrorGroup, ErrorsResponse } from "@/lib/adminTypes";
 import { cn } from "@/lib/utils";
 
@@ -310,21 +311,10 @@ export default function AdminErrors() {
         )}
       </div>
 
-      {error && (
-        <div className="mb-4 rounded-2xl border border-danger-border bg-danger-surface px-4 py-3 text-sm text-danger">
-          {error}
-        </div>
-      )}
+      {error && <ListError message={error} onRetry={() => void load()} />}
 
       {loading ? (
-        <div className="overflow-hidden rounded-2xl border border-border/60">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div
-              key={i}
-              className="h-16 animate-pulse border-b border-border/40 bg-secondary/20 last:border-b-0"
-            />
-          ))}
-        </div>
+        <ListSkeleton />
       ) : rows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border/60 px-4 py-16 text-center">
           <Check className="mx-auto h-8 w-8 text-success" />
@@ -338,7 +328,7 @@ export default function AdminErrors() {
           </p>
         </div>
       ) : (
-        <div className="space-y-2.5">
+        <div className="stagger-in space-y-2.5">
           {rows.map((group) => (
             <ErrorCard
               key={group.id}

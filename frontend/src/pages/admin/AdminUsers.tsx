@@ -33,6 +33,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { adminGet, adminSend } from "@/lib/adminApi";
+import { ListError, ListSkeleton, ListEmpty } from "@/components/admin/AdminList";
 import type {
   AdminUser,
   AdminUsersResponse,
@@ -311,29 +312,16 @@ export default function AdminUsers() {
         </div>
       </div>
 
-      {error && (
-        <div className="mb-4 rounded-2xl border border-danger-border bg-danger-surface px-4 py-3 text-sm text-danger">
-          {error}
-        </div>
-      )}
+      {error && <ListError message={error} onRetry={fetchUsers} />}
 
       {loading ? (
-        <div className="overflow-hidden rounded-2xl border border-border/60">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div
-              key={i}
-              className="h-16 animate-pulse border-b border-border/40 bg-secondary/20 last:border-b-0"
-            />
-          ))}
-        </div>
+        <ListSkeleton />
       ) : users.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border/60 px-4 py-16 text-center text-sm text-muted-foreground">
-          No users match these filters.
-        </div>
+        <ListEmpty message="No users match these filters." hint="Try adjusting the search or filter criteria." />
       ) : (
         <>
           {/* Mobile cards */}
-          <div className="space-y-3 md:hidden">
+          <div className="stagger-in space-y-3 md:hidden">
             {users.map((user) => (
               <article
                 key={user.id}

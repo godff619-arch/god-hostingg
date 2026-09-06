@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Button } from "@/components/ui/button";
 import { adminGet, adminSend } from "@/lib/adminApi";
+import { ListError, ListSkeleton, ListEmpty } from "@/components/admin/AdminList";
 import { authFetch } from "@/lib/auth";
 import { API_URL } from "@/lib/utils";
 
@@ -112,29 +113,16 @@ export default function AdminUploads() {
         }
       />
 
-      {error && (
-        <div className="mb-4 rounded-2xl border border-danger-border bg-danger-surface px-4 py-3 text-sm text-danger">
-          {error}
-        </div>
-      )}
+      {error && <ListError message={error} onRetry={fetchUploads} />}
 
       {loading ? (
-        <div className="overflow-hidden rounded-2xl border border-border/60">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div
-              key={i}
-              className="h-14 animate-pulse border-b border-border/40 bg-secondary/20 last:border-b-0"
-            />
-          ))}
-        </div>
+        <ListSkeleton />
       ) : rows.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border/60 px-4 py-16 text-center text-sm text-muted-foreground">
-          No uploads archived yet. ZIP uploads from the New project flow will appear here.
-        </div>
+        <ListEmpty message="No uploads archived yet." hint="ZIP uploads from the New project flow will appear here." />
       ) : (
         <>
           {/* Mobile cards */}
-          <div className="space-y-3 lg:hidden">
+          <div className="stagger-in space-y-3 lg:hidden">
             {rows.map((u) => (
               <article key={u.id} className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3">

@@ -26,6 +26,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { adminGet, adminSend } from "@/lib/adminApi";
+import { ListError, ListSkeleton, ListEmpty } from "@/components/admin/AdminList";
 import type { Plan, PlanInput } from "@/lib/adminTypes";
 
 const QUOTA_FIELDS: { key: keyof PlanInput; label: string }[] = [
@@ -136,24 +137,14 @@ export default function AdminPlans() {
         }
       />
 
-      {error && (
-        <div className="mb-4 rounded-2xl border border-danger-border bg-danger-surface px-4 py-3 text-sm text-danger">
-          {error}
-        </div>
-      )}
+      {error && <ListError message={error} onRetry={fetchPlans} />}
 
       {loading ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-72 animate-pulse rounded-2xl border border-border/60 bg-secondary/20" />
-          ))}
-        </div>
+        <ListSkeleton />
       ) : plans.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border/60 px-4 py-16 text-center text-sm text-muted-foreground">
-          No plans yet. Create your first plan to get started.
-        </div>
+        <ListEmpty message="No plans yet." hint="Create your first plan to get started." />
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="stagger-in grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {plans.map((plan) => {
             const isAdmin = plan.key === "admin";
             return (

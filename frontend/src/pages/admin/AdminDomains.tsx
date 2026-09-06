@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { refreshEdgeInfo, useEdgeInfo, type EdgeDns } from "@/hooks/useEdgeInfo";
 import { adminGet, adminSend } from "@/lib/adminApi";
+import { ListError, ListSkeleton, ListEmpty } from "@/components/admin/AdminList";
 import type { AdminDomainsResponse, AdminEdgeInfo, AdminSettings } from "@/lib/adminTypes";
 import { cn, copyToClipboard } from "@/lib/utils";
 
@@ -612,27 +613,15 @@ export default function AdminDomains() {
         )}
       </div>
 
-      {error && (
-        <div className="mb-4 rounded-2xl border border-danger-border bg-danger-surface px-4 py-3 text-sm text-danger">
-          {error}
-        </div>
-      )}
+      {error && <ListError message={error} onRetry={fetchDomains} />}
 
       {loading && !data ? (
-        <div className="overflow-hidden rounded-2xl border border-border/60">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div
-              key={i}
-              className="h-16 animate-pulse border-b border-border/40 bg-secondary/20 last:border-b-0"
-            />
-          ))}
-        </div>
+        <ListSkeleton />
       ) : !data || data.domains.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border/60 px-4 py-16 text-center text-sm text-muted-foreground">
-          {debouncedQ
-            ? "No hostname matches that search."
-            : "No hostnames yet — they appear here once an app is deployed or a custom domain is added."}
-        </div>
+        <ListEmpty
+          message={debouncedQ ? "No hostname matches that search." : "No hostnames yet."}
+          hint={debouncedQ ? "Try a different search term." : "Hostnames appear here once an app is deployed or a custom domain is added."}
+        />
       ) : (
         <DomainTable rows={data.domains} />
       )}
@@ -678,7 +667,7 @@ export default function AdminDomains() {
 function DomainTable({ rows }: { rows: AdminDomainsResponse["domains"] }) {
   return (
     <>
-      <div className="space-y-3 md:hidden">
+      <div className="stagger-in space-y-3 md:hidden">
         {rows.map((row) => (
           <article
             key={`${row.service_id}:${row.hostname}`}

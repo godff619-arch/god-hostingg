@@ -24,6 +24,7 @@ import {
 import { PageHeader, StatChip } from "@/components/shell/PageHeader";
 import { Button } from "@/components/ui/button";
 import { adminGet } from "@/lib/adminApi";
+import { ListError, ListSkeleton } from "@/components/admin/AdminList";
 import type { AdminOverview as AdminOverviewData } from "@/lib/adminTypes";
 import { cn } from "@/lib/utils";
 
@@ -177,24 +178,13 @@ export default function AdminOverview() {
         }
       />
 
-      {error && (
-        <div className="mb-4 rounded-2xl border border-danger-border bg-danger-surface px-4 py-3 text-sm text-danger">
-          {error}
-        </div>
-      )}
+      {error && <ListError message={error} onRetry={fetchOverview} />}
 
       {loading && !data ? (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div
-              key={i}
-              className="h-28 animate-pulse rounded-2xl border border-border/60 bg-secondary/20"
-            />
-          ))}
-        </div>
+        <ListSkeleton />
       ) : data ? (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+          <div className="stagger-in grid grid-cols-2 gap-3 lg:grid-cols-3">
             <StatTile
               label="Users"
               value={data.users.total}

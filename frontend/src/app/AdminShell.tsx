@@ -21,6 +21,7 @@ import { AlertCircle, Loader2, ShieldOff } from "lucide-react";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminTopHeader } from "@/components/admin/AdminTopHeader";
 import { ShellProvider, useShell } from "@/components/shell/ShellContext";
+import { RouteProgress, RouteTransition } from "@/components/shell/RouteTransition";
 import { Button } from "@/components/ui/button";
 import { useAdminMe } from "@/hooks/useAdminMe";
 import { cn } from "@/lib/utils";
@@ -34,6 +35,7 @@ function AdminFrame() {
 
   return (
     <div className="min-h-screen bg-background">
+      <RouteProgress />
       <AdminTopHeader />
 
       <aside className="shell-rail fixed bottom-0 left-0 top-[var(--shell-topbar)] z-30 hidden lg:block">
@@ -62,7 +64,9 @@ function AdminFrame() {
       <div className="shell-inset">
         <main className="w-full px-4 py-6 sm:px-6 lg:px-8">
           <AdminAccessGate>
-            <Outlet />
+            <RouteTransition>
+              <Outlet />
+            </RouteTransition>
           </AdminAccessGate>
         </main>
       </div>

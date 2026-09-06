@@ -19,6 +19,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { UserBillingTab } from "@/components/admin/UserBillingTab";
 import { useAdminMe } from "@/hooks/useAdminMe";
 import { adminGet } from "@/lib/adminApi";
+import { ListError, ListSkeleton } from "@/components/admin/AdminList";
 import type {
   AdminUserDetail as UserDetailData,
   AuditRow,
@@ -72,24 +73,15 @@ export default function AdminUserDetail() {
   }, [fetchDetail]);
 
   if (loading) {
-    return (
-      <div className="space-y-4">
-        <div className="h-24 animate-pulse rounded-2xl border border-border/60 bg-secondary/20" />
-        <div className="h-64 animate-pulse rounded-2xl border border-border/60 bg-secondary/20" />
-      </div>
-    );
+    return <ListSkeleton />;
   }
 
   if (error || !detail) {
     return (
-      <div className="rounded-2xl border border-danger-border bg-danger-surface px-4 py-16 text-center">
-        <p className="text-sm text-danger">{error || "User not found"}</p>
-        <Button asChild variant="outline" className="mt-4">
-          <Link to="/admin/users">
-            <ArrowLeft className="h-4 w-4" /> Back to users
-          </Link>
-        </Button>
-      </div>
+      <ListError
+        message={error || "User not found"}
+        onRetry={fetchDetail}
+      />
     );
   }
 

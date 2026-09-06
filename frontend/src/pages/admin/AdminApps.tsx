@@ -28,6 +28,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { adminGet, apiSend } from "@/lib/adminApi";
+import { ListError, ListSkeleton, ListEmpty } from "@/components/admin/AdminList";
 import type { AppRow as AdminApp } from "@/lib/adminTypes";
 import { cn } from "@/lib/utils";
 
@@ -159,29 +160,16 @@ export default function AdminApps() {
         </div>
       </div>
 
-      {error && (
-        <div className="mb-4 rounded-2xl border border-danger-border bg-danger-surface px-4 py-3 text-sm text-danger">
-          {error}
-        </div>
-      )}
+      {error && <ListError message={error} onRetry={fetchApps} />}
 
       {loading ? (
-        <div className="overflow-hidden rounded-2xl border border-border/60">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div
-              key={i}
-              className="h-16 animate-pulse border-b border-border/40 bg-secondary/20 last:border-b-0"
-            />
-          ))}
-        </div>
+        <ListSkeleton />
       ) : filtered.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border/60 px-4 py-16 text-center text-sm text-muted-foreground">
-          No applications match these filters.
-        </div>
+        <ListEmpty message="No applications match these filters." hint="Try adjusting the search or status filter." />
       ) : (
         <>
           {/* Mobile cards */}
-          <div className="space-y-3 lg:hidden">
+          <div className="stagger-in space-y-3 lg:hidden">
             {filtered.map((app) => (
               <article key={app.id} className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
