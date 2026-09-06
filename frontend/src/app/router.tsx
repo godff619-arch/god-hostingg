@@ -360,6 +360,20 @@ export const router = createBrowserRouter([
                 },
               },
               {
+                path: "workspaces",
+                lazy: async () => {
+                  const m = await import("@/pages/admin/AdminWorkspaces");
+                  return { Component: m.default };
+                },
+              },
+              {
+                path: "workspaces/:id",
+                lazy: async () => {
+                  const m = await import("@/pages/admin/AdminWorkspaceDetail");
+                  return { Component: m.default };
+                },
+              },
+              {
                 path: "apps",
                 lazy: async () => {
                   const m = await import("@/pages/admin/AdminApps");

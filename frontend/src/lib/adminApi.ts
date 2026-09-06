@@ -8,7 +8,14 @@ const ADMIN_BASE = `${API_URL}/api/admin`;
 async function parseError(res: Response): Promise<string> {
   const data = await res.json().catch(() => null);
   if (data && typeof data === "object" && "error" in data && data.error) {
-    return String((data as { error: unknown }).error);
+    const err = (data as { error: unknown }).error;
+    // Older handlers answer `{ error: "message" }`; the newer routers answer the
+    // structured `{ error: { code, message } }`. Unwrapping here keeps the server's
+    // own wording in the toast instead of "[object Object]".
+    if (typeof err === "object" && err !== null && "message" in err) {
+      return String((err as { message: unknown }).message);
+    }
+    return String(err);
   }
   return `HTTP ${res.status}`;
 }
