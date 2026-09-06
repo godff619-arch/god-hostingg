@@ -300,7 +300,7 @@ function CreateWorkspaceDialog({
 
 /**
  * `+ New`. Every enabled entry lands on a working create flow. The three Render
- * service classes Docklift cannot yet distinguish from a web service are shown
+ * service classes God Hosting cannot yet distinguish from a web service are shown
  * disabled rather than pointed at a flow that would quietly build something else.
  *
  * Exported so the Overview page's `+ New ▼` is the same menu; pass
@@ -343,7 +343,7 @@ export function NewMenu({ onNewProject }: { onNewProject?: () => void } = {}) {
         New Project
       </DropdownItem>
       <DropdownSeparator />
-      {/* Only the resource kinds Docklift can actually create are listed (§10). */}
+      {/* Only the resource kinds God Hosting can actually create are listed (§10). */}
       <DropdownItem
         icon={<Network className="h-3.5 w-3.5" />}
         disabled={!canWrite}

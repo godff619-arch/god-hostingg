@@ -785,7 +785,7 @@ function ChannelDialog({
                   ? `Configured — ${channel.hint}. Enter a new URL to replace it`
                   : kind === "slack"
                     ? "https://hooks.slack.com/services/…"
-                    : "https://example.com/hooks/docklift"
+                    : "https://example.com/hooks/godhosting"
               }
               onChange={(e) => setTarget(e.target.value)}
             />

@@ -1,7 +1,7 @@
 {
-  "name": "docklift-backend",
+  "name": "god-hosting-backend",
   "version": "2.1.5",
-  "description": "Docklift backend - Docker deployment platform",
+  "description": "God Hosting backend - Docker deployment platform",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {

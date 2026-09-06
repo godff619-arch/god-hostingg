@@ -43,7 +43,7 @@ interface LiveAnnouncement {
   created_at: string;
 }
 
-const SEEN_KEY = "docklift_announcements_seen";
+const SEEN_KEY = "godhosting_announcements_seen";
 /** Enough history that a dismissed notice stays dismissed; bounded so it cannot grow. */
 const SEEN_CAP = 200;
 const POLL_MS = 5 * 60 * 1000;

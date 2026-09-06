@@ -1,4 +1,4 @@
-// Docklift-scoped image retention (keep-2) + BuildKit prune helpers.
+// God Hosting-scoped image retention (keep-2) + BuildKit prune helpers.
 // Never host-wide system prune; never delete non-docklift-* images.
 import { spawn } from 'child_process';
 import { docker } from './dockerClient.js';
@@ -22,7 +22,7 @@ export function dockliftImageTag(
   return `${dockliftImageRepo(projectId, serviceName)}:${deploymentId.slice(0, 8)}`;
 }
 
-/** True if ref looks like a Docklift-built app image (not upstream postgres/nginx/etc.). */
+/** True if ref looks like a God Hosting-built app image (not upstream postgres/nginx/etc.). */
 export function isDockliftAppImage(ref: string): boolean {
   const name = ref.includes(':') ? ref.slice(0, ref.indexOf(':')) : ref;
   return /^docklift-[a-f0-9]{8}-[a-z0-9][a-z0-9_-]*$/i.test(name);

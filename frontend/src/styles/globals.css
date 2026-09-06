@@ -234,11 +234,11 @@
   width: min(100vw - 1.5rem, 26rem) !important;
 }
 
-[data-sonner-toast].docklift-toast {
-  animation: docklift-toast-in 280ms cubic-bezier(0.16, 1, 0.3, 1);
+[data-sonner-toast].godhosting-toast {
+  animation: godhosting-toast-in 280ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@keyframes docklift-toast-in {
+@keyframes godhosting-toast-in {
   from {
     opacity: 0;
     transform: translateY(-0.6rem) scale(0.98);
@@ -389,6 +389,103 @@
   animation: brand-shimmer 6s ease-in-out infinite;
 }
 
+/* ─── How-it-works timeline ─────────────────────────────────────────────── */
+.how-step-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 0.875rem;
+  background: linear-gradient(135deg, hsl(var(--brand)) 0%, hsl(221 83% 58%) 100%);
+  box-shadow: 0 4px 16px hsl(var(--brand) / 0.20), 0 0 0 4px hsl(var(--brand) / 0.08);
+  color: #fff;
+  flex-shrink: 0;
+  transition: box-shadow 200ms ease, transform 200ms ease;
+}
+
+.how-step-icon:hover {
+  box-shadow: 0 6px 24px hsl(var(--brand) / 0.30), 0 0 0 6px hsl(var(--brand) / 0.12);
+  transform: translateY(-2px);
+}
+
+.how-step-number {
+  position: absolute;
+  top: -0.375rem;
+  right: -0.375rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  background: hsl(var(--brand));
+  color: #fff;
+  font-size: 0.625rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid hsl(var(--card));
+  line-height: 1;
+}
+
+/* Vertical connector line (mobile/tablet) */
+.how-connector-v {
+  position: absolute;
+  left: 1.5rem;
+  top: 3rem;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(180deg, hsl(var(--brand) / 0.30), hsl(var(--brand) / 0.05));
+}
+
+@keyframes connector-travel {
+  0%   { transform: translateY(-100%); opacity: 0; }
+  30%  { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+
+.how-connector-v::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -1px;
+  width: 4px;
+  height: 40%;
+  border-radius: 2px;
+  background: hsl(var(--brand));
+  animation: connector-travel 2.5s ease-in-out infinite;
+}
+
+/* Horizontal connector (lg+) */
+.how-connector-h {
+  position: absolute;
+  top: 1.5rem;
+  left: 100%;
+  width: 2rem;
+  height: 2px;
+  background: linear-gradient(90deg, hsl(var(--brand) / 0.30), hsl(var(--brand) / 0.05));
+}
+
+@keyframes connector-travel-h {
+  0%   { transform: translateX(-100%); opacity: 0; }
+  30%  { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { transform: translateX(100%); opacity: 0; }
+}
+
+.how-connector-h::after {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 0;
+  height: 4px;
+  width: 40%;
+  border-radius: 2px;
+  background: hsl(var(--brand));
+  animation: connector-travel-h 2.5s ease-in-out infinite;
+}
+
 /* Subtle glow behind the hero CTA button. */
 @keyframes cta-glow {
   0%, 100% { box-shadow: 0 0 12px 2px hsl(var(--brand) / 0.15); }
@@ -449,8 +546,10 @@
     scroll-behavior: auto;
   }
 
-  [data-sonner-toast].docklift-toast,
+  [data-sonner-toast].godhosting-toast,
   .animate-pipeline-pulse,
+  .how-connector-v::after,
+  .how-connector-h::after,
   .shimmer::after,
   .animate-progress-scan,
   .page-enter,

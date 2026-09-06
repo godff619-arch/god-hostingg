@@ -1316,7 +1316,7 @@ async function readSettings() {
     getPlatformDomainConfig(),
   ]);
   return {
-    platform_name: name ?? 'Docklift',
+    platform_name: name ?? 'God Hosting',
     registration_enabled: reg,
     deployments_enabled: dep,
     default_plan_key: defaultPlan ?? 'free',

@@ -505,7 +505,7 @@ async function runPostDeploymentPurge(
           writeLog(`     … and ${result.removed.length - 8} more\n`);
         }
       } else {
-        writeLog(`   No older Docklift tags to remove\n`);
+        writeLog(`   No older God Hosting tags to remove\n`);
       }
       if (result.skippedInUse.length) {
         writeLog(`   Skipped ${result.skippedInUse.length} in-use tag(s)\n`);
@@ -514,7 +514,7 @@ async function runPostDeploymentPurge(
         writeLog(`   ! ${err}\n`);
       }
     } else {
-      writeLog(`   ○ No Docklift app images to clean (image prune skipped)\n`);
+      writeLog(`   ○ No God Hosting app images to clean (image prune skipped)\n`);
     }
 
     const bk = await pruneBuildKitUnused();
@@ -1547,7 +1547,7 @@ async function deployProject(req: AuthenticatedRequest, res: Response) {
         edge,
       }
     );
-    writeLog(`✅ DockLift runtime compose created outside the repository\n`);
+    writeLog(`✅ God Hosting runtime compose created outside the repository\n`);
     writeLog(`   Network: ${projectNetworkName(projectId)}\n`);
     const labelled = routedServices.filter((svc) => svc.hostnames.length > 0);
     if (edge.mode === 'traefik' && labelled.length > 0) {

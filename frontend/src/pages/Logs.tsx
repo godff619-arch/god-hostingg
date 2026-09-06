@@ -21,7 +21,7 @@ const SERVICES = [
     short: "API",
     icon: Server,
     description: "API & business logic",
-    container: "docklift-backend",
+    container: "godhosting-backend",
   },
   {
     id: "frontend",
@@ -29,7 +29,7 @@ const SERVICES = [
     short: "UI",
     icon: Globe,
     description: "Vite SPA dashboard",
-    container: "docklift-frontend",
+    container: "godhosting-frontend",
   },
   {
     id: "proxy",
@@ -37,7 +37,7 @@ const SERVICES = [
     short: "Proxy",
     icon: Shield,
     description: "Domains + HTTPS :80/:443",
-    container: "docklift-nginx-proxy",
+    container: "godhosting-nginx-proxy",
   },
   {
     id: "nginx",
@@ -45,7 +45,7 @@ const SERVICES = [
     short: "Gate",
     icon: Network,
     description: "Panel on :8080",
-    container: "docklift-nginx",
+    container: "godhosting-nginx",
   },
   {
     id: "certbot",
@@ -53,7 +53,7 @@ const SERVICES = [
     short: "TLS",
     icon: LockKeyhole,
     description: "Cert renewals (12h)",
-    container: "docklift-certbot",
+    container: "godhosting-certbot",
   },
 ] as const;
 

@@ -25,7 +25,7 @@ const execAsync = promisify(exec);
 
 const router = Router();
 
-/** Every container the DockLift stack owns — see docker-compose.yml. */
+/** Every container the God Hosting stack owns — see docker-compose.yml. */
 const CORE_CONTAINERS = [
   'docklift-backend',
   'docklift-frontend',
@@ -695,7 +695,7 @@ router.get('/edge', async (req: Request, res: Response) => {
 });
 
 /**
- * POST /api/system/purge — DockLift-scoped cleanup only.
+ * POST /api/system/purge — God Hosting-scoped cleanup only.
  * Removes unused docklift-* images outside each project's keep-2 set, then
  * clears all BuildKit cache. Never host-wide system prune / foreign images /
  * volumes / OS maintenance.
@@ -785,7 +785,7 @@ router.post('/purge', async (req: AuthenticatedRequest, res: Response) => {
       inUseRefs,
     });
     results.push(
-      `✓ Removed ${imageResult.removed.length} unused Docklift image tag(s); kept ${imageResult.kept.length}`,
+      `✓ Removed ${imageResult.removed.length} unused God Hosting image tag(s); kept ${imageResult.kept.length}`,
     );
     if (imageResult.skippedInUse.length) {
       results.push(`○ Skipped ${imageResult.skippedInUse.length} in-use tag(s)`);
@@ -825,7 +825,7 @@ router.post('/purge', async (req: AuthenticatedRequest, res: Response) => {
     }
 
     res.json({
-      message: 'DockLift-scoped cleanup completed',
+      message: 'God Hosting-scoped cleanup completed',
       details: results,
       removedImages: imageResult.removed.length,
       keptImages: imageResult.kept.length,
@@ -883,7 +883,7 @@ router.post('/reboot', async (req: AuthenticatedRequest, res: Response) => {
   }
 });
 
-// POST /api/system/reset - Reset Docklift services (OS aware)
+// POST /api/system/reset - Reset God Hosting services (OS aware)
 router.post('/reset', async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!isAdmin(req)) return res.status(403).json({ error: 'Admin privileges required' });
@@ -1038,7 +1038,7 @@ async function fetchVersionInfo(): Promise<VersionInfo> {
       {
         headers: {
           Accept: 'application/vnd.github+json',
-          'User-Agent': 'Docklift',
+          'User-Agent': 'GodHosting',
           'X-GitHub-Api-Version': '2022-11-28',
         },
       },
@@ -1153,13 +1153,13 @@ router.post('/upgrade', async (req: AuthenticatedRequest, res: Response) => {
     if (!isAdmin(req)) return res.status(403).json({ error: 'Admin privileges required' });
     if (!(await requireStepUpPassword(req, res))) return;
 
-    console.log(`[AUDIT] Docklift upgrade initiated from IP: ${req.ip}`);
+    console.log(`[AUDIT] God Hosting upgrade initiated from IP: ${req.ip}`);
     const isWindows = os.platform() === "win32";
     const isMac = os.platform() === "darwin";
 
     if (isWindows || isMac) {
       // Dev environment simulation
-      console.log('Docklift upgrade requested (Dev Mode: Simulation)');
+      console.log('God Hosting upgrade requested (Dev Mode: Simulation)');
       await new Promise(resolve => setTimeout(resolve, 2000));
       return res.json({ message: 'Dev Mode: Simulated upgrade complete. No changes made to system.' });
     }
@@ -1170,7 +1170,7 @@ router.post('/upgrade', async (req: AuthenticatedRequest, res: Response) => {
     // We use systemd-run to escape the container's cgroup to prevent being killed during restart
     const command = 'nsenter --target 1 --mount --uts --ipc --net --pid -- sh -c "cd /opt/docklift && (systemd-run --unit=docklift-upgrade-$(date +%s) --scope bash upgrade.sh > /dev/null 2>&1 || nohup bash upgrade.sh > /dev/null 2>&1) &"';
     
-    console.log('Docklift upgrade initiated on host');
+    console.log('God Hosting upgrade initiated on host');
     
     // Set a short timeout because we expect the command to detach immediately
     exec(command, { timeout: 5000 }, (error, stdout, stderr) => {

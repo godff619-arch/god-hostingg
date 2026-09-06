@@ -345,13 +345,13 @@ export function GitHubConnect({ open, onOpenChange, onConnected }: GitHubConnect
                 <label htmlFor="appName" className="text-sm font-medium">GitHub App Name</label>
                 <Input
                   id="appName"
-                  placeholder="my-docklift"
+                  placeholder="my-godhosting"
                   value={appName}
                   onChange={(e) => setAppName(e.target.value)}
                   disabled={loading}
                 />
                 <p className="text-xs text-muted-foreground">
-                  This will create: <code className="bg-muted px-1 rounded">docklift-{appName || "my-app"}</code>
+                  This will create: <code className="bg-muted px-1 rounded">godhosting-{appName || "my-app"}</code>
                 </p>
               </div>
 

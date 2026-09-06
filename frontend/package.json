@@ -1,7 +1,7 @@
 {
-  "name": "docklift-frontend",
+  "name": "god-hosting-frontend",
   "version": "2.1.5",
-  "description": "Docklift frontend - Vite dashboard for Docker management",
+  "description": "God Hosting frontend - Vite dashboard for Docker management",
   "private": true,
   "type": "module",
   "scripts": {

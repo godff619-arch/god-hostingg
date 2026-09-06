@@ -1,4 +1,4 @@
-// Express server entry point - configures middleware, routes, and starts the Docklift backend
+// Express server entry point - configures middleware, routes, and starts the God Hosting backend
 import './lib/loadEnv.js';
 import express from 'express';
 import cors from 'cors';
@@ -464,7 +464,7 @@ async function main() {
       console.log(`
 ╔════════════════════════════════════════════════════════════╗
 ║                                                            ║
-║   🚀 Docklift Backend (Node.js)                           ║
+║   🚀 God Hosting Backend (Node.js)                           ║
 ║                                                            ║
 ║   Server running at: http://localhost:${config.port}                ║
 ║   Deployments path:  ${config.deploymentsPath}                      

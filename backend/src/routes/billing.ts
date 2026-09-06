@@ -939,7 +939,7 @@ router.post('/payment-methods', async (req: AuthenticatedRequest, res: Response)
         400,
         'RAW_CARD',
         'That looks like a real card number. Paste the reference your payment ' +
-          'provider returned (e.g. pm_… or tok_…) — Docklift stores only the brand, ' +
+          'provider returned (e.g. pm_… or tok_…) — God Hosting stores only the brand, ' +
           'last four digits and expiry, never a card number.',
       );
     }

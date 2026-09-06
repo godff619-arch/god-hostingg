@@ -42,7 +42,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
       toastOptions={{
         classNames: {
           toast:
-            "group toast docklift-toast group-[.toaster]:pointer-events-auto " +
+            "group toast godhosting-toast group-[.toaster]:pointer-events-auto " +
             "group-[.toaster]:w-[min(100vw-1.5rem,24rem)] " +
             "group-[.toaster]:rounded-md group-[.toaster]:border group-[.toaster]:px-3 " +
             "group-[.toaster]:py-2.5 group-[.toaster]:gap-2.5 group-[.toaster]:font-sans " +

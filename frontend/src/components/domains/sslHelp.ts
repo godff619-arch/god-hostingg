@@ -66,7 +66,7 @@ export function sslFixFor(error: string | null | undefined, serverIP?: string): 
     return {
       title: "Certbot container is unavailable",
       steps: [
-        "Check the sidecar: docker ps --filter name=docklift-certbot",
+        "Check the sidecar: docker ps --filter name=godhosting-certbot",
         "Start the stack again: docker compose up -d",
         "Then press Retry HTTPS.",
       ],

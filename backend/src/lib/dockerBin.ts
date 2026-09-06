@@ -1,6 +1,6 @@
 // Docker CLI resolution + availability detection.
 //
-// Docklift is a Docker PaaS, but the control-plane process may run somewhere the
+// God Hosting is a Docker PaaS, but the control-plane process may run somewhere the
 // `docker` binary is not on PATH (Windows dev boxes, minimal containers). When
 // the CLI is genuinely absent, NO managed containers/volumes/networks can exist,
 // so teardown guards can safely treat "docker missing" as "nothing to tear down"

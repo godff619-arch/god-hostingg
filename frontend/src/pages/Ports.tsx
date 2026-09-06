@@ -293,7 +293,7 @@ export default function PortsPage() {
         </div>
         <span className="hidden items-center gap-1.5 rounded-lg border border-border/60 bg-secondary/30 px-2 py-1 font-mono text-[10px] text-muted-foreground tabular-nums sm:inline-flex">
           <Network className="h-3 w-3" />
-          {ports.length} · docklift_network
+          {ports.length} · godhosting_network
         </span>
       </div>
 

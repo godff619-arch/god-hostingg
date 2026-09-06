@@ -84,7 +84,7 @@ export async function buildServiceImage(opts: {
   );
   if (protectedEnv) {
     throw new Error(
-      `Build variable ${protectedEnv.key} is reserved by DockLift and cannot be overridden`
+      `Build variable ${protectedEnv.key} is reserved by God Hosting and cannot be overridden`
     );
   }
 

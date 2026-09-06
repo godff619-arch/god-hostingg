@@ -1,5 +1,5 @@
 // CLI script to reset admin password
-// Usage: docker exec -it docklift-backend node dist/scripts/reset-password.js
+// Usage: docker exec -it godhosting-backend node dist/scripts/reset-password.js
 
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
@@ -8,7 +8,7 @@ import crypto from 'crypto';
 const prisma = new PrismaClient();
 
 async function resetPassword() {
-  console.log('\n🔐 Docklift Password Reset\n');
+  console.log('\n🔐 God Hosting Password Reset\n');
 
   try {
     // Find the first privileged (owner/super_admin/admin) user, owner first

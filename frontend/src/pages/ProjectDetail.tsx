@@ -2270,7 +2270,7 @@ export default function ProjectDetail() {
                   <div>
                     <h4 className="font-bold">Detected Build</h4>
                     <p className="text-xs text-muted-foreground mt-1">
-                      DockLift&apos;s current resolution for this source.
+                      God Hosting&apos;s current resolution for this source.
                     </p>
                   </div>
                   <Button
@@ -2644,7 +2644,7 @@ export default function ProjectDetail() {
               type="password"
               value={rollbackPassword}
               onChange={(e) => setRollbackPassword(e.target.value)}
-              placeholder="Your DockLift password"
+              placeholder="Your God Hosting password"
               autoComplete="current-password"
               disabled={rollbackLoading}
               onKeyDown={(e) => {

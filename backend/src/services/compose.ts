@@ -202,7 +202,7 @@ export function traefikLabels(
 }
 
 /**
- * Write DockLift-owned runtime state outside the source checkout. Repository
+ * Write God Hosting-owned runtime state outside the source checkout. Repository
  * Dockerfiles and docker-compose.yml files are never modified.
  *
  * Isolation: each project gets its own bridge network. The edge proxy is

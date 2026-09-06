@@ -1,5 +1,5 @@
 {
-  "name": "docklift-root",
+  "name": "god-hosting-root",
   "private": true,
   "scripts": {
     "release": "semantic-release"

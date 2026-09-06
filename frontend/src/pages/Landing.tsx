@@ -363,28 +363,28 @@ export default function Landing() {
             </p>
           </Reveal>
 
-          <ol className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <ol className="mt-12 flex flex-col gap-0 lg:flex-row lg:gap-0 lg:justify-between">
             {PIPELINE.map((step, index) => (
-              <Reveal key={step.title} delay={index * 80} as="li" className="h-full">
-                <div className="relative flex h-full flex-col rounded-xl border border-border bg-background p-5 card-lift">
-                  {/* The connector only exists where there is a next card to
-                      reach, and only on the row that actually sits side by side. */}
-                  {index < PIPELINE.length - 1 && (
-                    <span
-                      aria-hidden="true"
-                      className="animate-pipeline-pulse absolute left-full top-9 hidden h-px w-5 bg-brand/40 lg:block"
-                    />
-                  )}
-                  <div className="flex items-center justify-between">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card">
-                      <step.icon className="h-4 w-4 text-brand" />
-                    </span>
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-subtle">
-                      Step {index + 1}
-                    </span>
-                  </div>
-                  <h3 className="mt-4 text-sm font-semibold text-foreground">{step.title}</h3>
-                  <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
+              <Reveal key={step.title} delay={index * 120} as="li" className="relative flex gap-4 pb-10 last:pb-0 lg:flex-col lg:flex-1 lg:gap-0 lg:pb-0 lg:text-center lg:items-center">
+                {/* Vertical connector (mobile) */}
+                {index < PIPELINE.length - 1 && (
+                  <div className="how-connector-v lg:hidden" />
+                )}
+                {/* Horizontal connector (lg) */}
+                {index < PIPELINE.length - 1 && (
+                  <div className="how-connector-h hidden lg:block" />
+                )}
+
+                {/* Icon with step number badge */}
+                <div className="how-step-icon">
+                  <step.icon className="h-5 w-5" />
+                  <span className="how-step-number">{index + 1}</span>
+                </div>
+
+                {/* Content */}
+                <div className="min-w-0 flex-1 lg:mt-5">
+                  <h3 className="text-sm font-semibold text-foreground">{step.title}</h3>
+                  <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground lg:mx-auto lg:max-w-[200px]">
                     {step.detail}
                   </p>
                 </div>

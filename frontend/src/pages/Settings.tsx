@@ -991,7 +991,7 @@ function SettingsContent() {
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Network Bridge</label>
-                      <Input value="docklift_network" disabled className="bg-secondary/50 font-mono" />
+                      <Input value="godhosting_network" disabled className="bg-secondary/50 font-mono" />
                       <p className="text-xs text-muted-foreground">
                         All application containers are attached to this bridge network to allow internal communication.
                       </p>
@@ -1087,7 +1087,7 @@ function SettingsContent() {
                         disabled={creatingBackup}
                       />
                       <p className="text-xs text-muted-foreground mt-1.5 ml-1">
-                        Output: <span className="font-mono text-success">{backupName.trim() ? `${backupName.trim().replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 50)}` : 'docklift'}-backup-[timestamp].zip</span>
+                        Output: <span className="font-mono text-success">{backupName.trim() ? `${backupName.trim().replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 50)}` : 'godhosting'}-backup-[timestamp].zip</span>
                       </p>
                     </div>
                     <Button
@@ -1119,7 +1119,7 @@ function SettingsContent() {
                   <div className="mt-4 p-3 rounded-lg bg-warning-surface border border-warning-border text-sm">
                     <p className="font-medium text-warning mb-1">Migration Tip</p>
                     <p className="text-muted-foreground text-xs">
-                      If you use a <span className="text-foreground font-medium">domain name</span> (e.g., docklift.yourdomain.com)
+                      If you use a <span className="text-foreground font-medium">domain name</span> (e.g., godhosting.yourdomain.com)
                       instead of IP address for your GitHub App webhook URL, migrating to a new server becomes seamless -
                       just update DNS and restore. No need to reconfigure the GitHub App.
                     </p>
@@ -1441,7 +1441,7 @@ function SettingsContent() {
               type="password"
               value={restorePassword}
               onChange={(e) => setRestorePassword(e.target.value)}
-              placeholder="Your DockLift password"
+              placeholder="Your God Hosting password"
               autoComplete="current-password"
             />
           </div>
@@ -1522,7 +1522,7 @@ function SettingsContent() {
               type="password"
               value={restorePassword}
               onChange={(e) => setRestorePassword(e.target.value)}
-              placeholder="Your DockLift password"
+              placeholder="Your God Hosting password"
               autoComplete="current-password"
             />
           </div>

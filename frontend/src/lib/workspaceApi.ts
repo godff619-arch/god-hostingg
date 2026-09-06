@@ -104,7 +104,7 @@ export async function apiDownload(path: string, fallbackName: string): Promise<v
   URL.revokeObjectURL(url);
 }
 
-const WORKSPACE_KEY = "docklift_workspace";
+const WORKSPACE_KEY = "godhosting_workspace";
 
 /** Workspace picked in the header switcher. NULL = the account's own workspace. */
 export function activeWorkspaceId(): string | null {

@@ -1,7 +1,7 @@
 /**
  * Blueprint parsing + apply (Part A → Blueprints).
  *
- * A blueprint is Docklift's infrastructure-as-code: a `docklift.yaml`-shaped spec
+ * A blueprint is God Hosting's infrastructure-as-code: a `godhosting.yaml`-shaped spec
  * listing services and managed databases. Applying it creates the *real*
  * resources in a chosen project group + environment — the same rows the New
  * Project / New Database flows create, through the same code paths, so quotas and
@@ -109,7 +109,7 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 /** The starter spec offered in the UI — real keys only, nothing decorative. */
 export function exampleSpec(): string {
   return [
-    '# Docklift blueprint. Applying this creates the resources below in the',
+    '# God Hosting blueprint. Applying this creates the resources below in the',
     '# project and environment you pick — nothing is deployed until you deploy it.',
     'services:',
     '  - name: web',

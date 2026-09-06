@@ -607,7 +607,7 @@ function TabButton({
 }
 
 /**
- * `+ New` under the table — the same create targets Docklift can honour.
+ * `+ New` under the table — the same create targets God Hosting can honour.
  *
  * The project and environment travel with the link, so a resource created from
  * inside an environment is born there instead of landing in the default one (§14).

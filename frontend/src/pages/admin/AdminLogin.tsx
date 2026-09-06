@@ -11,7 +11,7 @@
 // admin role is still not a way in, and saying so beats a silent bounce back to
 // the dashboard — which is what the shared gate would have done.
 //
-// The session itself is the same JWT (`docklift_token`). This is one identity
+// The session itself is the same JWT (`godhosting_token`). This is one identity
 // system with a role on it, not two; a second credential store would mean a
 // second password to lose and a second way to be locked out of your own server.
 

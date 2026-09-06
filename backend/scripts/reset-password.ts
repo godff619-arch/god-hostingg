@@ -9,7 +9,7 @@ import crypto from 'crypto';
 const prisma = new PrismaClient();
 
 async function resetPassword() {
-  console.log('\n🔐 Docklift Password Reset\n');
+  console.log('\n🔐 God Hosting Password Reset\n');
 
   try {
     // Find the first admin user

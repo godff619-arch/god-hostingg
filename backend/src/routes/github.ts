@@ -337,8 +337,8 @@ router.post('/manifest', async (req: Request, res: Response) => {
     // the form action (?state=) per GitHub's manifest docs, plus HttpOnly cookie.
     const callbackPath = '/api/github/manifest/callback';
     const manifest = {
-      name: `docklift-${sanitizedName}`,
-      url: 'https://github.com/SSujitX/docklift',
+      name: `godhosting-${sanitizedName}`,
+      url: 'https://github.com/godff619-arch/god-hostingg',
       redirect_url: `${serverUrl}${callbackPath}`,
       callback_urls: [`${serverUrl}${callbackPath}`],
       setup_url: `${serverUrl}/api/github/setup`,
@@ -685,7 +685,7 @@ async function beginGithubInstallSession(
   const installState = await createGithubSetupState({ returnUrl: safeReturn });
   setGithubStateCookie(res, installState, req);
 
-  const appSlug = await getSetting('github_app_slug') || 'docklift-app';
+  const appSlug = await getSetting('github_app_slug') || 'godhosting-app';
   return { installUrl: `https://github.com/apps/${appSlug}/installations/new` };
 }
 
@@ -1046,7 +1046,7 @@ async function githubRepoApiHeaders(
   let headers: Record<string, string> = {
     Accept: 'application/vnd.github+json',
     'X-GitHub-Api-Version': '2022-11-28',
-    'User-Agent': 'Docklift-App',
+    'User-Agent': 'GodHosting-App',
   };
 
   try {

@@ -186,7 +186,7 @@ function EmptyBlueprints({ canWrite, onAdd }: { canWrite: boolean; onAdd: () => 
       <p className="mt-2 text-[14px] text-foreground">No blueprints yet</p>
       <p className="mx-auto mt-1 max-w-[460px] text-[12px] leading-relaxed text-muted-foreground">
         Write a spec listing your services and databases — or point at a{" "}
-        <span className="font-mono text-[11px]">docklift.yaml</span> in a repository — and apply it
+        <span className="font-mono text-[11px]">godhosting.yaml</span> in a repository — and apply it
         to stand the whole stack up at once.
       </p>
       {canWrite ? (
@@ -764,7 +764,7 @@ function CreateDialog({
   const [spec, setSpec] = useState(exampleSpec);
   const [repoUrl, setRepoUrl] = useState("");
   const [branch, setBranch] = useState("");
-  const [specPath, setSpecPath] = useState("docklift.yaml");
+  const [specPath, setSpecPath] = useState("godhosting.yaml");
   const [checking, setChecking] = useState(false);
   const [check, setCheck] = useState<BlueprintValidation | null>(null);
   const [saving, setSaving] = useState(false);
@@ -778,7 +778,7 @@ function CreateDialog({
     setSpec(exampleSpec);
     setRepoUrl("");
     setBranch("");
-    setSpecPath("docklift.yaml");
+    setSpecPath("godhosting.yaml");
     setCheck(null);
   }, [open, exampleSpec, formats]);
 
@@ -819,7 +819,7 @@ function CreateDialog({
           : {
               repo_url: repoUrl.trim(),
               repo_branch: branch.trim() || undefined,
-              spec_path: specPath.trim() || "docklift.yaml",
+              spec_path: specPath.trim() || "godhosting.yaml",
             }),
       });
       toast.success(`${trimmedName} saved`);

@@ -48,7 +48,7 @@ function handleMaintenance(response: Response): void {
 export function getAuthHeaders(): HeadersInit {
   if (typeof window === "undefined") return {};
   
-  const token = localStorage.getItem("docklift_token");
+  const token = localStorage.getItem("godhosting_token");
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 

@@ -374,7 +374,7 @@ export function TerminalView({ className }: { className?: string }) {
     setConnecting(true);
 
     // Session JWT stays in Authorization — only a short-lived purpose=terminal token goes in the WS URL
-    const sessionToken = typeof window !== "undefined" ? localStorage.getItem("docklift_token") : null;
+    const sessionToken = typeof window !== "undefined" ? localStorage.getItem("godhosting_token") : null;
 
     if (!sessionToken) {
       term.writeln("  \x1b[1;31m✗ Not authenticated. Please log in first.\x1b[0m");
@@ -912,7 +912,7 @@ export function TerminalView({ className }: { className?: string }) {
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-3 py-1.5 sm:py-2">
           <div className="flex min-w-0 items-baseline gap-2">
             <span className="truncate font-mono text-xs text-foreground">
-              root@docklift
+              root@godhosting
             </span>
             <span className="text-muted-foreground/50">·</span>
             <span

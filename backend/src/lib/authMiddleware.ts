@@ -147,7 +147,7 @@ export const authMiddleware = async (req: AuthenticatedRequest, res: Response, n
     // Allow internal API calls with shared secret (for webhook auto-deploy)
     const internalSecret = req.headers['x-internal-secret'];
     if (internalSecret && internalSecret === INTERNAL_API_SECRET) {
-      req.user = { userId: 'internal', email: 'internal@docklift', role: 'admin' };
+      req.user = { userId: 'internal', email: 'internal@godhosting', role: 'admin' };
       return next();
     }
 

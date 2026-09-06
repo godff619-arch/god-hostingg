@@ -51,7 +51,7 @@ export function SystemLogsPanel({
       // Fetch short-lived SSE token — never put the session JWT in the URL
       let sseToken = "";
       try {
-        const mainToken = typeof window !== "undefined" ? localStorage.getItem("docklift_token") || "" : "";
+        const mainToken = typeof window !== "undefined" ? localStorage.getItem("godhosting_token") || "" : "";
         const tokenRes = await fetch(`${API_URL || ""}/api/auth/sse-token`, {
           method: "POST",
           headers: {
@@ -158,7 +158,7 @@ export function SystemLogsPanel({
   if (!isActive) return null;
 
   const title = label || service.charAt(0).toUpperCase() + service.slice(1);
-  const containerName = container || `docklift-${service}`;
+  const containerName = container || `godhosting-${service}`;
 
   return (
     <div className={cn("min-h-0", className)}>

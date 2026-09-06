@@ -51,7 +51,7 @@ export interface Deployment {
   trigger?: string;
   commit_message?: string;
   commit_sha?: string | null;
-  /** Map of service name → docklift image tag; required for Restore previous */
+  /** Map of service name → God Hosting image tag; required for Restore previous */
   image_tags?: Record<string, string> | null;
   logs: string;
   created_at: string;

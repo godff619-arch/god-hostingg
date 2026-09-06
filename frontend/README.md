@@ -1,4 +1,4 @@
-# DockLift frontend
+# God Hosting frontend
 
 Vite + React + React Router dashboard.
 
@@ -25,5 +25,5 @@ bun run preview
 
 ## Production
 
-Built into the `docklift-frontend` image (static nginx on port 3000).  
+Built into the `godhosting-frontend` image (static nginx on port 3000).  
 Gateway `nginx.conf` on `:8080` proxies `/` → frontend and keeps `/api` + `/ws` + SSE rules.

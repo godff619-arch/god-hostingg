@@ -1,6 +1,6 @@
 // Blueprints API — Part A → Blueprints.
 //
-// A blueprint is infrastructure-as-code for a workspace: a `docklift.yaml`-shaped
+// A blueprint is infrastructure-as-code for a workspace: a `godhosting.yaml`-shaped
 // spec that, when applied, creates the real services and managed databases it
 // declares in a project group + environment the caller picks. It is not a
 // template gallery — every apply goes through the same creation paths (and the

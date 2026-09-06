@@ -1,5 +1,5 @@
 // Browser origin trust checks shared by the CORS layer and the terminal WebSocket handshake.
-// DockLift publishes user apps on the host port pool (5500-5600), so a same-hostname check
+// God Hosting publishes user apps on the host port pool (5500-5600), so a same-hostname check
 // is not enough: the port is what separates the dashboard from untrusted deployed apps.
 import type { IncomingHttpHeaders } from 'http';
 

@@ -29,7 +29,7 @@ import { isProjectGroupId, useProjectNav } from "@/lib/hierarchy";
 import { API_URL, cn } from "@/lib/utils";
 import { hasAdminAccess, isFullAdmin } from "@/lib/roles";
 
-const PROMO_KEY = "docklift_promo_workflows_dismissed";
+const PROMO_KEY = "godhosting_promo_workflows_dismissed";
 
 export function Sidebar({ variant = "desktop" }: { variant?: "desktop" | "mobile" }) {
   const { pathname } = useLocation();

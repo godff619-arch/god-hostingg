@@ -7,7 +7,7 @@ import {
 
 describe("normalizeDomainInput", () => {
   test("strips https and trailing slash only", () => {
-    expect(normalizeDomainInput("https://docklift.dev/").value).toBe("docklift.dev");
+    expect(normalizeDomainInput("https://godhosting.dev/").value).toBe("godhosting.dev");
     expect(normalizeDomainInput("https://chandralight.co.uk/").value).toBe(
       "chandralight.co.uk",
     );
@@ -31,7 +31,7 @@ describe("normalizeDomainInput", () => {
 
 describe("displayHostnameFromInput", () => {
   test("rewrites pasted URLs to bare host", () => {
-    expect(displayHostnameFromInput("https://docklift.dev/")).toBe("docklift.dev");
+    expect(displayHostnameFromInput("https://godhosting.dev/")).toBe("godhosting.dev");
     expect(displayHostnameFromInput("https://www.chandralight.co.uk/")).toBe(
       "www.chandralight.co.uk",
     );

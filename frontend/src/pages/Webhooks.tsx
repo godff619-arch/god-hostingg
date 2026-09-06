@@ -455,7 +455,7 @@ function CreateWebhookDialog({
             <DialogHeader>
               <DialogTitle>New webhook</DialogTitle>
               <DialogDescription>
-                Docklift POSTs a signed JSON body to your endpoint for each selected event.
+                God Hosting POSTs a signed JSON body to your endpoint for each selected event.
               </DialogDescription>
             </DialogHeader>
             <div className="mt-4 space-y-3">
@@ -479,7 +479,7 @@ function CreateWebhookDialog({
                 <Input
                   id="wh-url"
                   value={url}
-                  placeholder="https://example.com/hooks/docklift"
+                  placeholder="https://example.com/hooks/godhosting"
                   onChange={(e) => setUrl(e.target.value)}
                 />
                 {url && !url.trim().startsWith("https://") ? (

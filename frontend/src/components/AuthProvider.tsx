@@ -66,8 +66,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Initialize auth state from localStorage
   useEffect(() => {
     const initAuth = async () => {
-      const storedToken = localStorage.getItem("docklift_token");
-      const storedUser = localStorage.getItem("docklift_user");
+      const storedToken = localStorage.getItem("godhosting_token");
+      const storedUser = localStorage.getItem("godhosting_user");
 
       if (storedToken && storedUser) {
         // Set token immediately to prevent flicker
@@ -89,8 +89,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser(data.user);
           } else {
             // Token invalid, clear storage
-            localStorage.removeItem("docklift_token");
-            localStorage.removeItem("docklift_user");
+            localStorage.removeItem("godhosting_token");
+            localStorage.removeItem("godhosting_user");
             setToken(null);
             setUser(null);
           }
@@ -144,20 +144,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [initialCheckDone, token, isAuthRoute, isPublicRoute, pathname, navigate]);
 
   const login = (newToken: string, newUser: User) => {
-    localStorage.setItem("docklift_token", newToken);
-    localStorage.setItem("docklift_user", JSON.stringify(newUser));
+    localStorage.setItem("godhosting_token", newToken);
+    localStorage.setItem("godhosting_user", JSON.stringify(newUser));
     setToken(newToken);
     setUser(newUser);
   };
 
   const updateUser = (newUser: User) => {
-    localStorage.setItem("docklift_user", JSON.stringify(newUser));
+    localStorage.setItem("godhosting_user", JSON.stringify(newUser));
     setUser(newUser);
   };
 
   const logout = useCallback(() => {
-    localStorage.removeItem("docklift_token");
-    localStorage.removeItem("docklift_user");
+    localStorage.removeItem("godhosting_token");
+    localStorage.removeItem("godhosting_user");
     setToken(null);
     setUser(null);
     // Drop the cached admin profile: without this, the next operator to sign in
