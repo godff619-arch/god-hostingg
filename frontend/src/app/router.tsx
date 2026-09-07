@@ -5,6 +5,7 @@ import { AdminShell } from "./AdminShell";
 import { ProtectedLayout } from "./ProtectedLayout";
 import { AdminGuard } from "./AdminGuard";
 import { useAuth } from "@/components/AuthProvider";
+import RouteErrorBoundary from "@/components/RouteErrorBoundary";
 
 function Root() {
   return (
@@ -38,6 +39,7 @@ export const router = createBrowserRouter([
   {
     path: "/",
     element: <Root />,
+    errorElement: <RouteErrorBoundary />,
     children: [
       {
         // The public front door (pages/Landing.tsx). Outside <AppShell /> on
