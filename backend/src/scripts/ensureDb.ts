@@ -62,6 +62,13 @@ export async function repairLegacySchema(): Promise<void> {
     console.log('[ensureDb] Added projects.db_engine');
   }
 
+  for (const col of ['build_command', 'start_command', 'runtime_hint']) {
+    if (!(await columnExists('projects', col))) {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "projects" ADD COLUMN "${col}" TEXT`);
+      console.log(`[ensureDb] Added projects.${col}`);
+    }
+  }
+
   if (!(await tableExists('database_links'))) {
     await prisma.$executeRawUnsafe(`
       CREATE TABLE "database_links" (

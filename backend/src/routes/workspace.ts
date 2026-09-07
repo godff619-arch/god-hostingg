@@ -342,7 +342,11 @@ router.get('/projects', async (req: AuthenticatedRequest, res: Response) => {
         // card never reports "up" for a container that has since died.
         let status = resource.status;
         if (resource.container_name && status !== 'building') {
-          status = await syncProjectStatusFromContainers(resource.id);
+          try {
+            status = await syncProjectStatusFromContainers(resource.id);
+          } catch {
+            // Docker unreachable — use persisted status
+          }
         }
         states.push(resourceState(status));
         const deployedAt = lastDeployByResource.get(resource.id) ?? null;
@@ -487,7 +491,11 @@ router.get('/projects/:id', async (req: AuthenticatedRequest, res: Response) => 
     for (const resource of resources) {
       let status = resource.status;
       if (resource.container_name && status !== 'building') {
-        status = await syncProjectStatusFromContainers(resource.id);
+        try {
+          status = await syncProjectStatusFromContainers(resource.id);
+        } catch (syncErr) {
+          console.warn(`[workspace] container status sync failed for ${resource.id}:`, syncErr);
+        }
       }
       const last = resource.deployments[0];
       rows.push({
